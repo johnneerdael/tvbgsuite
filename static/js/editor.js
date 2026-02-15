@@ -524,6 +524,20 @@ function setTextAlignment(align) {
     }
 }
 
+function updateTagPadding() {
+    const val = document.getElementById('tagPaddingInput').value;
+    document.getElementById('tagPaddingVal').innerText = val + "px";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
+function updateLineSpacing() {
+    const val = document.getElementById('lineSpacingInput').value;
+    document.getElementById('lineSpacingVal').innerText = val + "px";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
 function toggleMatchHeight() {
     const activeObj = canvas.getActiveObject();
     if (activeObj && activeObj.type === 'image') {
@@ -1451,8 +1465,10 @@ function updateVerticalLayout(skipRender = false) {
     }
 
     document.fonts.ready.then(() => {
-        const padding = 20; // This is the minimum vertical distance
-        const hPadding = 20; // Horizontal spacing between tags
+        const lineSpacingInput = document.getElementById('lineSpacingInput');
+        const padding = lineSpacingInput ? parseInt(lineSpacingInput.value) : 20;
+        const tagPaddingInput = document.getElementById('tagPaddingInput');
+        const hPadding = tagPaddingInput ? parseInt(tagPaddingInput.value) : 20;
         const rowThreshold = 30; // How close elements must be to be considered in the same row
         
         const marginTop = parseInt(document.getElementById('marginTopInput').value) || 50;
@@ -2287,6 +2303,8 @@ function saveHistory(force = false) {
         fadeTop: document.getElementById('fadeTop').value,
         fadeBottom: document.getElementById('fadeBottom').value,
         tagAlignment: document.getElementById('tagAlignSelect').value,
+        tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+        lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -2454,6 +2472,22 @@ function applyCustomEffects(eff) {
     if(eff.fadeBottom) document.getElementById('fadeBottom').value = eff.fadeBottom;
     if(eff.tagAlignment) document.getElementById('tagAlignSelect').value = eff.tagAlignment;
     else if(eff.centerTags !== undefined) document.getElementById('tagAlignSelect').value = eff.centerTags ? 'center' : 'left';
+    if(eff.tagPadding) {
+        const el = document.getElementById('tagPaddingInput');
+        if(el) {
+            el.value = eff.tagPadding;
+            const valEl = document.getElementById('tagPaddingVal');
+            if(valEl) valEl.innerText = eff.tagPadding + "px";
+        }
+    }
+    if(eff.lineSpacing) {
+        const el = document.getElementById('lineSpacingInput');
+        if(el) {
+            el.value = eff.lineSpacing;
+            const valEl = document.getElementById('lineSpacingVal');
+            if(valEl) valEl.innerText = eff.lineSpacing + "px";
+        }
+    }
     if(eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
     if(eff.limitGenres !== undefined) {
         const val = eff.limitGenres ? 2 : 6;
@@ -3469,6 +3503,8 @@ async function saveLayout() {
         fadeTop: document.getElementById('fadeTop').value,
         fadeBottom: document.getElementById('fadeBottom').value,
         tagAlignment: document.getElementById('tagAlignSelect').value,
+        tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+        lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -3756,6 +3792,8 @@ function saveToLocalStorage() {
         fadeTop: document.getElementById('fadeTop').value,
         fadeBottom: document.getElementById('fadeBottom').value,
         tagAlignment: document.getElementById('tagAlignSelect').value,
+        tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+        lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,

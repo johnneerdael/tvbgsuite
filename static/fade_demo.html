@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { background: #111; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .app-container { max-width: 1200px; width: 100%; display: flex; flex-direction: column; align-items: center; }
+        canvas { 
+            border: 1px solid #333; 
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+            background: #000;
+            display: block;
+            margin-bottom: 20px;
+            max-width: 100%;
+            border-radius: 4px;
+        }
+        .main-ui { display: grid; grid-template-columns: 320px 1fr; gap: 20px; width: 100%; }
+        .sidebar { background: #222; padding: 20px; border-radius: 8px; border: 1px solid #333; display: flex; flex-direction: column; gap: 12px; }
+        .control-group { display: flex; flex-direction: column; gap: 6px; }
+        .slider-row { display: grid; grid-template-columns: 1fr 40px; gap: 10px; align-items: center; }
+        label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; font-weight: bold; }
+        select, input[type="text"] { padding: 8px; background: #333; color: white; border: 1px solid #444; border-radius: 4px; font-size: 13px; }
+        input[type="range"] { flex: 1; accent-color: #007bff; }
+        .val-display { font-size: 11px; color: #007bff; font-family: monospace; text-align: right; }
+        .section-title { font-size: 11px; color: #fff; border-bottom: 1px solid #333; padding-bottom: 5px; margin-bottom: 5px; margin-top: 10px; text-transform: uppercase; opacity: 0.6; }
+        .info-panel { margin-top: 20px; color: #888; font-size: 12px; line-height: 1.5; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; }
+        h2 { margin: 0 0 20px 0; font-weight: 300; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <h2>ULTIMATE EDGE-BLEND SIMULATOR</h2>
+        
+        <div class="main-ui">
+            <div class="sidebar">
+                <div class="control-group">
+                    <label>Source Image</label>
+                    <select id="imageSelect" onchange="loadImage()">
+                        <option value="/get_local_background">Default Background</option>
+                        <option value="/api/proxy/image?url=https://image.tmdb.org/t/p/original/5XNQBqnBwPA9yT0jZ0p3s8bbLh0.jpg">Interstellar</option>
+                        <option value="/api/proxy/image?url=https://image.tmdb.org/t/p/original/6fA9nie4ROlkyZAUlgKNjGNCbHG.jpg">The Dark Knight</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Technique</label>
+                    <select id="fadeMode" onchange="render()">
+                        <option value="mask">1. Smooth Alpha Mask</option>
+                        <option value="soft_round">2. Gaussian Blurred Mask</option>
+                        <option value="gradient">3. Linear Erasers</option>
+                        <option value="vignette">4. Elliptical Vignette</option>
+                    </select>
+                </div>
+
+                <div class="section-title">Fade Widths (px)</div>
+                <div class="control-group">
+                    <label>Top</label>
+                    <div class="slider-row">
+                        <input type="range" id="sizeTop" min="0" max="400" value="100" oninput="updateVals()">
+                        <span class="val-display" id="valTop">100</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Right</label>
+                    <div class="slider-row">
+                        <input type="range" id="sizeRight" min="0" max="400" value="100" oninput="updateVals()">
+                        <span class="val-display" id="valRight">100</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Bottom</label>
+                    <div class="slider-row">
+                        <input type="range" id="sizeBottom" min="0" max="400" value="100" oninput="updateVals()">
+                        <span class="val-display" id="valBottom">100</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Left</label>
+                    <div class="slider-row">
+                        <input type="range" id="sizeLeft" min="0" max="400" value="100" oninput="updateVals()">
+                        <span class="val-display" id="valLeft">100</span>
+                    </div>
+                </div>
+
+                <div class="section-title">Curvature & Background</div>
+                <div class="control-group">
+                    <label>Corner Radius</label>
+                    <div class="slider-row">
+                        <input type="range" id="cornerRadius" min="0" max="250" value="80" oninput="updateVals()">
+                        <span class="val-display" id="valRadius">80</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Corner Softness (Feather)</label>
+                    <div class="slider-row">
+                        <input type="range" id="cornerSoft" min="0" max="150" value="40" oninput="updateVals()">
+                        <span class="val-display" id="valCSoft">40</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Ambilight Intensity</label>
+                    <div class="slider-row">
+                        <input type="range" id="ambiStrength" min="0" max="100" value="60" oninput="render()">
+                        <span class="val-display" id="valAmbi">60%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="canvas-area">
+                <canvas id="mainCanvas" width="860" height="540"></canvas>
+                
+                <div class="info-panel">
+                    <b>Corner Softness (Feather):</b> Bestimmt, wie weich die abgerundeten Ecken sind. <br><br>
+                    <b>Technik:</b> Nutzt eine separate geblurte Maske für die Ecken, die unabhängig von den Seiten-Fades gesteuert werden kann. Dadurch erreichen Sie einen "fluffigen" runden Look über einem eckigen Backdrop.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <img id="sourceImage" style="display:none;" crossOrigin="anonymous">
+
+    <script>
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const sourceImg = document.getElementById('sourceImage');
+        let imgLoaded = false;
+
+        function updateVals() {
+            document.getElementById('valTop').innerText = document.getElementById('sizeTop').value;
+            document.getElementById('valRight').innerText = document.getElementById('sizeRight').value;
+            document.getElementById('valBottom').innerText = document.getElementById('sizeBottom').value;
+            document.getElementById('valLeft').innerText = document.getElementById('sizeLeft').value;
+            document.getElementById('valRadius').innerText = document.getElementById('cornerRadius').value;
+            document.getElementById('valCSoft').innerText = document.getElementById('cornerSoft').value;
+            document.getElementById('valAmbi').innerText = document.getElementById('ambiStrength').value + "%";
+            render();
+        }
+
+        function loadImage() {
+            imgLoaded = false;
+            sourceImg.src = document.getElementById('imageSelect').value;
+            sourceImg.onload = () => {
+                imgLoaded = true;
+                render();
+            };
+        }
+
+        function drawAmbilight() {
+            const strength = parseInt(document.getElementById('ambiStrength').value) / 100;
+            ctx.save();
+            ctx.filter = `blur(60px) brightness(${0.3 + strength * 0.5})`;
+            ctx.drawImage(sourceImg, -150, -150, canvas.width + 300, canvas.height + 300);
+            ctx.restore();
+        }
+
+        function drawRoundedPath(c, rx, ry, rw, rh, rad) {
+            c.beginPath();
+            c.moveTo(rx + rad, ry);
+            c.lineTo(rx + rw - rad, ry);
+            c.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rad);
+            c.lineTo(rx + rw, ry + rh - rad);
+            c.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rad, ry + rh);
+            c.lineTo(rx + rad, ry + rh);
+            c.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rad);
+            c.lineTo(rx, ry + rad);
+            c.quadraticCurveTo(rx, ry, rx + rad, ry);
+            c.closePath();
+        }
+
+        function render() {
+            if (!imgLoaded) return;
+            const w = canvas.width;
+            const h = canvas.height;
+            const mode = document.getElementById('fadeMode').value;
+            const sT = parseInt(document.getElementById('sizeTop').value);
+            const sR = parseInt(document.getElementById('sizeRight').value);
+            const sB = parseInt(document.getElementById('sizeBottom').value);
+            const sL = parseInt(document.getElementById('sizeLeft').value);
+            const radius = parseInt(document.getElementById('cornerRadius').value);
+            const cSoft = parseInt(document.getElementById('cornerSoft').value);
+
+            ctx.clearRect(0, 0, w, h);
+            drawAmbilight();
+
+            const buffer = document.createElement('canvas');
+            buffer.width = w;
+            buffer.height = h;
+            const bctx = buffer.getContext('2d');
+
+            const imgAspect = sourceImg.width / sourceImg.height;
+            const targetW = w * 0.7;
+            const targetH = targetW / imgAspect;
+            const x = (w - targetW) / 2;
+            const y = (h - targetH) / 2;
+
+            // 1. Draw image into buffer with optional feathered rounding
+            bctx.save();
+            if (radius > 0 && cSoft > 0) {
+                // Feathered rounding mask
+                const cMask = document.createElement('canvas');
+                cMask.width = w; cMask.height = h;
+                const cmctx = cMask.getContext('2d');
+                cmctx.filter = `blur(${cSoft/2}px)`;
+                cmctx.fillStyle = 'black';
+                const inset = cSoft/2;
+                drawRoundedPath(cmctx, x + inset, y + inset, targetW - inset*2, targetH - inset*2, Math.max(0, radius - inset));
+                cmctx.fill();
+
+                bctx.drawImage(sourceImg, x, y, targetW, targetH);
+                bctx.globalCompositeOperation = 'destination-in';
+                bctx.drawImage(cMask, 0, 0);
+            } else if (radius > 0) {
+                // Sharp rounding clip
+                drawRoundedPath(bctx, x, y, targetW, targetH, radius);
+                bctx.clip();
+                bctx.drawImage(sourceImg, x, y, targetW, targetH);
+            } else {
+                bctx.drawImage(sourceImg, x, y, targetW, targetH);
+            }
+            bctx.restore();
+
+            // 2. Apply Additional Fade Effects to buffer
+            if (mode === 'soft_round') {
+                const maskCanvas = document.createElement('canvas');
+                maskCanvas.width = w; maskCanvas.height = h;
+                const mctx = maskCanvas.getContext('2d');
+                const softness = (sT + sR + sB + sL) / 4;
+                mctx.fillStyle = 'black';
+                mctx.filter = `blur(${softness/2}px)`;
+                const inset = softness/2;
+                drawRoundedPath(mctx, x + inset, y + inset, targetW - inset*2, targetH - inset*2, Math.max(0, radius - inset));
+                mctx.fill();
+
+                bctx.globalCompositeOperation = 'destination-in';
+                bctx.drawImage(maskCanvas, 0, 0);
+
+            } else if (mode === 'mask') {
+                bctx.globalCompositeOperation = 'destination-in';
+                const gV = bctx.createLinearGradient(0, y - 2, 0, y + targetH + 2);
+                const stopT = Math.min(0.5, (sT+2) / (targetH+4));
+                const stopB = Math.min(0.5, (sB+2) / (targetH+4));
+                gV.addColorStop(0, 'rgba(0,0,0,0)');
+                gV.addColorStop(stopT, 'rgba(0,0,0,1)');
+                gV.addColorStop(1 - stopB, 'rgba(0,0,0,1)');
+                gV.addColorStop(1, 'rgba(0,0,0,0)');
+                bctx.fillStyle = gV; bctx.fillRect(x - 2, y - 2, targetW + 4, targetH + 4);
+
+                const gH = bctx.createLinearGradient(x - 2, 0, x + targetW + 2, 0);
+                const stopL = Math.min(0.5, (sL+2) / (targetW+4));
+                const stopR = Math.min(0.5, (sR+2) / (targetW+4));
+                gH.addColorStop(0, 'rgba(0,0,0,0)');
+                gH.addColorStop(stopL, 'rgba(0,0,0,1)');
+                gH.addColorStop(1 - stopR, 'rgba(0,0,0,1)');
+                gH.addColorStop(1, 'rgba(0,0,0,0)');
+                bctx.fillStyle = gH; bctx.fillRect(x - 2, y - 2, targetW + 4, targetH + 4);
+
+            } else if (mode === 'gradient') {
+                bctx.globalCompositeOperation = 'destination-out';
+                const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
+                if (sL > 0) { const g = bctx.createLinearGradient(x-2, 0, x+sL, 0); addStops(g); bctx.fillStyle = g; bctx.fillRect(x-2, y-2, sL+2, targetH+4); }
+                if (sR > 0) { const g = bctx.createLinearGradient(x+targetW+2, 0, x+targetW-sR, 0); addStops(g); bctx.fillStyle = g; bctx.fillRect(x+targetW-sR, y-2, sR+2, targetH+4); }
+                if (sT > 0) { const g = bctx.createLinearGradient(0, y-2, 0, y+sT); addStops(g); bctx.fillStyle = g; bctx.fillRect(x-2, y-2, targetW+4, sT+2); }
+                if (sB > 0) { const g = bctx.createLinearGradient(0, y+targetH+2, 0, y+targetH-sB); addStops(g); bctx.fillStyle = g; bctx.fillRect(x-2, y+targetH-sB, targetW+4, sB+2); }
+
+            } else if (mode === 'vignette') {
+                bctx.globalCompositeOperation = 'destination-in';
+                bctx.save();
+                bctx.translate(x + targetW/2, y + targetH/2);
+                bctx.scale(1, targetH/targetW);
+                const grad = bctx.createRadialGradient(0, 0, 0, 0, 0, targetW/2);
+                const stop = Math.max(0, 1 - (sL+sR+sT+sB)/400);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(stop, 'rgba(0,0,0,1)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                bctx.fillStyle = grad; bctx.beginPath(); bctx.arc(0, 0, targetW/2 + 2, 0, Math.PI*2); bctx.fill();
+                bctx.restore();
+            }
+
+            ctx.drawImage(buffer, 0, 0);
+        }
+
+        loadImage();
+    </script>
+</body>
+</html>

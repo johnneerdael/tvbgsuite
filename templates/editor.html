@@ -572,6 +572,16 @@
                         <option value="right">Right</option>
                         <option value="justify">Justify</option>
                     </select>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="tag_padding">Tag Padding</label>
+                        <span id="tagPaddingVal" style="font-size:11px;">20px</span>
+                    </div>
+                    <input type="range" id="tagPaddingInput" min="0" max="100" value="20" oninput="updateTagPadding()" style="margin-top:2px;">
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="line_spacing">Line Spacing</label>
+                        <span id="lineSpacingVal" style="font-size:11px;">20px</span>
+                    </div>
+                    <input type="range" id="lineSpacingInput" min="0" max="100" value="20" oninput="updateLineSpacing()" style="margin-top:2px;">
                     <div id="layerControlContainer" style="display:none; gap:5px; margin-top:10px;">
                         <button onclick="moveLayer('up')" style="flex:1; font-size:11px; padding:4px;">⬆ Bring Forward</button>
                         <button onclick="moveLayer('down')" style="flex:1; font-size:11px; padding:4px;">⬇ Send Backward</button>
@@ -661,6 +671,15 @@
                     <select id="overlaySelect" onchange="updateOverlay()">
                         <option value="">None</option>
                     </select>
+                    
+                    <label data-i18n="bg_style">Background Style</label>
+                    <select id="bgStyleSelect" onchange="updateBgStyle()">
+                        <option value="solid" selected data-i18n="style_solid">Solid Color</option>
+                        <option value="gradient_h" data-i18n="style_gradient_h">Gradient (Horizontal)</option>
+                        <option value="gradient_v" data-i18n="style_gradient_v">Gradient (Vertical)</option>
+                        <option value="ambilight" data-i18n="style_ambilight">Ambilight (Blur Extension)</option>
+                    </select>
+
                     <label data-i18n="bg_color">Background Color</label>
                     <div style="display:flex; gap:5px; align-items:center;">
                         <input type="color" id="bgColor" oninput="updateBgColor()" value="#000000" style="height:35px; width:60px;">
