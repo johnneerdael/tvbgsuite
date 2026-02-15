@@ -93,6 +93,21 @@ function extractFontsFromJSON(data) {
         );
         this._removeShadow(ctx);
     };
+
+    // Patch Image to render background covering padding
+    fabric.Image.prototype._renderBackground = function(ctx) {
+        if (!this.backgroundColor) return;
+        var dim = this._getNonTransformedDimensions();
+        ctx.fillStyle = this.backgroundColor;
+        const pad = this.padding || 0;
+        ctx.fillRect(
+            -dim.x / 2 - pad,
+            -dim.y / 2 - pad,
+            dim.x + pad * 2,
+            dim.y + pad * 2
+        );
+        this._removeShadow(ctx);
+    };
 })();
 
 let canvas, mainBg = null;
@@ -215,7 +230,7 @@ function updateSelectionUI(e) {
     const genreControl = document.getElementById('genreLimitControl');
     
     // Hide all initially
-    textPanel.style.display = 'none';
+    if (textPanel) textPanel.style.display = 'none';
     if (iconPanel) iconPanel.style.display = 'none';
     if (logoSettings) logoSettings.style.display = 'none';
 
@@ -250,7 +265,6 @@ function updateSelectionUI(e) {
 
     if (activeObj === mainBg) {
         expandGroup('group-canvas');
-        expandGroup('group-effects');
     } else if (activeObj && (activeObj.type === 'image' && (activeObj.dataTag === 'icon' || activeObj.dataTag === 'certification' || activeObj.dataTag === 'title'))) {
         expandGroup('group-logos');
     }
@@ -299,8 +313,10 @@ function updateSelectionUI(e) {
             }
         }
     } else if (activeObj.type === 'i-text' || activeObj.type === 'textbox' || (activeObj.type === 'group' && (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating')) || activeObj.dataTag === 'title') {
-        textPanel.style.display = 'block';
-        expandGroup('group-text');
+        if (textPanel) {
+            textPanel.style.display = 'block';
+            expandGroup('group-text');
+        }
         
         let textObj = activeObj;
         if (activeObj.type === 'group') textObj = activeObj.getObjects().find(o => o.type === 'i-text');
@@ -371,7 +387,12 @@ function updateSelectionUI(e) {
         
         if (activeObj.type === 'textbox') {
             alignControl.style.display = 'block';
-            if (bgControl) {
+        } else {
+            alignControl.style.display = 'none';
+        }
+
+        if (bgControl) {
+            if (activeObj.type === 'textbox' || activeObj.type === 'i-text' || activeObj.type === 'image') {
                 bgControl.style.display = 'block';
                 const hasBg = !!activeObj.backgroundColor;
                 document.getElementById('textBgEnable').checked = hasBg;
@@ -392,10 +413,9 @@ function updateSelectionUI(e) {
                         document.getElementById('textBgOpacityVal').innerText = opacity + "%";
                     }
                 }
+            } else {
+                bgControl.style.display = 'none';
             }
-        } else {
-            alignControl.style.display = 'none';
-            if (bgControl) bgControl.style.display = 'none';
         }
 
         if (genreControl) {
@@ -561,6 +581,9 @@ function toggleMatchHeight() {
     if (activeObj && activeObj.type === 'image') {
         activeObj.matchHeight = document.getElementById('matchHeightToggle').checked;
         document.getElementById('iconSizeInput').disabled = activeObj.matchHeight;
+        if(document.getElementById('ribbonIconSize')) document.getElementById('ribbonIconSize').disabled = activeObj.matchHeight;
+        if(document.getElementById('floatIconSize')) document.getElementById('floatIconSize').disabled = activeObj.matchHeight;
+        
         updateVerticalLayout();
         canvas.requestRenderAll();
         saveToLocalStorage();
@@ -610,13 +633,6 @@ function moveLayer(direction) {
     saveToLocalStorage();
 }
 
-function toggleTextBackground() {
-    const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj.type === 'textbox') {
-        saveToLocalStorage();
-    }
-}
-
 function updateTextStroke() {
     const activeObj = canvas.getActiveObject();
     if (activeObj) {
@@ -662,7 +678,7 @@ function resetTextShadow() {
 
 function toggleTextBackground() {
     const activeObj = canvas.getActiveObject();
-    if (activeObj && activeObj.type === 'textbox') {
+    if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'image' || activeObj.type === 'i-text')) {
         const enabled = document.getElementById('textBgEnable').checked;
         document.getElementById('textBgSettings').style.display = enabled ? 'block' : 'none';
         if (enabled) {
@@ -686,7 +702,7 @@ function toggleTextBackground() {
 
 function updateTextBackgroundSettings() {
     const activeObj = canvas.getActiveObject();
-    if (!activeObj || activeObj.type !== 'textbox') return;
+    if (!activeObj || (activeObj.type !== 'textbox' && activeObj.type !== 'image' && activeObj.type !== 'i-text')) return;
     
     const isAuto = document.getElementById('textBgAuto').checked;
     const opacity = parseInt(document.getElementById('textBgOpacity').value) / 100;
@@ -939,12 +955,9 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
 
                             if (ratio < 0.65) {
                                 allowedHeight = baseMaxH * 0.50;
-                                console.log(`Logo-Type: EXTREMELY TALL (Ratio: ${ratio.toFixed(2)}). Height halved.`);
                             } else if (ratio < 1.2) {
                                 allowedHeight = baseMaxH * 0.75;
-                                console.log(`Logo-Type: SQUARE/COMPACT (Ratio: ${ratio.toFixed(2)}). Height reduced.`);
                             } else {
-                                console.log(`Logo-Type: WIDESCREEN (Ratio: ${ratio.toFixed(2)}). Full size.`);
                             }
 
                             let scale;
@@ -989,12 +1002,9 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
 
                                     if (ratio < 0.65) {
                                         allowedHeight = baseMaxH * 0.50;
-                                        console.log(`Logo-Type: EXTREMELY TALL (Ratio: ${ratio.toFixed(2)}). Height halved.`);
                                     } else if (ratio < 1.2) {
                                         allowedHeight = baseMaxH * 0.75;
-                                        console.log(`Logo-Type: SQUARE/COMPACT (Ratio: ${ratio.toFixed(2)}). Height reduced.`);
                                     } else {
-                                        console.log(`Logo-Type: WIDESCREEN (Ratio: ${ratio.toFixed(2)}). Full size.`);
                                     }
 
                                     let scale;
@@ -1357,18 +1367,15 @@ function addLogo(url) {
             // CASE: Extremely Tall (like "November")
             // Allow only 50% of normal height, otherwise it looks huge.
             allowedHeight = baseMaxH * 0.50;
-            console.log(`Logo-Type: EXTREMELY TALL (Ratio: ${ratio.toFixed(2)}). Height halved.`);
         } 
         else if (ratio < 1.2) {
             // CASE: Square or compact
             // Allow 75% of normal height.
             allowedHeight = baseMaxH * 0.75;
-            console.log(`Logo-Type: SQUARE/COMPACT (Ratio: ${ratio.toFixed(2)}). Height reduced.`);
         } 
         else {
             // CASE: Normal Wide Logo
             // Can use full height.
-            console.log(`Logo-Type: WIDESCREEN (Ratio: ${ratio.toFixed(2)}). Full size.`);
         }
 
         // 4. Calculate final scale factor
@@ -3665,7 +3672,7 @@ function updateBgColor(skipRender = false) {
     
     const bgColorHex = document.getElementById('bgColor').value;
     canvas.getObjects().forEach(obj => {
-        if (obj.type === 'textbox' && obj.autoBackgroundColor && obj.backgroundColor) {
+        if ((obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'image') && obj.autoBackgroundColor && obj.backgroundColor) {
             const c = new fabric.Color(obj.backgroundColor);
             const currentOpacity = c.getSource()[3];
             const rgb = new fabric.Color(bgColorHex).getSource();
@@ -4357,6 +4364,20 @@ function toggleTitleType() {
         return;
     }
 
+    // Helper to calculate new left position based on alignment to prevent wandering
+    const getNewLeft = (newWidth) => {
+        const align = document.getElementById('tagAlignSelect').value;
+        const oldWidth = activeObj.getScaledWidth();
+        const oldLeft = activeObj.left;
+        
+        if (align === 'center') {
+            return oldLeft + (oldWidth - newWidth) / 2;
+        } else if (align === 'right') {
+            return oldLeft + (oldWidth - newWidth);
+        }
+        return oldLeft;
+    };
+
     if (activeObj.type === 'image') {
         // Switch to Text
         const title = lastFetchedData.title || "Title";
@@ -4371,12 +4392,17 @@ function toggleTitleType() {
             fill: 'white', 
             shadow: '2px 2px 10px rgba(0,0,0,0.8)', 
             dataTag: 'title', 
-            editable: false 
+            editable: false,
+            logoAutoFix: activeObj.logoAutoFix
         });
         
+        // Adjust position based on alignment
+        newText.set('left', getNewLeft(newText.getScaledWidth()));
+
         canvas.remove(activeObj);
         canvas.add(newText);
         canvas.setActiveObject(newText);
+        canvas.fire('selection:created'); // Force UI update for Popup
         updateVerticalLayout();
         saveToLocalStorage();
     } else {
@@ -4386,7 +4412,14 @@ function toggleTitleType() {
             return;
         }
         
-        const proxiedLogo = `/api/proxy/image?url=${encodeURIComponent(lastFetchedData.logo_url)}`;
+        // Determine Auto-Fix state (Default to true if undefined)
+        const autoFixState = (activeObj.logoAutoFix !== undefined) ? activeObj.logoAutoFix : true;
+
+        let proxiedLogo = `/api/proxy/image?url=${encodeURIComponent(lastFetchedData.logo_url)}`;
+        if (!autoFixState) {
+            proxiedLogo += "&raw=true";
+        }
+
         fabric.Image.fromURL(proxiedLogo, function(img, isError) {
             if (isError || !img) return;
             
@@ -4401,12 +4434,16 @@ function toggleTitleType() {
             
             let scale = Math.min(baseMaxW / img.width, allowedHeight / img.height) * 0.9;
             
-            img.set({ left: activeObj.left, top: activeObj.top, dataTag: 'title' });
             img.scale(scale);
+            
+            // Adjust position based on alignment
+            const newLeft = getNewLeft(img.getScaledWidth());
+            img.set({ left: newLeft, top: activeObj.top, dataTag: 'title', logoAutoFix: autoFixState });
             
             canvas.remove(activeObj);
             canvas.add(img);
             canvas.setActiveObject(img);
+            canvas.fire('selection:created'); // Force UI update for Popup
             updateVerticalLayout();
             saveToLocalStorage();
         }, { crossOrigin: 'anonymous' });

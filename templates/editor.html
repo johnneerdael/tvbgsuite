@@ -506,6 +506,103 @@
         body.mobile-menu-open #mobileOverlay {
             display: block;
         }
+
+        /* --- OPTION 1: FLOATING PROPERTY PANEL --- */
+        #propertyPanel {
+            display: none; /* Hidden by default */
+            position: absolute;
+            top: 150px;
+            left: 450px;
+            width: 260px;
+            background: rgba(20, 20, 20, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 2000;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #propertyPanel input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            vertical-align: middle;
+        }
+        .panel-group {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .panel-header {
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: move;
+            font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #ccc;
+        }
+        .panel-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .panel-row { display: flex; align-items: center; gap: 8px; }
+        .panel-row label { font-size: 11px; color: #aaa; width: 40px; }
+        .panel-input { 
+            background: #333; border: 1px solid #444; color: white; 
+            padding: 4px; border-radius: 4px; font-size: 11px; flex: 1; 
+        }
+        .panel-btn {
+            background: #444; border: none; color: white; border-radius: 4px;
+            padding: 4px 8px; font-size: 11px; cursor: pointer;
+        }
+        .panel-btn:hover { background: #555; }
+        .panel-btn.active { background: #007bff; }
+
+        /* --- OPTION 3: RIBBON BAR (TOP TOOLBAR) --- */
+        #ribbonBar {
+            display: none; /* Hidden by default */
+            width: 100%;
+            background: rgba(26, 26, 26, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #444;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 10;
+            padding: 5px 20px;
+            box-sizing: border-box;
+            gap: 15px;
+            align-items: center;
+            height: 60px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        #ribbonBar::-webkit-scrollbar {
+            display: none;
+        }
+        .ribbon-group { 
+            display: flex; align-items: center; gap: 8px; 
+            border-right: 1px solid #333; padding-right: 15px; 
+        }
+        .ribbon-group:last-child { border-right: none; }
+        .ribbon-label { font-size: 9px; color: #666; text-transform: uppercase; margin-right: 5px; font-weight: bold; }
+        .ribbon-input {
+            background: #222; border: 1px solid #444; color: white;
+            padding: 4px; border-radius: 3px; font-size: 12px;
+        }
+
+        /* Helper to hide sidebar sections when in alternative modes */
+        body.mode-floating .sidebar .control-group,
+        body.mode-ribbon .sidebar .control-group {
+            /* Optional: opacity: 0.5; or display: none; if you want to enforce it */
+        }
+
+        /* Adjust canvas position when Ribbon is active to prevent overlap */
+        body.mode-ribbon #canvas-wrapper {
+            top: -20px !important;
+        }
     </style>
 </head>
 <body>
@@ -604,40 +701,6 @@
                 <h3 onclick="toggleGroup('group-logos')"><span class="group-arrow collapsed">▼</span> <span data-i18n="logos_icons">Logos & Icons</span></h3>
                 <div class="group-content collapsed">
                     <div id="customLogosSidebar" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;"></div>
-                    <div id="icon-properties" style="display:none; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;" title="Uncheck to enable manual positioning (Drag freely)">
-                            <input type="checkbox" id="snapToggleIcon" checked style="width:20px; height:20px; margin:0;" onchange="toggleObjectSnapping('icon')">
-                            <label for="snapToggleIcon" style="margin:0; cursor:pointer; font-size:11px;" data-i18n="auto_layout_snap">Auto-Layout & Snapping</label>
-                            <button id="resetSnapIcon" onclick="resetSnap('icon')" style="display:none; margin-left:auto; font-size:9px; padding:2px 6px; background:#4a4a4a; border:none; color:white; cursor:pointer; border-radius:3px;" data-i18n="reset">Reset</button>
-                        </div>
-                        <label for="iconSizeInput" data-i18n="icon_size">Icon Size</label>
-                        <input type="number" id="iconSizeInput" min="10" max="500" oninput="updateIconSize()">
-                        <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-                            <input type="checkbox" id="matchHeightToggle" onchange="toggleMatchHeight()" style="width:20px; height:20px; margin:0;">
-                            <label for="matchHeightToggle" style="margin:0; cursor:pointer; font-size:11px;" data-i18n="match_height">Match Height to Neighbor</label>
-                        </div>
-                    </div>
-                    <div id="logoSettings" style="display:none; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px;">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                            <input type="checkbox" id="logoAutoFixToggle" onchange="toggleLogoAutoFix()" style="width:20px; height:20px; margin:0;">
-                            <label for="logoAutoFixToggle" style="margin:0; cursor:pointer; font-size:11px;" data-i18n="logo_auto_fix">Auto-Fix Color</label>
-                        </div>
-                        <div style="margin-bottom: 10px;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <label data-i18n="logo_brightness" style="font-size:11px; margin:0;">Brightness</label>
-                                <span id="logoBrightnessVal" style="font-size:11px;">0%</span>
-                            </div>
-                            <input type="range" id="logoBrightnessInput" min="-100" max="100" value="0" oninput="updateLogoBrightness()" style="margin-top:2px;">
-                        </div>
-                        <div style="display:flex; align-items:center; justify-content:space-between;">
-                            <label data-i18n="logo_color" style="font-size:11px; margin:0;">Tint</label>
-                            <div style="display:flex; align-items:center; gap:5px;">
-                                <input type="color" id="logoColorInput" oninput="updateLogoColor()" value="#ffffff" style="height:30px; width:40px;">
-                                <button onclick="resetLogoColor()" style="font-size:9px; padding:2px 6px; background:#4a4a4a; border:none; color:white; cursor:pointer; border-radius:3px;" data-i18n="reset">Reset</button>
-                            </div>
-                        </div>
-                        <button onclick="toggleTitleType()" style="width:100%; margin-top:10px; background:#4a4a4a; font-size:11px; padding:5px;" data-i18n="use_text_title">Use Text Title</button>
-                    </div>
                 </div>
             </div>
 
@@ -660,7 +723,7 @@
             </div>
 
             <div class="control-group" id="group-canvas">
-                <h3 onclick="toggleGroup('group-canvas')"><span class="group-arrow collapsed">▼</span> <span data-i18n="canvas_settings">Canvas</span></h3>
+                <h3 onclick="toggleGroup('group-canvas')"><span class="group-arrow collapsed">▼</span> <span data-i18n="canvas_settings">Canvas & Background</span></h3>
                 <div class="group-content collapsed">
                     <label for="resSelect" data-i18n="resolution">Resolution</label>
                     <select id="resSelect" onchange="changeResolution()">
@@ -671,6 +734,8 @@
                     <select id="overlaySelect" onchange="updateOverlay()">
                         <option value="">None</option>
                     </select>
+                    
+                    <div style="margin: 15px 0 10px 0; border-top: 1px solid #333;"></div>
                     
                     <label data-i18n="bg_style">Background Style</label>
                     <select id="bgStyleSelect" onchange="toggleBackgroundMode(this.value)">
@@ -690,12 +755,11 @@
                     </div>
                     <input type="range" id="bgBrightness" min="0" max="100" value="20" oninput="adjustAutoBrightness()" style="margin-top:2px;">
                     <button onclick="mirrorBackground()" style="margin-top: 10px; background-color: #4a4a4a;" data-i18n="mirror_bg">↔️ Mirror Background</button>
-                </div>
-            </div>
+                    
+                    <div style="margin: 15px 0 10px 0; border-top: 1px solid #333; padding-top: 10px;">
+                        <label style="font-size: 12px; font-weight: bold; color: #ccc; margin-bottom: 8px; display: block;" data-i18n="bg_effects">Background Effects</label>
+                    </div>
 
-            <div class="control-group" id="group-effects">
-                <h3 onclick="toggleGroup('group-effects')"><span class="group-arrow collapsed">▼</span> <span data-i18n="bg_effects">Background Effects</span></h3>
-                <div class="group-content collapsed">
                     <label data-i18n="effect_type">Effect Type</label>
                     <select id="fadeEffect" onchange="updateFadeControls()">
                         <option value="custom">Custom Linear Fade</option>
@@ -723,114 +787,6 @@
                 </div>
             </div>
 
-            <div class="control-group" id="group-text" style="display:none;">
-                <h3 onclick="toggleGroup('group-text')"><span class="group-arrow collapsed">▼</span> <span data-i18n="text_props">Text Properties</span></h3>
-                <div class="group-content collapsed">
-                    <button id="btn-use-logo" onclick="toggleTitleType()" style="display:none; width:100%; margin-bottom:10px; background:#4a4a4a; font-size:11px; padding:5px;" data-i18n="use_logo">Use Logo</button>
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;" title="Uncheck to enable manual positioning (Drag freely)">
-                        <input type="checkbox" id="snapToggleText" checked style="width:20px; height:20px; margin:0;" onchange="toggleObjectSnapping('text')">
-                        <label for="snapToggleText" style="margin:0; cursor:pointer; font-size:12px;" data-i18n="auto_layout_snap">Auto-Layout & Snapping</label>
-                        <button id="resetSnapText" onclick="resetSnap('text')" style="display:none; margin-left:auto; font-size:9px; padding:2px 6px; background:#4a4a4a; border:none; color:white; cursor:pointer; border-radius:3px;" data-i18n="reset">Reset</button>
-                    </div>
-                    <label for="fontSizeInput" data-i18n="font_size">Font Size</label>
-                    <input type="number" id="fontSizeInput" min="10" max="200" oninput="updateSelectedFontSize()">
-                    <label for="fontFamilySelect" data-i18n="font_family">Font Family</label>
-                    <select id="fontFamilySelect" onchange="updateSelectedFontFamily()" class="form-control">
-                        {% for family in data.font_families %}
-                        <option value="{{ family }}" style="font-family: '{{ family }}';">{{ family }}</option>
-                        {% endfor %}
-                    </select>
-                    <div style="display:flex; gap:5px; margin-top:5px;">
-                        <button id="btn-bold" onclick="toggleBold()" style="flex:1; font-weight:bold;" title="Bold">B</button>
-                        <button id="btn-italic" onclick="toggleItalic()" style="flex:1; font-style:italic;" title="Italic">I</button>
-                    </div>
-                    <button onclick="applyFontToAll()" style="margin-top: 5px; font-size: 11px; background-color: #4a4a4a;" data-i18n="apply_font_all">Apply Font & Color to All Tags</button>
-                    <button onclick="applyFontSizeToAll()" style="margin-top: 5px; font-size: 11px; background-color: #4a4a4a;" data-i18n="apply_size_all">Apply Size to All Tags</button>
-                    
-                    <label data-i18n="fill_type">Fill Type</label>
-                    <div style="display:flex; gap:10px; margin-bottom:5px; align-items: center;">
-                        <input type="radio" id="fillTypeColor" name="fillType" value="color" checked onchange="toggleTextFillType()">
-                        <label for="fillTypeColor" style="margin:0; font-size:12px;" data-i18n="color">Color</label>
-                        <input type="radio" id="fillTypeTexture" name="fillType" value="texture" onchange="toggleTextFillType()">
-                        <label for="fillTypeTexture" style="margin:0; font-size:12px;" data-i18n="texture">Texture</label>
-                    </div>
-                    <div id="fillColorContainer">
-                        <label for="fontColorInput" data-i18n="text_color">Text Color</label>
-                        <input type="color" id="fontColorInput" oninput="updateSelectedColor()" style="height:35px;">
-                    </div>
-                    <div id="fillTextureContainer" style="display:none;">
-                        <label for="textureSelect" data-i18n="select_texture">Select Texture</label>
-                        <select id="textureSelect" onchange="applyTextureToSelection()" style="width:100%; padding:5px;"><option value="">None</option></select>
-                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                            <label style="font-size:10px; margin:0;" data-i18n="pattern_scale">Pattern Scale</label>
-                            <span id="textureScaleVal" style="font-size:10px;">1x</span>
-                        </div>
-                        <input type="range" id="textureScale" min="0.1" max="3" step="0.1" value="1" oninput="updateTextureScale()" style="margin-top:2px;">
-                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                            <label style="font-size:10px; margin:0;" data-i18n="pattern_rotation">Pattern Rotation</label>
-                            <span id="textureRotationVal" style="font-size:10px;">0°</span>
-                        </div>
-                        <input type="range" id="textureRotation" min="0" max="360" step="1" value="0" oninput="updateTextureRotation()" style="margin-top:2px;">
-                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                            <label style="font-size:10px; margin:0;" data-i18n="opacity">Opacity</label>
-                            <span id="textureOpacityVal" style="font-size:10px;">100%</span>
-                        </div>
-                        <input type="range" id="textureOpacity" min="0" max="100" value="100" oninput="updateTextureOpacity()" style="margin-top:2px;">
-                        <button onclick="resetTextureSettings()" style="margin-top: 10px; font-size: 11px; background-color: #4a4a4a; width: 100%;" data-i18n="reset_texture">Reset Texture Settings</button>
-                    </div>
-
-                    <div id="textAlignControl" style="display:none; margin-top:10px;">
-                        <label style="margin-bottom:5px;" data-i18n="text_align">Text Alignment</label>
-                        <div style="display:flex; gap:5px;">
-                            <button onclick="setTextAlignment('left')" style="flex:1;">Left</button>
-                            <button onclick="setTextAlignment('center')" style="flex:1;">Center</button>
-                            <button onclick="setTextAlignment('right')" style="flex:1;">Right</button>
-                        </div>
-                    </div>
-                    <div id="textBackgroundControl" style="display:none; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
-                            <input type="checkbox" id="textBgEnable" onchange="toggleTextBackground()" style="width:20px; height:20px; margin:0;">
-                            <label for="textBgEnable" style="margin:0; cursor:pointer; font-size:11px;" data-i18n="bg_box">Background Box</label>
-                        </div>
-                        <div id="textBgSettings" style="display:none;">
-                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px;">
-                                <input type="checkbox" id="textBgAuto" onchange="updateTextBackgroundSettings()" style="width:20px; height:20px; margin:0;">
-                                <label for="textBgAuto" style="margin:0; cursor:pointer; font-size:11px;" data-i18n="auto_color">Auto-Color (Match BG)</label>
-                            </div>
-                            <label for="textBgColor" data-i18n="box_color">Box Color</label>
-                            <input type="color" id="textBgColor" oninput="updateTextBackgroundSettings()" style="height:35px;">
-                            <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                                <label style="font-size:10px; margin:0;" data-i18n="opacity">Opacity</label>
-                                <span id="textBgOpacityVal" style="font-size:10px;">50%</span>
-                            </div>
-                            <input type="range" id="textBgOpacity" min="0" max="100" value="50" oninput="updateTextBackgroundSettings()" style="margin-top:2px;">
-                        </div>
-                    </div>
-                    <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
-                        <label style="font-size:12px; font-weight:bold;" data-i18n="text_outline">Text Outline</label>
-                        <div style="display:flex; gap:5px; align-items:center;">
-                            <input type="color" id="textStrokeColor" oninput="updateTextStroke()" style="height:30px; width:40px;">
-                            <input type="number" id="textStrokeWidth" min="0" max="10" step="0.1" value="0" oninput="updateTextStroke()" style="width:60px;">
-                            <span style="font-size:10px;">px</span>
-                        </div>
-                    </div>
-                    <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
-                        <label style="font-size:12px; font-weight:bold;" data-i18n="drop_shadow">Drop Shadow</label>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-                            <div><label style="font-size:10px;" data-i18n="color">Color</label><input type="color" id="shadowColor" oninput="updateTextShadow()" style="height:30px; width:100%;"></div>
-                            <div><label style="font-size:10px;" data-i18n="blur">Blur</label><input type="number" id="shadowBlur" min="0" max="50" value="0" oninput="updateTextShadow()" style="width:100%;"></div>
-                            <div><label style="font-size:10px;" data-i18n="offset_x">Offset X</label><input type="number" id="shadowOffsetX" min="-50" max="50" value="0" oninput="updateTextShadow()" style="width:100%;"></div>
-                            <div><label style="font-size:10px;" data-i18n="offset_y">Offset Y</label><input type="number" id="shadowOffsetY" min="-50" max="50" value="0" oninput="updateTextShadow()" style="width:100%;"></div>
-                        </div>
-                        <button onclick="resetTextShadow()" style="margin-top:5px; font-size:11px; background:#4a4a4a; width:100%;" data-i18n="reset_shadow">Reset Shadow</button>
-                    </div>
-                    <div id="genreLimitControl" style="display:none; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
-                        <div style="display:flex; justify-content:space-between;"><label for="genreLimitSlider" style="font-size:11px; margin:0;" data-i18n="genre_limit">Genre Limit</label><span id="genreLimitVal" style="font-size:11px;">Max</span></div>
-                        <input type="range" id="genreLimitSlider" min="1" max="6" value="6" oninput="updateGenreLimit()" style="margin-top:2px;">
-                    </div>
-                </div>
-            </div>
-
             <div style="margin-top:auto">
                 <div id="layoutNameContainer">
                     <label data-i18n="layout_name">Layout Name</label>
@@ -846,10 +802,11 @@
 
         <div class="main-view" style="display: flex; flex-direction: column; height: 100%; position: relative; overflow: hidden;">
             <div style="flex: 1; overflow-y: auto; width: 100%; display: flex; flex-direction: column; align-items: center;">
-                <div class="canvas-header" style="display:flex; justify-content:space-between; width:100%; max-width: 100%; padding: 10px 20px; box-sizing: border-box; align-items:center; flex-wrap: wrap; gap: 10px;">
+                <div class="canvas-header" style="display:flex; justify-content:space-between; width:100%; max-width: 100%; padding: 2px 20px 5px 20px; box-sizing: border-box; align-items:center; flex-wrap: wrap; gap: 10px;">
                     <div class="header-controls-left">
                         <button id="menuToggle" class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
                         <button id="toolsToggle" class="mobile-menu-btn" onclick="toggleMobileTools()">🛠️</button>
+                        <button id="uiModeBtn" onclick="cycleUiMode()" style="width:auto; background-color: #00796b; padding: 8px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: none; border-radius: 4px; color: white; cursor: pointer;" title="Toggle UI Mode (Floating / Ribbon)">👁️ Floating</button>
                         <button onclick="toggleFullscreen()" style="width:auto; background-color: #4a4a4a; padding: 8px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: none; border-radius: 4px; color: white; cursor: pointer;" title="Toggle Fullscreen">⛶</button>
                         <button onclick="toggleGrid()" style="width:auto; background-color: #4a4a4a; padding: 8px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: none; border-radius: 4px; color: white; cursor: pointer;">📏</button>
                     </div>
@@ -872,10 +829,180 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- OPTION 3: RIBBON BAR -->
+                <div id="ribbonBar">
+                    <!-- TEXT CONTROLS -->
+                    <div class="ribbon-group" data-for="text">
+                        <span class="ribbon-label" data-i18n="typography">Typography</span>
+                        <select class="ribbon-input" id="ribbonFontSelect" onchange="syncInput('fontFamilySelect', this.value); updateSelectedFontFamily()" style="max-width:150px;"></select>
+                        <input type="number" class="ribbon-input" id="ribbonFontSize" style="width: 110px;" oninput="syncInput('fontSizeInput', this.value); updateSelectedFontSize()" data-i18n="font_size" title="Font Size">
+                        
+                        <div style="display:flex; gap:2px; margin-left:10px;">
+                            <button class="panel-btn" onclick="toggleBold()"><b>B</b></button>
+                            <button class="panel-btn" onclick="toggleItalic()"><i>I</i></button>
+                        </div>
+                        <input type="color" id="ribbonColor" oninput="syncInput('fontColorInput', this.value); updateSelectedColor()" style="background:none; border:none; width:30px; height:30px; cursor:pointer; margin-left:5px;" data-i18n="text_color" title="Text Color">
+                        
+                        <div style="display:flex; gap:1px; margin-left:10px; background:#333; border-radius:3px;">
+                            <button class="panel-btn" onclick="setTextAlignment('left')">L</button>
+                            <button class="panel-btn" onclick="setTextAlignment('center')">C</button>
+                            <button class="panel-btn" onclick="setTextAlignment('right')">R</button>
+                        </div>
+                    </div>
+
+                    <div class="ribbon-group" data-for="text">
+                        <span class="ribbon-label" data-i18n="effects">Effects</span>
+                        
+                        <span style="font-size:10px; color:#aaa; margin-right:3px;" data-i18n="outline">Outline:</span>
+                        <input type="color" id="ribbonStrokeColor" oninput="syncInput('textStrokeColor', this.value); updateTextStroke()" style="background:none; border:none; width:20px; height:20px;">
+                        <input type="number" class="ribbon-input" id="ribbonStrokeWidth" style="width: 40px; margin-right:10px;" placeholder="0" oninput="syncInput('textStrokeWidth', this.value); updateTextStroke()">
+
+                        <span style="font-size:10px; color:#aaa; margin-right:3px;" data-i18n="shadow">Shadow:</span>
+                        <input type="color" id="ribbonShadowColor" oninput="syncInput('shadowColor', this.value); updateTextShadow()" style="background:none; border:none; width:20px; height:20px;">
+                        <input type="number" class="ribbon-input" id="ribbonShadowBlur" placeholder="Blur" style="width:40px; margin-right:10px;" oninput="syncInput('shadowBlur', this.value); updateTextShadow()">
+
+                        <span style="font-size:10px; color:#aaa; margin-right:3px;" data-i18n="background">Bg:</span>
+                        <input type="checkbox" id="ribbonBgEnable" onchange="syncInput('textBgEnable', this.checked); toggleTextBackground()">
+                        <input type="color" id="ribbonBgColor" oninput="syncInput('textBgColor', this.value); updateTextBackgroundSettings()" style="background:none; border:none; width:20px; height:20px;">
+                    </div>
+
+                    <div class="ribbon-group" data-for="text">
+                        <span class="ribbon-label" data-i18n="fill">Fill</span>
+                        <select class="ribbon-input" id="ribbonFillType" onchange="syncFillType(this.value)" style="width:70px;">
+                            <option value="color" data-i18n="color">Color</option>
+                            <option value="texture" data-i18n="texture">Texture</option>
+                        </select>
+                        
+                        <div id="ribbonTextureControls" style="display:none; align-items:center; gap:5px; margin-left:5px;">
+                            <select class="ribbon-input" id="ribbonTextureSelect" onchange="syncInput('textureSelect', this.value); applyTextureToSelection()" style="max-width:100px;"></select>
+                            <span style="font-size:10px; color:#aaa;">S:</span>
+                            <input type="number" class="ribbon-input" id="ribbonTextureScale" step="0.1" style="width:40px;" oninput="syncInput('textureScale', this.value); updateTextureScale()">
+                            <span style="font-size:10px; color:#aaa;">O:</span>
+                            <input type="number" class="ribbon-input" id="ribbonTextureOpacity" step="10" max="100" style="width:40px;" oninput="syncInput('textureOpacity', this.value); updateTextureOpacity()">
+                        </div>
+                    </div>
+
+                    <div class="ribbon-group" data-for="text">
+                        <span class="ribbon-label" data-i18n="tools">Tools</span>
+                        <button class="panel-btn" onclick="applyFontToAll()" data-i18n="apply_font" title="Apply Font & Color to all tags">Apply Font</button>
+                        <button class="panel-btn" onclick="applyFontSizeToAll()" data-i18n="apply_size" title="Apply Size to all tags">Apply Size</button>
+                    </div>
+
+                    <div class="ribbon-group" data-for="text" id="ribbonTextSwitchGroup" style="display:none;">
+                        <span class="ribbon-label" data-i18n="type">Type</span>
+                        <button class="panel-btn" id="ribbonTextSwitch" onclick="toggleTitleType()" data-i18n="switch_to_logo">Switch to Logo</button>
+                    </div>
+
+                    <!-- IMAGE CONTROLS -->
+                    <div class="ribbon-group" data-for="image" style="display:none;">
+                        <span class="ribbon-label" data-i18n="layout">Layout</span>
+                        <div style="display:flex; align-items:center; margin-right:10px;">
+                            <input type="checkbox" id="ribbonImgSnap" onchange="syncInput('snapToggleIcon', this.checked); toggleObjectSnapping('icon')" style="margin-right:5px;">
+                            <span style="font-size:11px; color:#ccc;" data-i18n="snap">Snap</span>
+                        </div>
+                        <div id="ribbonImgMatchHeightGroup" style="display:none; align-items:center; margin-right:10px;">
+                            <input type="checkbox" id="ribbonImgMatchHeight" onchange="syncInput('matchHeightToggle', this.checked); toggleMatchHeight()" style="margin-right:5px;">
+                            <span style="font-size:11px; color:#ccc;" data-i18n="match_height_short">Match Height</span>
+                        </div>
+                        <span style="font-size:11px; color:#ccc; margin-right:5px;" data-i18n="size">Size:</span>
+                        <input type="number" id="ribbonIconSize" style="width:110px;" oninput="syncInput('iconSizeInput', this.value); updateIconSize()">
+                    </div>
+
+                    <div class="ribbon-group" data-for="image" style="display:none;">
+                        <span class="ribbon-label" data-i18n="appearance">Appearance</span>
+                        <div id="ribbonImgAutoFixGroup" style="display:flex; align-items:center; margin-right:15px;">
+                            <input type="checkbox" id="ribbonImgAutoFix" onchange="syncInput('logoAutoFixToggle', this.checked); toggleLogoAutoFix()" style="margin-right:5px;">
+                            <span style="font-size:11px; color:#ccc;" data-i18n="logo_auto_fix">Auto-Fix Color</span>
+                        </div>
+                        
+                        <span style="font-size:11px; color:#ccc; margin-right:5px;" data-i18n="bright">Bright:</span>
+                        <input type="range" id="ribbonBrightness" min="-100" max="100" style="width:80px; margin-right:15px;" oninput="syncInput('logoBrightnessInput', this.value); updateLogoBrightness()">
+                        
+                        <span style="font-size:11px; color:#ccc; margin-right:5px;" data-i18n="tint">Tint:</span>
+                        <input type="color" id="ribbonLogoColor" oninput="syncInput('logoColorInput', this.value); updateLogoColor()" style="background:none; border:none; width:30px; height:30px; cursor:pointer; vertical-align:middle;">
+                        <button class="panel-btn" onclick="resetLogoColor()" data-i18n="reset" title="Reset Tint" style="margin-left:5px;">Reset</button>
+                    </div>
+
+                    <div class="ribbon-group" data-for="image" id="ribbonImgSwitchGroup" style="display:none;">
+                        <span class="ribbon-label" data-i18n="type">Type</span>
+                        <button class="panel-btn" id="ribbonImgSwitch" onclick="toggleTitleType()" data-i18n="switch_to_text">Switch to Text</button>
+                    </div>
+
+                    <!-- COMMON CONTROLS -->
+                    <div class="ribbon-group" data-for="common">
+                        <span class="ribbon-label" data-i18n="layout">Layer</span>
+                        <button class="panel-btn" onclick="moveLayer('up')">⬆</button>
+                        <button class="panel-btn" onclick="moveLayer('down')">⬇</button>
+                    </div>
+                </div>
+
                 <div id="canvas-wrapper" style="margin: auto; position: relative; top: -38px;">
                     <canvas id="mainCanvas"></canvas>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Hidden Inputs for Logo/Icon Logic (Preserved for JS compatibility) -->
+    <div style="display:none;">
+        <input type="checkbox" id="snapToggleIcon" onchange="toggleObjectSnapping('icon')">
+        <button id="resetSnapIcon" onclick="resetSnap('icon')"></button>
+        <input type="number" id="iconSizeInput" oninput="updateIconSize()">
+        <input type="checkbox" id="matchHeightToggle" onchange="toggleMatchHeight()">
+        <input type="checkbox" id="logoAutoFixToggle" onchange="toggleLogoAutoFix()">
+        <span id="logoBrightnessVal"></span>
+        <input type="range" id="logoBrightnessInput" oninput="updateLogoBrightness()">
+        <input type="color" id="logoColorInput" oninput="updateLogoColor()">
+        
+        <!-- Moved Text Inputs -->
+        <input type="checkbox" id="snapToggleText" onchange="toggleObjectSnapping('text')">
+        <button id="resetSnapText" onclick="resetSnap('text')"></button>
+        <input type="number" id="fontSizeInput" oninput="updateSelectedFontSize()">
+        <select id="fontFamilySelect" onchange="updateSelectedFontFamily()">
+            {% for family in data.font_families %}
+            <option value="{{ family }}">{{ family }}</option>
+            {% endfor %}
+        </select>
+        <button id="btn-bold" onclick="toggleBold()"></button>
+        <button id="btn-italic" onclick="toggleItalic()"></button>
+        <input type="color" id="fontColorInput" oninput="updateSelectedColor()">
+        
+        <input type="radio" id="fillTypeColor" name="fillType" value="color" onchange="toggleTextFillType()">
+        <input type="radio" id="fillTypeTexture" name="fillType" value="texture" onchange="toggleTextFillType()">
+        <div id="fillColorContainer"></div>
+        <div id="fillTextureContainer">
+            <select id="textureSelect" onchange="applyTextureToSelection()"></select>
+            <input type="range" id="textureScale" oninput="updateTextureScale()">
+            <span id="textureScaleVal"></span>
+            <input type="range" id="textureRotation" oninput="updateTextureRotation()">
+            <span id="textureRotationVal"></span>
+            <input type="range" id="textureOpacity" oninput="updateTextureOpacity()">
+            <span id="textureOpacityVal"></span>
+        </div>
+
+        <div id="textAlignControl"></div>
+        <div id="textBackgroundControl">
+            <input type="checkbox" id="textBgEnable" onchange="toggleTextBackground()">
+            <div id="textBgSettings">
+                <input type="checkbox" id="textBgAuto" onchange="updateTextBackgroundSettings()">
+                <input type="color" id="textBgColor" oninput="updateTextBackgroundSettings()">
+                <input type="range" id="textBgOpacity" oninput="updateTextBackgroundSettings()">
+                <span id="textBgOpacityVal"></span>
+            </div>
+        </div>
+        
+        <input type="color" id="textStrokeColor" oninput="updateTextStroke()">
+        <input type="number" id="textStrokeWidth" oninput="updateTextStroke()">
+        
+        <input type="color" id="shadowColor" oninput="updateTextShadow()">
+        <input type="number" id="shadowBlur" oninput="updateTextShadow()">
+        <input type="number" id="shadowOffsetX" oninput="updateTextShadow()">
+        <input type="number" id="shadowOffsetY" oninput="updateTextShadow()">
+        
+        <div id="genreLimitControl">
+            <input type="range" id="genreLimitSlider" oninput="updateGenreLimit()">
+            <span id="genreLimitVal"></span>
         </div>
     </div>
 
@@ -1704,6 +1831,412 @@
                     btn.innerHTML = originalText;
                 });
         }
+
+        // --- NEW UI MODES (FLOATING & RIBBON) ---
+
+        // Inject Floating Panel into Body
+        const floatingPanelHTML = `
+        <div id="propertyPanel">
+            <div class="panel-header" id="panelHeader">
+                <span data-i18n="properties">Properties</span>
+                <span style="cursor:pointer;" onclick="document.getElementById('propertyPanel').style.display='none'">&times;</span>
+            </div>
+            <div class="panel-body">
+                <!-- TEXT SECTION -->
+                <div class="panel-section" data-for="text">
+                    <!-- Style Group -->
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <select class="panel-input" id="floatFontSelect" onchange="syncInput('fontFamilySelect', this.value); updateSelectedFontFamily()" style="flex:1"></select>
+                            <input type="number" class="panel-input" id="floatFontSize" oninput="syncInput('fontSizeInput', this.value); updateSelectedFontSize()" style="width:70px; flex:none; margin-left:5px;" data-i18n="size" title="Size">
+                        </div>
+                        <div class="panel-row">
+                            <button class="panel-btn" onclick="toggleBold()">B</button>
+                            <button class="panel-btn" onclick="toggleItalic()">I</button>
+                            <input type="color" id="floatColor" oninput="syncInput('fontColorInput', this.value); updateSelectedColor()" style="width:30px; height:25px; border:none; background:none; cursor:pointer;" data-i18n="color" title="Color">
+                            <select class="panel-input" id="floatFillType" onchange="syncFillType(this.value)" style="width:70px;">
+                                <option value="color" data-i18n="color">Color</option>
+                                <option value="texture" data-i18n="texture">Texture</option>
+                            </select>
+                        </div>
+                        <!-- Texture Controls -->
+                        <div id="floatTextureControls" style="display:none; margin-top:5px; padding-top:5px; border-top:1px solid #444;">
+                            <div class="panel-row">
+                                <select id="floatTextureSelect" class="panel-input" onchange="syncInput('textureSelect', this.value); applyTextureToSelection()"></select>
+                            </div>
+                            <div class="panel-row">
+                                <label data-i18n="pattern_scale" style="width:auto;">Scale</label>
+                                <input type="range" id="floatTextureScale" min="0.1" max="3" step="0.1" style="flex:1" oninput="syncInput('textureScale', this.value); updateTextureScale()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Layout & Box Group -->
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <div style="display:flex; gap:1px; background:#333; border-radius:4px;">
+                                <button class="panel-btn" onclick="setTextAlignment('left')">L</button>
+                                <button class="panel-btn" onclick="setTextAlignment('center')">C</button>
+                                <button class="panel-btn" onclick="setTextAlignment('right')">R</button>
+                            </div>
+                            <label style="margin-left:10px; width:auto;" data-i18n="background">Background</label>
+                            <input type="checkbox" id="floatBgEnable" onchange="syncInput('textBgEnable', this.checked); toggleTextBackground()">
+                            <input type="color" id="floatBgColor" oninput="syncInput('textBgColor', this.value); updateTextBackgroundSettings()" style="width:25px; height:25px; border:none; background:none;">
+                        </div>
+                    </div>
+
+                    <!-- Effects Group -->
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <label data-i18n="outline">Outline</label>
+                            <input type="color" id="floatStrokeColor" oninput="syncInput('textStrokeColor', this.value); updateTextStroke()" style="width:25px; height:25px; border:none; background:none;">
+                            <input type="number" class="panel-input" id="floatStrokeWidth" placeholder="px" style="width:40px;" oninput="syncInput('textStrokeWidth', this.value); updateTextStroke()">
+                        </div>
+                        <div class="panel-row">
+                            <label data-i18n="shadow">Shadow</label>
+                            <input type="color" id="floatShadowColor" oninput="syncInput('shadowColor', this.value); updateTextShadow()" style="width:25px; height:25px; border:none; background:none;">
+                            <input type="number" class="panel-input" id="floatShadowBlur" placeholder="Blur" style="width:40px;" oninput="syncInput('shadowBlur', this.value); updateTextShadow()">
+                        </div>
+                        <div class="panel-row">
+                            <label data-i18n="offset">Offset</label>
+                            <input type="number" class="panel-input" id="floatShadowX" placeholder="X" style="width:40px;" oninput="syncInput('shadowOffsetX', this.value); updateTextShadow()">
+                            <input type="number" class="panel-input" id="floatShadowY" placeholder="Y" style="width:40px;" oninput="syncInput('shadowOffsetY', this.value); updateTextShadow()">
+                        </div>
+                    </div>
+
+                    <!-- Tools & Actions Group -->
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <button class="panel-btn" onclick="applyFontToAll()" style="flex:1; font-size:10px;" data-i18n="apply_font" title="Apply Font & Color to all tags">Apply Font & Color</button>
+                            <button class="panel-btn" onclick="applyFontSizeToAll()" style="flex:1; font-size:10px;" data-i18n="apply_size" title="Apply Size to all tags">Apply Size All</button>
+                        </div>
+                        <div class="panel-row" id="floatTextSwitchRow" style="display:none; margin-top:5px;">
+                            <button class="panel-btn" onclick="toggleTitleType()" style="width:100%; background:#444;" data-i18n="switch_to_logo">Switch to Logo</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GENRE SECTION -->
+                <div class="panel-section" data-for="genres" style="display:none;">
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <label data-i18n="limit">Limit</label>
+                            <input type="range" id="floatGenreLimit" min="1" max="6" style="flex:1;" oninput="syncInput('genreLimitSlider', this.value); document.getElementById('floatGenreLimitVal').innerText = (this.value == 6) ? 'Max' : this.value; updateGenreLimit()">
+                            <span id="floatGenreLimitVal" style="font-size:10px; width:20px; text-align:right;">Max</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IMAGE SECTION -->
+                <div class="panel-section" data-for="image" style="display:none;">
+                    <div class="panel-row">
+                        <label data-i18n="options" style="width:auto;">Options</label>
+                        <input type="checkbox" id="floatImgSnap" onchange="syncInput('snapToggleIcon', this.checked); toggleObjectSnapping('icon')"> <span style="font-size:10px; color:#aaa; margin-right:5px;" data-i18n="snap">Snap</span>
+                        <span id="floatImgAutoFixGroup">
+                            <input type="checkbox" id="floatImgAutoFix" onchange="syncInput('logoAutoFixToggle', this.checked); toggleLogoAutoFix()"> <span style="font-size:10px; color:#aaa;" data-i18n="logo_auto_fix">Auto-Fix Color</span>
+                        </span>
+                        <span id="floatImgMatchHeightGroup" style="display:none;">
+                            <input type="checkbox" id="floatImgMatchHeight" onchange="syncInput('matchHeightToggle', this.checked); toggleMatchHeight()"> <span style="font-size:10px; color:#aaa;" data-i18n="match_height_short">Match Height</span>
+                        </span>
+                    </div>
+                    <div class="panel-row">
+                        <label data-i18n="size">Size</label>
+                        <input type="number" class="panel-input" id="floatIconSize" oninput="syncInput('iconSizeInput', this.value); updateIconSize()">
+                    </div>
+                    <div class="panel-row">
+                        <label data-i18n="background" style="width:auto;">Background</label>
+                        <input type="checkbox" id="floatImgBgEnable" onchange="syncInput('textBgEnable', this.checked); toggleTextBackground()">
+                        <input type="color" id="floatImgBgColor" oninput="syncInput('textBgColor', this.value); updateTextBackgroundSettings()" style="width:25px; height:25px; border:none; background:none;">
+                    </div>
+                    <div class="panel-row">
+                        <label data-i18n="bright" style="width:auto;">Bright</label>
+                        <input type="range" id="floatBrightness" min="-100" max="100" style="flex:1;" oninput="syncInput('logoBrightnessInput', this.value); updateLogoBrightness()">
+                    </div>
+                    <div class="panel-row">
+                        <label data-i18n="tint" style="width:auto;">Tint</label>
+                        <input type="color" id="floatLogoColor" oninput="syncInput('logoColorInput', this.value); updateLogoColor()" style="width:50px; height:30px; border:none; background:none; cursor:pointer;">
+                        <button class="panel-btn" onclick="resetLogoColor()">↺</button>
+                    </div>
+                    <div class="panel-row" id="floatImgSwitchRow">
+                        <button class="panel-btn" onclick="toggleTitleType()" style="width:100%" data-i18n="switch_to_text">Switch to Text</button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', floatingPanelHTML);
+
+        // UI Mode State
+        let uiMode = 'floating'; // Default to floating
+
+        function cycleUiMode() {
+            const modes = ['floating', 'ribbon'];
+            let idx = modes.indexOf(uiMode);
+            uiMode = modes[(idx + 1) % modes.length];
+            
+            // Update Button Text
+            const btn = document.getElementById('uiModeBtn');
+            btn.innerHTML = '👁️ ' + uiMode.charAt(0).toUpperCase() + uiMode.slice(1);
+            
+            // Reset Visibility
+            document.getElementById('propertyPanel').style.display = 'none';
+            document.getElementById('ribbonBar').style.display = 'none';
+            document.body.classList.remove('mode-floating', 'mode-ribbon');
+
+            if (uiMode === 'floating') {
+                document.body.classList.add('mode-floating');
+                if (canvas && canvas.getActiveObject()) {
+                    document.getElementById('propertyPanel').style.display = 'block';
+                    updateAlternativeUIs();
+                }
+            } else if (uiMode === 'ribbon') {
+                document.body.classList.add('mode-ribbon');
+                document.getElementById('ribbonBar').style.display = 'flex';
+                updateAlternativeUIs();
+            }
+        }
+
+        // Sync Helper: Updates the hidden sidebar input so existing functions work
+        function syncInput(targetId, value) {
+            const el = document.getElementById(targetId);
+            if(el) {
+                if(el.type === 'checkbox') el.checked = value;
+                else el.value = value;
+                // Trigger events if needed by listeners
+            }
+        }
+
+        // Helper to sync fill type radio buttons from popup select
+        function syncFillType(val) {
+            const radio = document.querySelector(`input[name="fillType"][value="${val}"]`);
+            if(radio) { 
+                radio.checked = true; 
+                toggleTextFillType(); 
+            }
+            
+            // Sync visibility for both panels
+            const isTexture = (val === 'texture');
+            document.getElementById('floatTextureControls').style.display = isTexture ? 'block' : 'none';
+            document.getElementById('ribbonTextureControls').style.display = isTexture ? 'flex' : 'none';
+            
+            // Sync values of selectors
+            document.getElementById('floatFillType').value = val;
+            document.getElementById('ribbonFillType').value = val;
+        }
+
+        // Populate Font Selects in new panels
+        function populateAltFonts() {
+            const source = document.getElementById('fontFamilySelect');
+            const targets = [document.getElementById('ribbonFontSelect'), document.getElementById('floatFontSelect')];
+            if(source && targets[0]) {
+                const html = source.innerHTML;
+                targets.forEach(t => t.innerHTML = html);
+            }
+            
+            // Also populate textures
+            const texSource = document.getElementById('textureSelect');
+            const texTargets = [document.getElementById('floatTextureSelect'), document.getElementById('ribbonTextureSelect')];
+            if(texSource) {
+                const html = texSource.innerHTML;
+                texTargets.forEach(t => { if(t) t.innerHTML = html; });
+            }
+        }
+        // Hook into texture loading to update popup select
+        window.addEventListener('load', populateAltFonts);
+
+        // Update values in Floating/Ribbon panels when selection changes
+        function updateAlternativeUIs() {
+            if (!canvas) return;
+            const obj = canvas.getActiveObject();
+            
+            // Hide if no object OR if object is background
+            if (!obj || obj.dataTag === 'background') {
+                document.getElementById('propertyPanel').style.display = 'none';
+                return;
+            }
+
+            const isGroup = obj.type === 'group' && (obj.dataTag === 'rating' || obj.dataTag === 'rating_star');
+            const isText = obj.type === 'i-text' || obj.type === 'textbox' || isGroup;
+            const isImage = obj.type === 'image';
+
+            // Show floating panel if in mode OR if it's an image OR if it's text (since sidebar controls are gone)
+            if (uiMode === 'floating' || (uiMode === 'sidebar' && (isImage || isText))) {
+                document.getElementById('propertyPanel').style.display = 'block';
+            } else {
+                document.getElementById('propertyPanel').style.display = 'none';
+            }
+
+
+            // Toggle Sections in Ribbon & Floating
+            const toggle = (selector, show) => {
+                document.querySelectorAll(selector).forEach(el => el.style.display = show ? (el.classList.contains('ribbon-group') ? 'flex' : 'block') : 'none');
+            };
+            
+            const isGenres = obj.dataTag === 'genres';
+            toggle('[data-for="text"]', isText);
+            toggle('[data-for="image"]', isImage);
+            toggle('[data-for="genres"]', isGenres);
+            toggle('[data-for="common"]', true);
+
+            // Sync values from object to inputs
+            if (isText) {
+                let targetObj = obj;
+                if (obj.type === 'group') {
+                    targetObj = obj.getObjects().find(o => o.type === 'i-text') || obj;
+                }
+
+                const fontSize = targetObj.fontSize || 40;
+                const fill = targetObj.fill || '#ffffff';
+                const font = targetObj.fontFamily || 'Arial';
+                const shadow = targetObj.shadow || { color: '#000000', blur: 0 };
+                const stroke = targetObj.stroke || '#000000';
+                const strokeWidth = targetObj.strokeWidth || 0;
+                const bg = targetObj.backgroundColor || '';
+                const isTexture = (targetObj.fill && typeof targetObj.fill === 'object' && targetObj.fill.source);
+                const isTitle = obj.dataTag === 'title';
+
+                // Ribbon
+                document.getElementById('ribbonFontSize').value = fontSize;
+                document.getElementById('ribbonColor').value = fill;
+                document.getElementById('ribbonFontSelect').value = font;
+                document.getElementById('ribbonStrokeColor').value = stroke;
+                document.getElementById('ribbonStrokeWidth').value = strokeWidth;
+                document.getElementById('ribbonBgEnable').checked = !!bg;
+                document.getElementById('ribbonBgColor').value = bg || '#000000';
+                document.getElementById('ribbonShadowColor').value = shadow.color || '#000000';
+                document.getElementById('ribbonShadowBlur').value = shadow.blur || 0;
+                
+                const textSwitchGroup = document.getElementById('ribbonTextSwitchGroup');
+                if (textSwitchGroup) textSwitchGroup.style.display = isTitle ? 'flex' : 'none';
+                
+                // Floating
+                document.getElementById('floatFontSize').value = fontSize;
+                document.getElementById('floatColor').value = fill;
+                document.getElementById('floatFontSelect').value = font;
+                document.getElementById('floatStrokeColor').value = stroke;
+                document.getElementById('floatStrokeWidth').value = strokeWidth;
+                document.getElementById('floatBgEnable').checked = !!bg;
+                document.getElementById('floatBgColor').value = bg || '#000000';
+                document.getElementById('floatShadowColor').value = shadow.color || '#000000';
+                document.getElementById('floatShadowBlur').value = shadow.blur || 0;
+                document.getElementById('floatShadowX').value = shadow.offsetX || 0;
+                document.getElementById('floatShadowY').value = shadow.offsetY || 0;
+                
+                // Sync Fill Type & Texture Controls (Ribbon & Floating)
+                const fillType = isTexture ? 'texture' : 'color';
+                syncFillType(fillType);
+
+                if(isTexture) {
+                    // Floating
+                    document.getElementById('floatTextureSelect').value = targetObj.textureId || '';
+                    document.getElementById('floatTextureScale').value = targetObj.textureScale || 1;
+                    // Ribbon
+                    document.getElementById('ribbonTextureSelect').value = targetObj.textureId || '';
+                    document.getElementById('ribbonTextureScale').value = targetObj.textureScale || 1;
+                    document.getElementById('ribbonTextureOpacity').value = (targetObj.textureOpacity !== undefined) ? targetObj.textureOpacity * 100 : 100;
+                }
+                document.getElementById('floatTextSwitchRow').style.display = isTitle ? 'flex' : 'none';
+                
+                if (isGenres) {
+                    const limit = document.getElementById('genreLimitSlider').value;
+                    document.getElementById('floatGenreLimit').value = limit;
+                    document.getElementById('floatGenreLimitVal').innerText = (limit == 6) ? "Max" : limit;
+                }
+            }
+            
+            if (isImage) {
+                // For images, we try to grab values from the sidebar inputs which should be updated by the app's selection logic
+                // If the app doesn't update sidebar on selection for images, we default to 0/white
+                const brightVal = document.getElementById('logoBrightnessInput') ? document.getElementById('logoBrightnessInput').value : 0;
+                const colorVal = document.getElementById('logoColorInput') ? document.getElementById('logoColorInput').value : '#ffffff';
+                const snap = obj.snapToObjects !== false;
+                const autoFix = obj.logoAutoFix !== false;
+                const isTitle = obj.dataTag === 'title';
+                const isCert = obj.dataTag === 'certification';
+                const matchHeight = obj.matchHeight || false;
+                const sizeVal = Math.round(obj.getScaledHeight());
+                const bg = obj.backgroundColor || '';
+                const bgHex = bg ? '#' + new fabric.Color(bg).toHex() : '#000000';
+                
+                // Ribbon
+                document.getElementById('ribbonBrightness').value = brightVal;
+                document.getElementById('ribbonLogoColor').value = colorVal;
+                document.getElementById('ribbonImgSnap').checked = snap;
+                document.getElementById('ribbonImgAutoFix').checked = autoFix;
+                document.getElementById('ribbonImgMatchHeight').checked = matchHeight;
+                
+                document.getElementById('ribbonImgAutoFixGroup').style.display = isCert ? 'none' : 'flex';
+                document.getElementById('ribbonImgMatchHeightGroup').style.display = isCert ? 'flex' : 'none';
+                document.getElementById('ribbonIconSize').disabled = matchHeight;
+                
+                document.getElementById('ribbonIconSize').value = sizeVal;
+                
+                const switchGroup = document.getElementById('ribbonImgSwitchGroup');
+                if (switchGroup) switchGroup.style.display = isTitle ? 'flex' : 'none';
+
+                // Floating
+                document.getElementById('floatBrightness').value = brightVal;
+                document.getElementById('floatLogoColor').value = colorVal;
+                document.getElementById('floatImgSnap').checked = snap;
+                document.getElementById('floatImgAutoFix').checked = autoFix;
+                document.getElementById('floatImgMatchHeight').checked = matchHeight;
+                
+                document.getElementById('floatImgAutoFixGroup').style.display = isCert ? 'none' : 'inline';
+                document.getElementById('floatImgMatchHeightGroup').style.display = isCert ? 'inline' : 'none';
+                document.getElementById('floatIconSize').disabled = matchHeight;
+                
+                document.getElementById('floatIconSize').value = sizeVal;
+                document.getElementById('floatImgBgEnable').checked = !!bg;
+                document.getElementById('floatImgBgColor').value = bgHex;
+                document.getElementById('floatImgSwitchRow').style.display = isTitle ? 'flex' : 'none';
+            }
+        }
+
+        // Hook into Canvas Events
+        function initFloatingPanel() {
+            if (typeof canvas !== 'undefined') {
+                canvas.on('selection:created', updateAlternativeUIs);
+                canvas.on('selection:updated', updateAlternativeUIs);
+                canvas.on('selection:cleared', () => {
+                    if (uiMode === 'floating') document.getElementById('propertyPanel').style.display = 'none';
+                });
+                // Check if we already have a selection (e.g. after reload or race condition)
+                if (canvas.getActiveObject()) updateAlternativeUIs();
+            } else {
+                setTimeout(initFloatingPanel, 100);
+            }
+        }
+        window.addEventListener('load', () => {
+            // Initialize UI Mode
+            document.body.classList.add('mode-floating');
+            
+            initFloatingPanel();
+            
+            // Drag Logic for Floating Panel (Initialize immediately as DOM is ready)
+            const panel = document.getElementById('propertyPanel');
+            const header = document.getElementById('panelHeader');
+            let isDragging = false, startX, startY, initialLeft, initialTop;
+
+            if(header && panel) {
+                header.addEventListener('mousedown', (e) => {
+                    isDragging = true;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    initialLeft = panel.offsetLeft;
+                    initialTop = panel.offsetTop;
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    const dx = e.clientX - startX;
+                    const dy = e.clientY - startY;
+                    panel.style.left = `${initialLeft + dx}px`;
+                    panel.style.top = `${initialTop + dy}px`;
+                });
+
+                document.addEventListener('mouseup', () => isDragging = false);
+            }
+        });
     </script>
 </body>
 </html>
