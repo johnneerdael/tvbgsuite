@@ -96,6 +96,7 @@ function extractFontsFromJSON(data) {
 })();
 
 let canvas, mainBg = null;
+let ambilightBg = null, backgroundMode = 'solid'; // 'solid' | 'ambilight'
 let fades = { left: null, right: null, top: null, bottom: null, corner: null };
 let resizeRaf = null, lastFetchedData = null, layoutDebounceTimer = null;
 let preferredLogoWidth = null;
@@ -113,6 +114,23 @@ let undoStack = [];
 let redoStack = [];
 let isUndoRedoProcessing = false;
 const MAX_HISTORY = 10;
+
+const FADE_OPTIONS = {
+    solid: [
+        { value: 'custom', text: 'Custom (Linear)' },
+        { value: 'bottom-left', text: 'Bottom-Left Corner' },
+        { value: 'bottom-right', text: 'Bottom-Right Corner' },
+        { value: 'top-left', text: 'Top-Left Corner' },
+        { value: 'top-right', text: 'Top-Right Corner' },
+        { value: 'vignette', text: 'Vignette' }
+    ],
+    ambilight: [
+        { value: 'mask', text: 'Smooth Alpha Mask' },
+        { value: 'soft_round', text: 'Gaussian Blurred Mask' },
+        { value: 'gradient', text: 'Linear Erasers' },
+        { value: 'vignette', text: 'Elliptical Vignette' }
+    ]
+};
 
 function toggleMobileMenu() {
     document.body.classList.toggle('mobile-menu-open');
@@ -1668,6 +1686,7 @@ function updateVerticalLayout(skipRender = false) {
         if (o.dataTag === 'fade_effect') return false;
         if (o.dataTag === 'grid_line') return false;
         if (o.dataTag === 'guide_overlay') return false;
+        if (o.dataTag === 'ambilight_bg') return false;
         if (!o.dataTag) return false;
 
         // FIX: Ignore objects that have snapping disabled (Manual Mode)
@@ -2291,13 +2310,14 @@ function saveHistory(force = false) {
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
     
     // Filter out fade effects and grid lines (same as saveToLocalStorage)
-    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide');
+    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg');
     
     json.custom_effects = {
         bgColor: document.getElementById('bgColor').value,
         bgBrightness: document.getElementById('bgBrightness').value,
         fadeEffect: document.getElementById('fadeEffect').value,
         fadeRadius: document.getElementById('fadeRadius').value,
+        fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
         fadeLeft: document.getElementById('fadeLeft').value,
         fadeRight: document.getElementById('fadeRight').value,
         fadeTop: document.getElementById('fadeTop').value,
@@ -2313,7 +2333,9 @@ function saveHistory(force = false) {
             bottom: document.getElementById('marginBottomInput').value,
             left: document.getElementById('marginLeftInput').value,
             right: document.getElementById('marginRightInput').value
-        }
+        },
+        logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+        backgroundMode: backgroundMode
     };
     
     // Save blocked areas to JSON so render_task.js can use them
@@ -2459,6 +2481,14 @@ function updateUndoRedoUI() {
 }
 
 function applyCustomEffects(eff) {
+    // Restore Background Mode first to ensure options are populated before setting fadeEffect
+    if (eff.backgroundMode) {
+        backgroundMode = eff.backgroundMode;
+        const bgModeSel = document.getElementById('bgStyleSelect');
+        if(bgModeSel) bgModeSel.value = backgroundMode;
+        populateFadeEffectOptions(backgroundMode);
+    }
+
     if(eff.bgColor) { 
         document.getElementById('bgColor').value = eff.bgColor; 
         canvas.setBackgroundColor(eff.bgColor, () => { updateFades(); }); 
@@ -2466,6 +2496,13 @@ function applyCustomEffects(eff) {
     if(eff.bgBrightness) document.getElementById('bgBrightness').value = eff.bgBrightness;
     if(eff.fadeEffect) document.getElementById('fadeEffect').value = eff.fadeEffect;
     if(eff.fadeRadius) document.getElementById('fadeRadius').value = eff.fadeRadius;
+    if(eff.fadeSoftness) {
+        const el = document.getElementById('fadeSoftness');
+        if(el) {
+            el.value = eff.fadeSoftness;
+            document.getElementById('fadeSoftnessVal').innerText = eff.fadeSoftness;
+        }
+    }
     if(eff.fadeLeft) document.getElementById('fadeLeft').value = eff.fadeLeft;
     if(eff.fadeRight) document.getElementById('fadeRight').value = eff.fadeRight;
     if(eff.fadeTop) document.getElementById('fadeTop').value = eff.fadeTop;
@@ -2603,38 +2640,55 @@ function loadBackground(url, skipRender = false) {
 
 function updateFadeControls() {
     const type = document.getElementById('fadeEffect').value;
-    const show = (id) => document.getElementById(id).style.display = 'block';
-    const hide = (id) => document.getElementById(id).style.display = 'none';
+    const show = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'block'; };
+    const hide = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'none'; };
     const radiusLabel = document.querySelector('label[for="fadeRadius"]');
 
     ['ctrl-fade-radius', 'ctrl-fade-left', 'ctrl-fade-right', 'ctrl-fade-top', 'ctrl-fade-bottom'].forEach(show);
+    // Hide softness by default (only for specific ambilight modes)
+    hide('ctrl-fade-softness'); 
 
-    if (type === 'custom') {
-        hide('ctrl-fade-radius');
-    } else if (type === 'bottom-left') {
-        hide('ctrl-fade-top');
-        hide('ctrl-fade-right');
-        radiusLabel.innerText = "Corner Radius";
-    } else if (type === 'bottom-right') {
-        hide('ctrl-fade-top');
-        hide('ctrl-fade-left');
-        radiusLabel.innerText = "Corner Radius";
-    } else if (type === 'top-left') {
-        hide('ctrl-fade-bottom');
-        hide('ctrl-fade-right');
-        radiusLabel.innerText = "Corner Radius";
-    } else if (type === 'top-right') {
-        hide('ctrl-fade-bottom');
-        hide('ctrl-fade-left');
-        radiusLabel.innerText = "Corner Radius";
-    } else if (type === 'vignette') {
-        hide('ctrl-fade-left');
-        hide('ctrl-fade-right');
-        show('ctrl-fade-top');
-        show('ctrl-fade-bottom');
-        radiusLabel.innerText = "Vignette Radius";
+    if (backgroundMode === 'solid') {
+        if (type === 'custom') {
+            hide('ctrl-fade-radius');
+        } else if (type === 'bottom-left') {
+            hide('ctrl-fade-top'); hide('ctrl-fade-right'); radiusLabel.innerText = "Corner Radius";
+        } else if (type === 'bottom-right') {
+            hide('ctrl-fade-top'); hide('ctrl-fade-left'); radiusLabel.innerText = "Corner Radius";
+        } else if (type === 'top-left') {
+            hide('ctrl-fade-bottom'); hide('ctrl-fade-right'); radiusLabel.innerText = "Corner Radius";
+        } else if (type === 'top-right') {
+            hide('ctrl-fade-bottom'); hide('ctrl-fade-left'); radiusLabel.innerText = "Corner Radius";
+        } else if (type === 'vignette') {
+            hide('ctrl-fade-left'); hide('ctrl-fade-right'); show('ctrl-fade-top'); show('ctrl-fade-bottom');
+            radiusLabel.innerText = "Vignette Radius";
+        }
+    } else {
+        // Ambilight Modes
+        // Show softness slider for all Ambilight modes as they all support corner rounding
+        show('ctrl-fade-softness');
+        radiusLabel.innerText = (type === 'vignette') ? "Vignette Radius" : "Corner Radius";
     }
     updateFades();
+}
+
+function populateFadeEffectOptions(mode) {
+    const sel = document.getElementById('fadeEffect');
+    if (!sel) return;
+    const currentVal = sel.value;
+    sel.innerHTML = '';
+    
+    const options = FADE_OPTIONS[mode] || FADE_OPTIONS['solid'];
+    options.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt.value;
+        el.innerText = opt.text;
+        sel.appendChild(el);
+    });
+    
+    // Try to preserve selection if valid, else default
+    if (options.some(o => o.value === currentVal)) sel.value = currentVal;
+    else sel.value = options[0].value;
 }
 
 function updateFades(skipRender = false) {
@@ -2644,6 +2698,36 @@ function updateFades(skipRender = false) {
     // Remove ALL existing fade effects from canvas to prevent stacking
     canvas.getObjects().filter(o => o.dataTag === 'fade_effect').forEach(o => canvas.remove(o));
     fades = {}; // Reset tracker
+
+    // --- AMBILIGHT MODE LOGIC ---
+    if (backgroundMode === 'ambilight') {
+        updateAmbilightLayer();
+        
+        // Generate Mask for mainBg
+        const maskCanvas = generateAlphaMask(type);
+        if (maskCanvas) {
+            const maskImg = new fabric.Image(maskCanvas);
+            // Center the mask relative to mainBg (clipPath is relative to object center)
+            maskImg.originX = 'center';
+            maskImg.originY = 'center';
+            // We don't set left/top because it's relative to the object
+            
+            // Apply mask
+            mainBg.clipPath = maskImg;
+            mainBg.dirty = true; // Force redraw of cached object
+        } else {
+            mainBg.clipPath = null;
+            mainBg.dirty = true;
+        }
+        
+        if (!skipRender) canvas.requestRenderAll();
+        return; // Skip the Solid Color logic below
+    }
+
+    // --- SOLID COLOR MODE LOGIC (Existing) ---
+    // Ensure Ambilight layer is removed and clipPath cleared
+    if (ambilightBg) { canvas.remove(ambilightBg); ambilightBg = null; }
+    if (mainBg.clipPath) { mainBg.clipPath = null; mainBg.dirty = true; }
 
     const addLinear = (side) => {
         const el = document.getElementById('fade' + side.charAt(0).toUpperCase() + side.slice(1));
@@ -2676,9 +2760,222 @@ function updateFades(skipRender = false) {
         addVignette();
         addLinear('top');
         addLinear('bottom');
+    } else if (type === 'soft_round') {
+        // Fallback for Solid Mode: just use corner fade logic or custom logic
+        // For now, treat as custom but maybe we can improve later.
+        // Using 'custom' logic as fallback to allow manual control
+        ['left', 'right', 'top', 'bottom'].forEach(addLinear);
     }
     enforceLayering();
     if (!skipRender) canvas.requestRenderAll();
+}
+
+// --- NEW HELPER FUNCTIONS FOR AMBILIGHT & MASKS ---
+
+function toggleBackgroundMode(mode) {
+    backgroundMode = mode;
+    // Update UI visibility if needed (e.g. hide color picker in Ambilight mode)
+    const colorPicker = document.getElementById('bgColorContainer'); // Assuming ID
+    if (colorPicker) colorPicker.style.display = (mode === 'solid') ? 'block' : 'none';
+    
+    populateFadeEffectOptions(mode);
+    updateFadeControls();
+    updateFades();
+    saveToLocalStorage();
+}
+
+function updateAmbilightLayer() {
+    if (!mainBg) return;
+    
+    // 1. Create blurred version if not exists or dirty
+    // We use a temporary canvas to generate the blur efficiently
+    const srcImg = mainBg.getElement();
+    if (!srcImg) return;
+
+    const tempCanvas = document.createElement('canvas');
+    // Low res for performance and better blur effect
+    const w = canvas.width / 4; 
+    const h = canvas.height / 4;
+    tempCanvas.width = w;
+    tempCanvas.height = h;
+    const ctx = tempCanvas.getContext('2d');
+    
+    // Draw blurred
+    // Map bgBrightness (0-100) to brightness filter (0.0 - 2.0)
+    // Default 20 -> 0.6 brightness
+    const bVal = parseInt(document.getElementById('bgBrightness').value) || 20;
+    const brightness = 0.4 + (bVal / 100); 
+    ctx.filter = `blur(60px) brightness(${brightness})`;
+    ctx.drawImage(srcImg, 0, 0, w, h);
+    
+    // Create Fabric Image
+    if (ambilightBg) canvas.remove(ambilightBg);
+    
+    ambilightBg = new fabric.Image(tempCanvas, {
+        left: 0, top: 0,
+        scaleX: 4, scaleY: 4, // Scale back up
+        selectable: false, evented: false,
+        dataTag: 'ambilight_bg'
+    });
+    
+    canvas.add(ambilightBg);
+    canvas.sendToBack(ambilightBg);
+}
+
+function drawRoundedPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function generateAlphaMask(type) {
+    if (!mainBg) return null;
+    
+    // Dimensions of the mainBg object (unscaled)
+    const w = mainBg.width;
+    const h = mainBg.height;
+    
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = w;
+    maskCanvas.height = h;
+    const ctx = maskCanvas.getContext('2d');
+    
+    // Get Fade Values (scaled to object dimensions)
+    // The inputs are in screen pixels, we need to map them to the image's internal coordinate system
+    const scaleX = mainBg.scaleX;
+    const scaleY = mainBg.scaleY;
+    
+    const sT = (parseInt(document.getElementById('fadeTop').value) || 0) / scaleY;
+    const sB = (parseInt(document.getElementById('fadeBottom').value) || 0) / scaleY;
+    const sL = (parseInt(document.getElementById('fadeLeft').value) || 0) / scaleX;
+    const sR = (parseInt(document.getElementById('fadeRight').value) || 0) / scaleX;
+    const radius = (parseInt(document.getElementById('fadeRadius').value) || 0) / Math.max(scaleX, scaleY);
+    
+    // Softness for soft_round (default to 40 if input missing)
+    const softEl = document.getElementById('fadeSoftness');
+    const softness = ((softEl ? parseInt(softEl.value) : 40) || 40) / Math.max(scaleX, scaleY);
+
+    // Default: Opaque
+    ctx.fillStyle = 'black'; // In clipPath, black/opaque means VISIBLE? No, Fabric uses alpha channel.
+    // Wait, Fabric clipPath: "The area of the object that is INSIDE the clipPath is visible."
+    // So we need to draw the VISIBLE area.
+    
+    // 1. Apply Base Technique
+    if (type === 'vignette') {
+        // Radial Gradient
+        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+        // Stop calculation based on radius slider or fixed
+        // Map radius (0-500) to stop (1.0 - 0.0)
+        const stop = Math.max(0, 1 - (radius * 2)); 
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(stop, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+    } else if (type === 'mask') {
+        // Smooth Alpha Mask (Linear Gradients intersection)
+        // 1. Clear Canvas
+        ctx.clearRect(0, 0, w, h);
+        
+        // 2. Vertical Gradient (Source Over)
+        // Opaque in center, Transparent at top/bottom edges
+        const gV = ctx.createLinearGradient(0, 0, 0, h);
+        if (sT > 0) {
+            gV.addColorStop(0, 'rgba(0,0,0,0)');
+            gV.addColorStop(Math.min(sT/h, 0.5), 'rgba(0,0,0,1)');
+        } else {
+            gV.addColorStop(0, 'rgba(0,0,0,1)');
+        }
+        if (sB > 0) {
+            gV.addColorStop(Math.max(1 - (sB/h), 0.5), 'rgba(0,0,0,1)');
+            gV.addColorStop(1, 'rgba(0,0,0,0)');
+        } else {
+            gV.addColorStop(1, 'rgba(0,0,0,1)');
+        }
+        
+        ctx.fillStyle = gV;
+        ctx.fillRect(0, 0, w, h);
+        
+        // 3. Horizontal Gradient (Destination In - Intersection)
+        ctx.globalCompositeOperation = 'destination-in';
+        const gH = ctx.createLinearGradient(0, 0, w, 0);
+        if (sL > 0) {
+            gH.addColorStop(0, 'rgba(0,0,0,0)');
+            gH.addColorStop(Math.min(sL/w, 0.5), 'rgba(0,0,0,1)');
+        } else {
+            gH.addColorStop(0, 'rgba(0,0,0,1)');
+        }
+        if (sR > 0) {
+            gH.addColorStop(Math.max(1 - (sR/w), 0.5), 'rgba(0,0,0,1)');
+            gH.addColorStop(1, 'rgba(0,0,0,0)');
+        } else {
+            gH.addColorStop(1, 'rgba(0,0,0,1)');
+        }
+        
+        ctx.fillStyle = gH;
+        ctx.fillRect(0, 0, w, h);
+
+    } else if (type === 'gradient') {
+        // Linear Erasers (Destination Out)
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, w, h);
+        
+        ctx.globalCompositeOperation = 'destination-out';
+        const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
+        
+        if (sT > 0) { const g = ctx.createLinearGradient(0, 0, 0, sT); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, w, sT); }
+        if (sB > 0) { const g = ctx.createLinearGradient(0, h, 0, h - sB); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, h - sB, w, sB); }
+        if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
+        if (sR > 0) { const g = ctx.createLinearGradient(w, 0, w - sR, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(w - sR, 0, sR, h); }
+
+    } else {
+        // Default / Soft Round / Custom
+        // Start with full visibility
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, w, h);
+    }
+    
+    // 2. Apply Rounded Corners (Global for Ambilight)
+    if (radius > 0) {
+        ctx.globalCompositeOperation = 'destination-in';
+        
+        if (softness > 0) {
+            // Soft Rounding (Feathered)
+            const temp = document.createElement('canvas');
+            temp.width = w; temp.height = h;
+            const tCtx = temp.getContext('2d');
+            
+            tCtx.fillStyle = 'black';
+            tCtx.filter = `blur(${softness/2}px)`; // Match fade_demo
+            const inset = softness/2;
+            const rectW = Math.max(0, w - inset * 2);
+            const rectH = Math.max(0, h - inset * 2);
+            const maxR = Math.min(rectW, rectH) / 2;
+            const safeR = Math.min(Math.max(0, radius - inset), maxR);
+            drawRoundedPath(tCtx, inset, inset, rectW, rectH, safeR);
+            tCtx.fill();
+            
+            ctx.drawImage(temp, 0, 0);
+        } else {
+            // Hard Rounding
+            const safeR = Math.min(radius, Math.min(w, h) / 2);
+            ctx.beginPath();
+            drawRoundedPath(ctx, 0, 0, w, h, safeR);
+            ctx.fill();
+        }
+    }
+    
+    return maskCanvas;
 }
 
 function addCornerFade(pos) {
@@ -3004,10 +3301,12 @@ function enforceLayering() {
     const grids = canvas.getObjects().filter(o => o.dataTag === 'grid_line');
     const overlays = canvas.getObjects().filter(o => o.dataTag === 'guide_overlay');
     const fades = canvas.getObjects().filter(o => o.dataTag === 'fade_effect');
+    const ambilight = canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg');
     
     grids.forEach(o => canvas.sendToBack(o));
     fades.forEach(o => canvas.sendToBack(o));
     if (mainBg) canvas.sendToBack(mainBg);
+    ambilight.forEach(o => canvas.sendToBack(o));
     overlays.forEach(o => canvas.bringToFront(o));
 }
 
@@ -3473,7 +3772,7 @@ async function saveLayout() {
     const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
     
     // Filter out fade effects and grid lines BEFORE saving
-    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay');
+    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg');
 
     // Normalize to 1080p base resolution
     const currentScale = canvas.width / BASE_WIDTH;
@@ -3498,6 +3797,7 @@ async function saveLayout() {
         bgBrightness: document.getElementById('bgBrightness').value,
         fadeEffect: document.getElementById('fadeEffect').value,
         fadeRadius: document.getElementById('fadeRadius').value,
+        fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
         fadeLeft: document.getElementById('fadeLeft').value,
         fadeRight: document.getElementById('fadeRight').value,
         fadeTop: document.getElementById('fadeTop').value,
@@ -3513,7 +3813,9 @@ async function saveLayout() {
             bottom: document.getElementById('marginBottomInput').value,
             left: document.getElementById('marginLeftInput').value,
             right: document.getElementById('marginRightInput').value
-        }
+        },
+        logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+        backgroundMode: backgroundMode
     };
 
     // Save blocked areas to JSON so render_task.js can use them
@@ -3770,6 +4072,8 @@ function saveToLocalStorage() {
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
     // Filter out fade effects so they aren't saved as static objects
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay');
+    // Filter out ambilight background (it is auto-generated)
+    json.objects = json.objects.filter(o => o.dataTag !== 'ambilight_bg');
     
     // Normalize to 1080p base resolution
     const currentScale = canvas.width / BASE_WIDTH;
@@ -3787,6 +4091,7 @@ function saveToLocalStorage() {
         bgBrightness: document.getElementById('bgBrightness').value,
         fadeEffect: document.getElementById('fadeEffect').value,
         fadeRadius: document.getElementById('fadeRadius').value,
+        fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
         fadeLeft: document.getElementById('fadeLeft').value,
         fadeRight: document.getElementById('fadeRight').value,
         fadeTop: document.getElementById('fadeTop').value,
@@ -3803,7 +4108,8 @@ function saveToLocalStorage() {
             left: document.getElementById('marginLeftInput').value,
             right: document.getElementById('marginRightInput').value
         },
-        logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true
+        logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+        backgroundMode: backgroundMode // Save the mode
     };
     json.lastFetchedData = lastFetchedData;
     localStorage.setItem('autosave_layout', JSON.stringify(json));
@@ -3914,7 +4220,9 @@ async function loadFromLocalStorage() {
                 if (mainBg) mainBg.set({ selectable: true, evented: true });
                 
                 if (data.custom_effects) applyCustomEffects(data.custom_effects);
+
                 updateFades();
+                updateFadeControls(); // Ensure UI sliders are visible based on loaded mode
 
                 // Final layout adjustment
                 // Even though we preloaded, we trigger a recalc just to be 100% sure

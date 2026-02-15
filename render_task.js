@@ -251,7 +251,124 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
     });
 }
 
-function createFadeRect(mainBg, type, size, bgColor) {
+function drawRoundedPath(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function generateAlphaMask(mainBg, settings) {
+    if (!mainBg) return null;
+    
+    const w = mainBg.width;
+    const h = mainBg.height;
+    
+    const maskCanvas = canvasModule.createCanvas(w, h);
+    const ctx = maskCanvas.getContext('2d');
+    
+    const scaleX = mainBg.scaleX;
+    const scaleY = mainBg.scaleY;
+    
+    const type = settings.fadeEffect || 'none';
+    
+    const sT = (parseInt(settings.fadeTop) || 0) / scaleY;
+    const sB = (parseInt(settings.fadeBottom) || 0) / scaleY;
+    const sL = (parseInt(settings.fadeLeft) || 0) / scaleX;
+    const sR = (parseInt(settings.fadeRight) || 0) / scaleX;
+    const radius = (parseInt(settings.fadeRadius) || 0) / Math.max(scaleX, scaleY);
+    const softness = (parseInt(settings.fadeSoftness) || 40) / Math.max(scaleX, scaleY);
+
+    // 1. Apply Base Technique
+    if (type === 'vignette') {
+        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+        const stop = Math.max(0, 1 - (radius * 2)); 
+        grad.addColorStop(0, 'rgba(0,0,0,1)');
+        grad.addColorStop(stop, 'rgba(0,0,0,1)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+    } else if (type === 'mask') {
+        ctx.clearRect(0, 0, w, h);
+        const gV = ctx.createLinearGradient(0, 0, 0, h);
+        if (sT > 0) { gV.addColorStop(0, 'rgba(0,0,0,0)'); gV.addColorStop(Math.min(sT/h, 0.5), 'rgba(0,0,0,1)'); } 
+        else { gV.addColorStop(0, 'rgba(0,0,0,1)'); }
+        if (sB > 0) { gV.addColorStop(Math.max(1 - (sB/h), 0.5), 'rgba(0,0,0,1)'); gV.addColorStop(1, 'rgba(0,0,0,0)'); } 
+        else { gV.addColorStop(1, 'rgba(0,0,0,1)'); }
+        ctx.fillStyle = gV; ctx.fillRect(0, 0, w, h);
+        
+        ctx.globalCompositeOperation = 'destination-in';
+        const gH = ctx.createLinearGradient(0, 0, w, 0);
+        if (sL > 0) { gH.addColorStop(0, 'rgba(0,0,0,0)'); gH.addColorStop(Math.min(sL/w, 0.5), 'rgba(0,0,0,1)'); } 
+        else { gH.addColorStop(0, 'rgba(0,0,0,1)'); }
+        if (sR > 0) { gH.addColorStop(Math.max(1 - (sR/w), 0.5), 'rgba(0,0,0,1)'); gH.addColorStop(1, 'rgba(0,0,0,0)'); } 
+        else { gH.addColorStop(1, 'rgba(0,0,0,1)'); }
+        ctx.fillStyle = gH; ctx.fillRect(0, 0, w, h);
+    } else if (type === 'gradient') {
+        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'destination-out';
+        const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
+        if (sT > 0) { const g = ctx.createLinearGradient(0, 0, 0, sT); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, w, sT); }
+        if (sB > 0) { const g = ctx.createLinearGradient(0, h, 0, h - sB); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, h - sB, w, sB); }
+        if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
+        if (sR > 0) { const g = ctx.createLinearGradient(w, 0, w - sR, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(w - sR, 0, sR, h); }
+    } else {
+        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, w, h);
+    }
+
+    // 2. Apply Rounded Corners
+    if (radius > 0) {
+        ctx.globalCompositeOperation = 'destination-in';
+        if (softness > 0) {
+            const temp = canvasModule.createCanvas(w, h);
+            const tCtx = temp.getContext('2d');
+            tCtx.fillStyle = 'black';
+            // Use shadowBlur for softness in node-canvas as filter might be missing/slow
+            tCtx.shadowColor = "black";
+            tCtx.shadowBlur = softness; 
+            const inset = softness; 
+            const rectW = Math.max(0, w - inset * 2);
+            const rectH = Math.max(0, h - inset * 2);
+            const maxR = Math.min(rectW, rectH) / 2;
+            const safeR = Math.min(Math.max(0, radius - inset), maxR);
+            
+            drawRoundedPath(tCtx, inset, inset, rectW, rectH, safeR);
+            tCtx.fill();
+            ctx.drawImage(temp, 0, 0);
+        } else {
+            const safeR = Math.min(radius, Math.min(w, h) / 2);
+            ctx.beginPath();
+            drawRoundedPath(ctx, 0, 0, w, h, safeR);
+            ctx.fill();
+        }
+    }
+    return maskCanvas;
+}
+
+function createFadeRect(mainBg, type, size, bgColor, settings) {
+    let fadeColor = bgColor;
+    const style = settings.bgStyle || 'solid';
+    const grads = settings.currentGradientColors;
+
+    if (grads) {
+        if (style === 'gradient_h') {
+            if (type === 'left') fadeColor = grads.c1 || fadeColor;
+            else if (type === 'right') fadeColor = grads.c2 || fadeColor;
+            else fadeColor = grads.c1 || fadeColor; // Top/Bottom fallback to start color
+        } else if (style === 'gradient_v') {
+            if (type === 'top') fadeColor = grads.c1 || fadeColor;
+            else if (type === 'bottom') fadeColor = grads.c2 || fadeColor;
+            else fadeColor = grads.c1 || fadeColor; // Left/Right fallback to start color
+        }
+    }
+
     const b = 2;
     const wImg = mainBg.width * mainBg.scaleX;
     const hImg = mainBg.height * mainBg.scaleY;
@@ -278,16 +395,30 @@ function createFadeRect(mainBg, type, size, bgColor) {
             type: 'linear', 
             gradientUnits: 'percentage', 
             coords: c, 
-            colorStops: [{ offset: 0, color: bgColor }, { offset: 1, color: hexToRgba(bgColor, 0) }] 
+            colorStops: [{ offset: 0, color: fadeColor }, { offset: 1, color: hexToRgba(fadeColor, 0) }] 
         }),
         dataTag: 'fade_effect'
     });
 }
 
-function addCornerFade(canvas, mainBg, pos, radius, bgColor) {
+function addCornerFade(canvas, mainBg, pos, radius, bgColor, settings) {
     const r = parseInt(radius);
     if (r <= 0) return;
     
+    let fadeColor = bgColor;
+    const style = settings.bgStyle || 'solid';
+    const grads = settings.currentGradientColors;
+
+    if (grads) {
+        if (style === 'gradient_h') {
+            if (pos.includes('left')) fadeColor = grads.c1 || fadeColor;
+            if (pos.includes('right')) fadeColor = grads.c2 || fadeColor;
+        } else if (style === 'gradient_v') {
+            if (pos.includes('top')) fadeColor = grads.c1 || fadeColor;
+            if (pos.includes('bottom')) fadeColor = grads.c2 || fadeColor;
+        }
+    }
+
     const w = mainBg.width * mainBg.scaleX;
     const h = mainBg.height * mainBg.scaleY;
     let bgLeft = mainBg.left;
@@ -314,7 +445,7 @@ function addCornerFade(canvas, mainBg, pos, radius, bgColor) {
     const grad = new fabric.Gradient({
         type: 'radial',
         coords: { r1: 0, r2: r, x1: gradCx, y1: gradCy, x2: gradCx, y2: gradCy },
-        colorStops: [{ offset: 0, color: bgColor }, { offset: 1, color: hexToRgba(bgColor, 0) }]
+        colorStops: [{ offset: 0, color: fadeColor }, { offset: 1, color: hexToRgba(fadeColor, 0) }]
     });
 
     const rect = new fabric.Rect({ left: rectLeft, top: rectTop, width: r, height: r, fill: grad, selectable: false, evented: false, dataTag: 'fade_effect' });
@@ -358,8 +489,8 @@ function resetAnchorState(anchor, originalState) {
 function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
     if (!canvas) return;
     
-    const padding = 20;
-    const hPadding = 20;
+    const padding = parseInt(settings.lineSpacing) || 20;
+    const hPadding = parseInt(settings.tagPadding) || 20;
     const rowThreshold = 30;
     
     const marginTop = parseInt(settings.margins?.top || 50);
@@ -734,6 +865,19 @@ function applyCustomEffects(canvas, settings, mainBg) {
     const bgColor = settings.bgColor || "#000000";
     canvas.backgroundColor = bgColor;
 
+    // --- AMBILIGHT MODE LOGIC ---
+    if (settings.backgroundMode === 'ambilight') {
+        const maskCanvas = generateAlphaMask(mainBg, settings);
+        if (maskCanvas) {
+            const maskImg = new fabric.Image(maskCanvas);
+            maskImg.originX = 'center';
+            maskImg.originY = 'center';
+            mainBg.clipPath = maskImg;
+        }
+        // Skip solid color fades
+        return;
+    }
+
     const type = settings.fadeEffect || 'none';
     const hasFadeSettings = (type !== 'none' && type !== 'custom') || 
                             (type === 'custom' && (settings.fadeLeft || settings.fadeRight || settings.fadeTop || settings.fadeBottom));
@@ -750,7 +894,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
         else if (side === 'bottom') val = settings.fadeBottom;
         
         if (val && parseInt(val) > 0) {
-            const rect = createFadeRect(mainBg, side, val, bgColor);
+            const rect = createFadeRect(mainBg, side, val, bgColor, settings);
             canvas.add(rect);
             const bgIdx = canvas.getObjects().indexOf(mainBg);
             if (bgIdx >= 0) rect.moveTo(bgIdx + 1);
@@ -760,19 +904,19 @@ function applyCustomEffects(canvas, settings, mainBg) {
     if (type === 'custom') {
         ['left', 'right', 'top', 'bottom'].forEach(addLinear);
     } else if (type === 'bottom-left') {
-        addCornerFade(canvas, mainBg, 'bottom-left', settings.fadeRadius, bgColor);
+        addCornerFade(canvas, mainBg, 'bottom-left', settings.fadeRadius, bgColor, settings);
         addLinear('left');
         addLinear('bottom');
     } else if (type === 'bottom-right') {
-        addCornerFade(canvas, mainBg, 'bottom-right', settings.fadeRadius, bgColor);
+        addCornerFade(canvas, mainBg, 'bottom-right', settings.fadeRadius, bgColor, settings);
         addLinear('right');
         addLinear('bottom');
     } else if (type === 'top-left') {
-        addCornerFade(canvas, mainBg, 'top-left', settings.fadeRadius, bgColor);
+        addCornerFade(canvas, mainBg, 'top-left', settings.fadeRadius, bgColor, settings);
         addLinear('left');
         addLinear('top');
     } else if (type === 'top-right') {
-        addCornerFade(canvas, mainBg, 'top-right', settings.fadeRadius, bgColor);
+        addCornerFade(canvas, mainBg, 'top-right', settings.fadeRadius, bgColor, settings);
         addLinear('right');
         addLinear('top');
     } else if (type === 'vignette') {
@@ -1039,73 +1183,171 @@ function applyCustomEffects(canvas, settings, mainBg) {
              mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
         }
 
-        // --- AUTO COLOR DETECTION ---
-        // Refactored Ambilight Logic to match editor.js behavior
-        // 1. Timing: Executed after backdrop load but before layout updates
+        // --- AUTO COLOR DETECTION / AMBILIGHT ---
+        // Refactored Logic to match editor.js behavior
         if (mainBg && assets.backdrop_url) {
-            try {
-                // Load image specifically for node-canvas sampling
-                // (JSDOM image element from fabric might not work with node-canvas drawImage)
-                const imageForSampling = await canvasModule.loadImage(assets.backdrop_url);
-                if (imageForSampling) {
-                    // 2. Sampling Logic: Use temp canvas (min 200px)
-                    const sampleSize = 200;
-                    const tempCanvas = canvasModule.createCanvas(sampleSize, sampleSize);
-                    const ctx = tempCanvas.getContext('2d');
-                    ctx.drawImage(imageForSampling, 0, 0, sampleSize, sampleSize);
-                    const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
-                    
-                    let r = 0, g = 0, b = 0, count = 0;
-                    const border = 10; // 5% of 200px = 10px (Samples edges like editor.js)
+            const style = settings.bgStyle || 'solid';
+            
+            // 1. AMBILIGHT MODE (Blur Extension)
+            if (style === 'ambilight') {
+                await new Promise(resolve => {
+                    mainBg.clone(function(cloned) {
+                        const targetW = canvas.width;
+                        const targetH = canvas.height;
+                        let scale = Math.max(targetW / cloned.width, targetH / cloned.height);
+                        scale *= 1.5; // Extension factor
 
-                    for (let y = 0; y < sampleSize; y++) {
-                        for (let x = 0; x < sampleSize; x++) {
-                            if (x < border || x > sampleSize - border || y < border || y > sampleSize - border) {
-                                const i = (y * sampleSize + x) * 4;
-                                r += imageData[i]; g += imageData[i + 1]; b += imageData[i + 2];
-                                count++;
+                        cloned.set({
+                            left: targetW / 2,
+                            top: targetH / 2,
+                            originX: 'center',
+                            originY: 'center',
+                            scaleX: scale,
+                            scaleY: scale,
+                            dataTag: 'ambilight_bg',
+                            selectable: false,
+                            evented: false,
+                            opacity: 1
+                        });
+
+                        // Calculate brightness
+                        let bVal = parseInt(settings.bgBrightness);
+                        if (isNaN(bVal)) bVal = 20;
+                        // Map 0-100 to Fabric brightness (-1 to 1). Matches editor.js logic.
+                        const fabricBrightness = (bVal / 100) - 0.6;
+
+                        cloned.filters = [];
+                        cloned.filters.push(new fabric.Image.filters.Blur({ blur: 0.5 })); 
+                        cloned.filters.push(new fabric.Image.filters.Brightness({ brightness: fabricBrightness }));
+                        cloned.applyFilters();
+                        
+                        canvas.add(cloned);
+                        canvas.sendToBack(cloned);
+                        canvas.backgroundColor = null; // Clear solid/gradient bg
+                        
+                        console.log("Applied Ambilight Background");
+                        resolve();
+                    });
+                });
+            } 
+            // 2. STANDARD COLOR/GRADIENT DETECTION
+            else {
+                try {
+                    // Load image specifically for node-canvas sampling
+                    const imageForSampling = await canvasModule.loadImage(assets.backdrop_url);
+                    if (imageForSampling) {
+                        const sampleSize = 200;
+                        const tempCanvas = canvasModule.createCanvas(sampleSize, sampleSize);
+                        const ctx = tempCanvas.getContext('2d');
+                        ctx.drawImage(imageForSampling, 0, 0, sampleSize, sampleSize);
+                        const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+                        
+                        const border = 10; // 5% of 200px
+
+                        // Helper to sample
+                        const sample = (x1, y1, x2, y2) => {
+                            let r=0, g=0, b=0, count=0;
+                            for (let y=y1; y<y2; y+=2) {
+                                for (let x=x1; x<x2; x+=2) {
+                                    const i = (y * sampleSize + x) * 4;
+                                    if (i < imageData.length) {
+                                        r += imageData[i]; g += imageData[i+1]; b += imageData[i+2];
+                                        count++;
+                                    }
+                                }
                             }
-                        }
-                    }
-                    
-                    if (count > 0) { 
-                        // Calculate Average RGB
-                        r = Math.floor(r/count); g = Math.floor(g/count); b = Math.floor(b/count); 
+                            return count > 0 ? { r: Math.floor(r/count), g: Math.floor(g/count), b: Math.floor(b/count) } : {r:0,g:0,b:0};
+                        };
 
-                        // 3. Brightness Correction: Apply factor from settings (default 20)
                         let bVal = parseInt(settings.bgBrightness);
                         if (isNaN(bVal)) bVal = 20;
                         const factor = bVal / 100;
-                        r = Math.floor(r * factor);
-                        g = Math.floor(g * factor);
-                        b = Math.floor(b * factor);
-
-                        const toHex = (c) => {
-                            const hex = Math.max(0, Math.min(255, c)).toString(16);
-                            return hex.length === 1 ? "0" + hex : hex;
+                        
+                        const darken = (c) => {
+                            let r = Math.floor(c.r * factor);
+                            let g = Math.floor(c.g * factor);
+                            let b = Math.floor(c.b * factor);
+                            return { r, g, b, hex: "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1) };
                         };
-                        const detectedHex = "#" + toHex(r) + toHex(g) + toHex(b);
-                        
-                        // 4. State Sync: Update settings.bgColor AND canvas.backgroundColor
-                        // This ensures fade gradients use the correct darkened color
-                        settings.bgColor = detectedHex;
-                        if (typeof canvas.setBackgroundColor === 'function') canvas.setBackgroundColor(detectedHex, () => {});
-                        canvas.backgroundColor = detectedHex;
-                        
-                        console.log(`Auto-Color Applied: ${detectedHex} (Brightness: ${bVal}%)`);
 
-                        // Sync Textbox backgrounds
-                        canvas.getObjects().forEach(obj => {
-                            if (obj.type === 'textbox' && (obj.autoBackgroundColor === true || obj.autoBackgroundColor === "true") && obj.backgroundColor) {
-                                const c = new fabric.Color(obj.backgroundColor);
-                                const currentOpacity = c.getSource()[3];
-                                obj.set('backgroundColor', `rgba(${r}, ${g}, ${b}, ${currentOpacity})`);
+                        let finalColorObj = null;
+
+                        if (style === 'solid') {
+                             let r=0, g=0, b=0, count=0;
+                             for (let y=0; y<sampleSize; y+=5) {
+                                 for (let x=0; x<sampleSize; x+=5) {
+                                     if (x < border || x > sampleSize - border || y < border || y > sampleSize - border) {
+                                         const i = (y * sampleSize + x) * 4;
+                                         r += imageData[i]; g += imageData[i+1]; b += imageData[i+2];
+                                         count++;
+                                     }
+                                 }
+                             }
+                             if (count > 0) {
+                                 finalColorObj = { type: 'solid', color: darken({r:r/count, g:g/count, b:b/count}) };
+                             }
+                        } else if (style === 'gradient_h') {
+                            const left = sample(0, 0, border, sampleSize);
+                            const right = sample(sampleSize-border, 0, sampleSize, sampleSize);
+                            finalColorObj = { type: 'gradient_h', c1: darken(left), c2: darken(right) };
+                        } else if (style === 'gradient_v') {
+                            const top = sample(0, 0, sampleSize, border);
+                            const bottom = sample(0, sampleSize-border, sampleSize, sampleSize);
+                            finalColorObj = { type: 'gradient_v', c1: darken(top), c2: darken(bottom) };
+                        }
+
+                        if (finalColorObj) {
+                            let primaryHex;
+
+                            if (finalColorObj.type === 'solid') {
+                                primaryHex = finalColorObj.color.hex;
+                                settings.currentGradientColors = null; // No gradient
+                                canvas.backgroundColor = primaryHex;
+                                if (typeof canvas.setBackgroundColor === 'function') canvas.setBackgroundColor(primaryHex, () => {});
+                            } else {
+                                // Gradient
+                                primaryHex = finalColorObj.c1.hex; // Use Start color for fallbacks
+                                
+                                // Save detected colors for fade effects
+                                settings.currentGradientColors = {
+                                    c1: finalColorObj.c1.hex,
+                                    c2: finalColorObj.c2.hex
+                                };
+
+                                let coords = (finalColorObj.type === 'gradient_h') ? { x1: 0, y1: 0, x2: 1, y2: 0 } : { x1: 0, y1: 0, x2: 0, y2: 1 };
+                                
+                                const grad = new fabric.Gradient({
+                                    type: 'linear',
+                                    gradientUnits: 'percentage',
+                                    coords: coords,
+                                    colorStops: [
+                                        { offset: 0, color: finalColorObj.c1.hex },
+                                        { offset: 1, color: finalColorObj.c2.hex }
+                                    ]
+                                });
+                                
+                                canvas.backgroundColor = grad;
+                                if (typeof canvas.setBackgroundColor === 'function') canvas.setBackgroundColor(grad, () => {});
                             }
-                        });
+
+                            // State Sync
+                            settings.bgColor = primaryHex; 
+                            console.log(`Auto-Color Applied (${style}): ${primaryHex} (Brightness: ${bVal}%)`);
+
+                            // Sync Textbox backgrounds (Use primary solid color)
+                            const rgb = finalColorObj.type === 'solid' ? finalColorObj.color : finalColorObj.c1;
+                            canvas.getObjects().forEach(obj => {
+                                if (obj.type === 'textbox' && (obj.autoBackgroundColor === true || obj.autoBackgroundColor === "true") && obj.backgroundColor) {
+                                    const c = new fabric.Color(obj.backgroundColor);
+                                    const currentOpacity = c.getSource()[3];
+                                    obj.set('backgroundColor', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${currentOpacity})`);
+                                }
+                            });
+                        }
                     }
+                } catch (e) {
+                    console.warn("Auto color detection error:", e.message);
                 }
-            } catch (e) {
-                console.warn("Auto color detection error:", e.message);
             }
         }
 
@@ -1126,7 +1368,15 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 canvas.remove(titleObj); 
 
                 await new Promise(resolve => {
-                    fabric.Image.fromURL(assets.logo_url, (img) => {
+                    // FIX: Apply Logo Auto-Fix via Proxy if enabled
+                    let loadUrl = assets.logo_url;
+                    const shouldAutoFix = (settings.logoAutoFix !== false);
+                    
+                    if (shouldAutoFix && !loadUrl.includes('/api/proxy/image')) {
+                        loadUrl = `${API_BASE}/api/proxy/image?url=${encodeURIComponent(assets.logo_url)}`;
+                    }
+
+                    fabric.Image.fromURL(loadUrl, (img) => {
                         if (img) {
                             // --- SMART RESIZE LOGIC (Match editor.js) ---
                             const baseMaxW = canvas.width * 0.55;

@@ -212,11 +212,14 @@ async function startBatchProcess() {
             bgBrightness: document.getElementById('bgBrightness').value,
             fadeEffect: document.getElementById('fadeEffect').value,
             fadeRadius: document.getElementById('fadeRadius').value,
+            fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
             fadeLeft: document.getElementById('fadeLeft').value,
             fadeRight: document.getElementById('fadeRight').value,
             fadeTop: document.getElementById('fadeTop').value,
             fadeBottom: document.getElementById('fadeBottom').value,
             tagAlignment: document.getElementById('tagAlignSelect').value,
+            tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+            lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
             textContentAlignment: document.getElementById('textContentAlignSelect').value,
             genreLimit: document.getElementById('genreLimitSlider').value,
             overlayId: document.getElementById('overlaySelect').value,
@@ -226,7 +229,8 @@ async function startBatchProcess() {
                 left: document.getElementById('marginLeftInput').value,
                 right: document.getElementById('marginRightInput').value
             },
-            logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true
+            logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+            backgroundMode: backgroundMode
         };
 
         if (json.custom_effects.overlayId && typeof overlayProfiles !== 'undefined') {

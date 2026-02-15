@@ -235,6 +235,13 @@ async function editGalleryImage(folder, filename) {
                 if (typeof updateFadeControls === 'function') updateFadeControls();
             };
 
+            if (eff.backgroundMode) {
+                backgroundMode = eff.backgroundMode;
+                const bgModeSel = document.getElementById('bgStyleSelect');
+                if(bgModeSel) bgModeSel.value = backgroundMode;
+                if (typeof populateFadeEffectOptions === 'function') populateFadeEffectOptions(backgroundMode);
+            }
+
             if(eff.bgColor) { 
                 document.getElementById('bgColor').value = eff.bgColor; 
                 canvas.setBackgroundColor(eff.bgColor, () => { finalizeEffects(); }); 
@@ -242,12 +249,35 @@ async function editGalleryImage(folder, filename) {
             if(eff.bgBrightness) document.getElementById('bgBrightness').value = eff.bgBrightness;
             if(eff.fadeEffect) document.getElementById('fadeEffect').value = eff.fadeEffect;
             if(eff.fadeRadius) document.getElementById('fadeRadius').value = eff.fadeRadius;
+            if(eff.fadeSoftness) {
+                const el = document.getElementById('fadeSoftness');
+                if(el) {
+                    el.value = eff.fadeSoftness;
+                    document.getElementById('fadeSoftnessVal').innerText = eff.fadeSoftness;
+                }
+            }
             if(eff.fadeLeft) document.getElementById('fadeLeft').value = eff.fadeLeft;
             if(eff.fadeRight) document.getElementById('fadeRight').value = eff.fadeRight;
             if(eff.fadeTop) document.getElementById('fadeTop').value = eff.fadeTop;
             if(eff.fadeBottom) document.getElementById('fadeBottom').value = eff.fadeBottom;
             if(eff.tagAlignment) document.getElementById('tagAlignSelect').value = eff.tagAlignment;
             else if(eff.centerTags !== undefined) document.getElementById('tagAlignSelect').value = eff.centerTags ? 'center' : 'left';
+            if(eff.tagPadding) {
+                const el = document.getElementById('tagPaddingInput');
+                if(el) {
+                    el.value = eff.tagPadding;
+                    const valEl = document.getElementById('tagPaddingVal');
+                    if(valEl) valEl.innerText = eff.tagPadding + "px";
+                }
+            }
+            if(eff.lineSpacing) {
+                const el = document.getElementById('lineSpacingInput');
+                if(el) {
+                    el.value = eff.lineSpacing;
+                    const valEl = document.getElementById('lineSpacingVal');
+                    if(valEl) valEl.innerText = eff.lineSpacing + "px";
+                }
+            }
             if(eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
             if(eff.limitGenres !== undefined) {
                 const val = eff.limitGenres ? 2 : 6;

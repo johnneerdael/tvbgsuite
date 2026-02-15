@@ -673,12 +673,11 @@
                     </select>
                     
                     <label data-i18n="bg_style">Background Style</label>
-                    <select id="bgStyleSelect" onchange="updateBgStyle()">
-                        <option value="solid" selected data-i18n="style_solid">Solid Color</option>
-                        <option value="gradient_h" data-i18n="style_gradient_h">Gradient (Horizontal)</option>
-                        <option value="gradient_v" data-i18n="style_gradient_v">Gradient (Vertical)</option>
-                        <option value="ambilight" data-i18n="style_ambilight">Ambilight (Blur Extension)</option>
+                    <select id="bgStyleSelect" onchange="toggleBackgroundMode(this.value)">
+                        <option value="solid">Solid Color</option>
+                        <option value="ambilight">Ambilight</option>
                     </select>
+
 
                     <label data-i18n="bg_color">Background Color</label>
                     <div style="display:flex; gap:5px; align-items:center;">
@@ -709,6 +708,13 @@
                     <div id="ctrl-fade-radius" style="display:none;">
                         <label for="fadeRadius" data-i18n="corner_radius">Corner Radius</label>
                         <input type="range" id="fadeRadius" min="0" max="3000" value="1000" oninput="updateFades()">
+                    </div>
+                    <div id="ctrl-fade-softness" style="display:none;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <label for="fadeSoftness" style="font-size:11px; margin:0;">Corner Softness (Feather)</label>
+                            <span id="fadeSoftnessVal" style="font-size:11px;">40</span>
+                        </div>
+                        <input type="range" id="fadeSoftness" min="0" max="150" value="40" oninput="document.getElementById('fadeSoftnessVal').innerText = this.value; updateFades()" style="margin-top:2px;">
                     </div>
                     <div id="ctrl-fade-left"><label for="fadeLeft">Left</label><input type="range" id="fadeLeft" min="0" max="3000" value="580" oninput="updateFades()"></div>
                     <div id="ctrl-fade-right"><label for="fadeRight">Right</label><input type="range" id="fadeRight" min="0" max="3000" value="0" oninput="updateFades()"></div>
