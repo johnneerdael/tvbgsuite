@@ -5,9 +5,9 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # 1. Install all system dependencies first
-# We need python tools, nodejs, and native libraries for canvas rendering (Cairo, Pango, etc.)
-# Using apt-get because the base image is Debian
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Helper tool for build scripts to find libraries
+    pkg-config \
     # Node.js and npm for the renderer
     nodejs \
     npm \
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjpeg-dev \
     libgif-dev \
     librsvg2-dev \
-    # Other utilities from your original file
+    # Other utilities
     ca-certificates \
     curl \
     dos2unix \
@@ -27,18 +27,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Clean up apt-get cache to keep the image small
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Node.js dependencies
+# 2. Configure npm to find the correct Python executable
+#    THIS IS THE CRUCIAL FIX for 'gyp ERR! configure error'
+RUN npm config set python python3
+
+# 3. Install Node.js dependencies
 # Copy only the package files first to leverage Docker cache
 COPY package*.json ./
-# Now that npm is installed, this command will work
+# Now that npm is configured correctly, this command should finally work
 RUN npm install && npm rebuild canvas --build-from-source
 
-# 3. Install Python dependencies
-# Copy only the requirements file first to leverage Docker cache
+# 4. Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 4. Copy the rest of the application code
+# 5. Copy the rest of the application code
 COPY . .
 
 # Create defaults directory and backup assets for volume initialization
