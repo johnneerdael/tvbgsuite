@@ -58,3 +58,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
+          # HIER IST DIE WICHTIGE ÄNDERUNG:
+          # Diese Zeile zwingt die Action, den Build komplett neu zu starten
+          # und alle alten, fehlerhaften Cache-Layer zu ignorieren.
+          no-cache: true

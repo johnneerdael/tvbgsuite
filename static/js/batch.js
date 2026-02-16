@@ -215,61 +215,105 @@ async function startBatchProcess() {
         // 2. Hide overlay for screenshot
         const overlay = canvas.getObjects().find(o => o.dataTag === 'guide_overlay');
         const wasVisible = overlay ? overlay.visible : false;
-        if (overlay) overlay.visible = false;
-
-        const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.95 });
-        if (overlay) overlay.visible = wasVisible;
-
-        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity']);
+                if (overlay) overlay.visible = false;
         
-        // Inject custom_effects so the saved JSON contains overlay info & blocked areas
-        json.custom_effects = {
-            bgColor: document.getElementById('bgColor').value,
-            bgBrightness: document.getElementById('bgBrightness').value,
-            fadeEffect: document.getElementById('fadeEffect').value,
-            fadeRadius: document.getElementById('fadeRadius').value,
-            fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
-            fadeLeft: document.getElementById('fadeLeft').value,
-            fadeRight: document.getElementById('fadeRight').value,
-            fadeTop: document.getElementById('fadeTop').value,
-            fadeBottom: document.getElementById('fadeBottom').value,
-            tagAlignment: document.getElementById('tagAlignSelect').value,
-            tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
-            lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
-            textContentAlignment: document.getElementById('textContentAlignSelect').value,
-            genreLimit: document.getElementById('genreLimitSlider').value,
-            overlayId: document.getElementById('overlaySelect').value,
-            margins: {
-                top: document.getElementById('marginTopInput').value,
-                bottom: document.getElementById('marginBottomInput').value,
-                left: document.getElementById('marginLeftInput').value,
-                right: document.getElementById('marginRightInput').value
-            },
-            logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
-            backgroundMode: backgroundMode
-        };
-
-        if (json.custom_effects.overlayId && typeof overlayProfiles !== 'undefined') {
-            const profile = overlayProfiles.find(p => p.id === json.custom_effects.overlayId);
-            if (profile && profile.blocked_areas) {
-                json.custom_effects.blocked_areas = profile.blocked_areas;
-            }
-        }
+                const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.95 });
+                if (overlay) overlay.visible = wasVisible;
         
-        let metadata = {};
-        if (typeof extractMetadata === 'function' && lastFetchedData) {
-            metadata = extractMetadata(lastFetchedData);
-        }
+                // --- New: Separate Ambilight Data ---
+                let ambilightDataURL = null;
+                const ambilightObj = canvas.getObjects().find(o => o.dataTag === 'ambilight_bg');
+                
+                if (ambilightObj) {
+                    await new Promise(resolve => {
+                        const timer = setTimeout(() => {
+                            logBatch("Warning: Ambilight clone operation timed out.");
+                            resolve();
+                        }, 3000);
+        
+                        const tempCanvas = new fabric.StaticCanvas(null, {
+                            width: ambilightObj.getScaledWidth(),
+                            height: ambilightObj.getScaledHeight()
+                        });
+        
+                        ambilightObj.clone(function(cloned) {
+                            clearTimeout(timer);
+                            if (!cloned) {
+                                logBatch("Warning: Failed to clone ambilight object.");
+                                tempCanvas.dispose();
+                                return resolve();
+                            }
+                            cloned.set({
+                                left: tempCanvas.width / 2,
+                                top: tempCanvas.height / 2,
+                                originX: 'center',
+                                originY: 'center'
+                            });
+                            tempCanvas.add(cloned);
+                            tempCanvas.renderAll();
+                            ambilightDataURL = tempCanvas.toDataURL({ format: 'jpeg', quality: 0.8 });
+                            
+                            tempCanvas.dispose();
+                            resolve();
+                        });
+                    });
+                    canvas.remove(ambilightObj);
+                }
+                // --- End New ---
+        
+                const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity']);
+                
+                // Inject custom_effects so the saved JSON contains overlay info & blocked areas
+                json.custom_effects = {
+                    bgColor: document.getElementById('bgColor').value,
+                    bgBrightness: document.getElementById('bgBrightness').value,
+                    fadeEffect: document.getElementById('fadeEffect').value,
+                    fadeRadius: document.getElementById('fadeRadius').value,
+                    fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
+                    fadeLeft: document.getElementById('fadeLeft').value,
+                    fadeRight: document.getElementById('fadeRight').value,
+                    fadeTop: document.getElementById('fadeTop').value,
+                    fadeBottom: document.getElementById('fadeBottom').value,
+                    tagAlignment: document.getElementById('tagAlignSelect').value,
+                    tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+                    lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+                    textContentAlignment: document.getElementById('textContentAlignSelect').value,
+                    genreLimit: document.getElementById('genreLimitSlider').value,
+                    overlayId: document.getElementById('overlaySelect').value,
+                    margins: {
+                        top: document.getElementById('marginTopInput').value,
+                        bottom: document.getElementById('marginBottomInput').value,
+                        left: document.getElementById('marginLeftInput').value,
+                        right: document.getElementById('marginRightInput').value
+                    },
+                    logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+                    backgroundMode: backgroundMode
+                };
+        
+                if (json.custom_effects.overlayId && typeof overlayProfiles !== 'undefined') {
+                    const profile = overlayProfiles.find(p => p.id === json.custom_effects.overlayId);
+                    if (profile && profile.blocked_areas) {
+                        json.custom_effects.blocked_areas = profile.blocked_areas;
+                    }
+                }
+                
+                let metadata = {};
+                if (typeof extractMetadata === 'function' && lastFetchedData) {
+                    metadata = extractMetadata(lastFetchedData);
+                }
+        
+                const payload = { 
+                    image: dataURL, 
+                    layout_name: layoutName, 
+                    canvas_json: json, 
+                    overwrite_filename: null, 
+                    target_type: 'gallery',
+                    organize_by_genre: sortGenre,
+                    metadata: metadata,
+                    ambilight_image_data: ambilightDataURL // Add to payload
+                };
 
-        const payload = { 
-            image: dataURL, 
-            layout_name: layoutName, 
-            canvas_json: json, 
-            overwrite_filename: null, 
-            target_type: 'gallery',
-            organize_by_genre: sortGenre,
-            metadata: metadata
-        };
+        
 
         await fetch('/api/save_image', {
             method: 'POST',
@@ -278,7 +322,7 @@ async function startBatchProcess() {
         });
         
         // Update preview image in batch tab
-        document.getElementById('batchPreviewImg').src = canvas.toDataURL({ format: 'jpeg', quality: 0.5 });
+        document.getElementById('batchPreviewImg').src = dataURL;
 
         if (delay > 0) await new Promise(r => setTimeout(r, delay));
     }

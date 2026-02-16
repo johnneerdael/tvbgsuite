@@ -53,9 +53,11 @@ def run_node_renderer(layout_path, metadata, preferred_logo_width=None):
     f.close()
     
     output_json_path = output_image_path + ".json"
+    output_ambilight_path = output_image_path.replace('.jpg', '.ambilight.jpg')
 
     # 3. Execute Node
     image_b64 = None
+    ambilight_b64 = None
     final_json = None
     new_preferred_logo_width = None
     
@@ -70,6 +72,15 @@ def run_node_renderer(layout_path, metadata, preferred_logo_width=None):
         # Run Node with CWD set to script directory to ensure relative paths work
         result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', cwd=script_dir)
         
+        # --- DEBUG: Always log Node.js output ---
+        log(f"--- NODE.JS OUTPUT (Exit Code: {result.returncode}) ---")
+        if result.stdout:
+            log(f"STDOUT: {result.stdout.strip()}")
+        if result.stderr:
+            log(f"STDERR: {result.stderr.strip()}")
+        log(f"--------------------------------------------------")
+        # --- END DEBUG ---
+
         # Check result
         if result.returncode == 0 and "SUCCESS" in result.stdout:
             # Read Resulting Image
@@ -77,6 +88,12 @@ def run_node_renderer(layout_path, metadata, preferred_logo_width=None):
                 with open(output_image_path, 'rb') as img_f:
                     file_b64 = base64.b64encode(img_f.read()).decode('utf-8')
                     image_b64 = f"data:image/jpeg;base64,{file_b64}"
+            
+            # Read Ambilight Image if it exists
+            if os.path.exists(output_ambilight_path):
+                with open(output_ambilight_path, 'rb') as img_f:
+                    file_b64 = base64.b64encode(img_f.read()).decode('utf-8')
+                    ambilight_b64 = f"data:image/jpeg;base64,{file_b64}"
             
             if os.path.exists(output_json_path):
                 with open(output_json_path, 'r', encoding='utf-8') as json_f:
@@ -96,12 +113,12 @@ def run_node_renderer(layout_path, metadata, preferred_logo_width=None):
     
     finally:
         # Cleanup
-        for p in [payload_path, output_image_path, output_json_path]:
+        for p in [payload_path, output_image_path, output_json_path, output_ambilight_path]:
             if p and os.path.exists(p):
                 try: os.remove(p)
                 except: pass
 
-    return image_b64, final_json, new_preferred_logo_width
+    return image_b64, ambilight_b64, final_json, new_preferred_logo_width
 
 def fetch_items_and_process(job=None):
     if not job: return
@@ -251,7 +268,7 @@ def fetch_items_and_process(job=None):
         }
 
         log(f"Rendering: {meta['title']}")
-        img_b64, json_data, new_pref_width = run_node_renderer(layout_full_path, meta, preferred_logo_width)
+        img_b64, ambilight_b64, json_data, new_pref_width = run_node_renderer(layout_full_path, meta, preferred_logo_width)
         
         if new_pref_width:
             preferred_logo_width = new_pref_width
@@ -265,6 +282,10 @@ def fetch_items_and_process(job=None):
                 "overwrite_filename": filename,
                 "target_type": "gallery"
             }
+            
+            if ambilight_b64:
+                payload['ambilight_image_data'] = ambilight_b64
+                
             try:
                 requests.post(API_URL, json=payload)
             except Exception as e:

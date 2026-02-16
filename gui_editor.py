@@ -1503,21 +1503,48 @@ def save_editor_image():
     try:
         with open(filepath, "wb") as f:
             f.write(base64.b64decode(image_data))
-            
-        # Save JSON data if provided
-        if canvas_json:
-            json_path = os.path.splitext(filepath)[0] + ".json"
-            with open(json_path, "w") as f:
-                json.dump(canvas_json, f)
-                
-        # Update JSON with action_url if provided in metadata
-        if metadata and metadata.get('action_url'):
-            # Re-read or just update the dict before dumping if we hadn't dumped yet.
-            # Since we dumped canvas_json above, let's load it back or just append to it if canvas_json was a dict.
-            # Better: Modify canvas_json before dumping.
-            pass # Logic moved below to be cleaner
-            
+
         final_json_data = canvas_json if canvas_json else {}
+        
+        # --- New: Handle separate ambilight image ---
+        ambilight_image_data = data.get('ambilight_image_data')
+        if ambilight_image_data and final_json_data:
+            if ',' in ambilight_image_data:
+                ambilight_image_data = ambilight_image_data.split(',')[1]
+            
+            ambilight_filename = os.path.splitext(filename)[0] + ".ambilight.jpg"
+            ambilight_filepath = os.path.join(full_path, ambilight_filename)
+            
+            with open(ambilight_filepath, "wb") as f:
+                f.write(base64.b64decode(ambilight_image_data))
+
+            canvas_width = final_json_data.get('width', 1920)
+            canvas_height = final_json_data.get('height', 1080)
+            
+            try:
+                img = Image.open(ambilight_filepath)
+                img_width, img_height = img.size
+            except Exception as e:
+                print(f"WARN: Could not read ambilight image dimensions: {e}")
+                img_width, img_height = canvas_width, canvas_height # Fallback
+
+            ambilight_obj = {
+                "type": "image",
+                "version": "5.3.0",
+                "originX": "center", "originY": "center",
+                "left": canvas_width / 2, "top": canvas_height / 2,
+                "width": img_width, "height": img_height,
+                "scaleX": canvas_width / img_width, "scaleY": canvas_height / img_height,
+                "src": os.path.basename(ambilight_filepath),
+                "dataTag": "ambilight_bg",
+                "selectable": False, "evented": False, "crossOrigin": "anonymous"
+            }
+            if 'objects' not in final_json_data:
+                final_json_data['objects'] = []
+            final_json_data['objects'].insert(0, ambilight_obj)
+        # --- End New ---
+            
+        # Update JSON with metadata and action_url
         if metadata:
             final_json_data['metadata'] = metadata
             final_json_data['action_url'] = metadata.get('action_url')
@@ -1525,6 +1552,7 @@ def save_editor_image():
         json_path = os.path.splitext(filepath)[0] + ".json"
         with open(json_path, "w") as f:
             json.dump(final_json_data, f)
+
 
         # Update Cache (Live Update)
         if metadata:
@@ -1598,12 +1626,12 @@ def list_gallery_images():
                     subdirs = [d for d in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, d))]
                     if not subdirs:
                         # Fallback for root files
-                        images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                        images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png')) and '.ambilight' not in f.lower()]
                         if images: gallery["Editor (Unsorted)"] = sorted(images)
                     else:
                         for subdir in subdirs:
                             sub_path = os.path.join(folder_path, subdir)
-                            images = [f for f in os.listdir(sub_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                            images = [f for f in os.listdir(sub_path) if f.lower().endswith(('.jpg', '.jpeg', '.png')) and '.ambilight' not in f.lower()]
                             if images: gallery[f"Layout: {subdir}"] = sorted(images)
                 except: pass
             elif folder == "layouts":
@@ -1614,11 +1642,11 @@ def list_gallery_images():
                         subdirs = [d for d in os.listdir(previews_dir) if os.path.isdir(os.path.join(previews_dir, d))]
                         for subdir in subdirs:
                             sub_path = os.path.join(previews_dir, subdir)
-                            images = [f for f in os.listdir(sub_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                            images = [f for f in os.listdir(sub_path) if f.lower().endswith(('.jpg', '.jpeg', '.png')) and '.ambilight' not in f.lower()]
                             if images: gallery[f"LayoutPreview: {subdir}"] = sorted(images)
                     except: pass
             elif folder != "layouts":
-                images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png')) and '.ambilight' not in f.lower()]
                 if images:
                     gallery[folder] = sorted(images)
     return jsonify(gallery)

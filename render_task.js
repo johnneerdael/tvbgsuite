@@ -866,10 +866,10 @@ function applyCustomEffects(canvas, settings, mainBg) {
     mainBg.clipPath = null;
 
     const bgColor = settings.bgColor || "#000000";
-    canvas.backgroundColor = bgColor;
 
     // --- AMBILIGHT MODE LOGIC ---
     if (settings.backgroundMode === 'ambilight') {
+        canvas.backgroundColor = null; // Ensure canvas background is transparent for Ambilight
         const maskCanvas = generateAlphaMask(mainBg, settings);
         if (maskCanvas) {
             const maskImg = new fabric.Image(maskCanvas);
@@ -880,6 +880,9 @@ function applyCustomEffects(canvas, settings, mainBg) {
         // Skip solid color fades
         return;
     }
+
+    // For all other modes, apply the background color
+    canvas.backgroundColor = bgColor;
 
     const type = settings.fadeEffect || 'none';
     const hasFadeSettings = (type !== 'none' && type !== 'custom') || 
@@ -931,12 +934,28 @@ function applyCustomEffects(canvas, settings, mainBg) {
 
 // --- MAIN ---
 (async () => {
+    console.log(`[LOG] Render task started for output: ${outputPath}`);
     try {
         const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+        console.log(`[LOG] Payload loaded successfully.`);
+        
         let preferredLogoWidth = payload.preferred_logo_width || null;
-        const layoutJson = JSON.parse(fs.readFileSync(payload.layout_file, 'utf8'));
         const meta = payload.metadata;
         const assets = payload.assets;
+        console.log(`[LOG] Processing item: ${meta.title} (${meta.year})`);
+        console.log(`[LOG] Assets: Backdrop URL: ${assets.backdrop_url ? 'Yes' : 'No'}, Logo URL: ${assets.logo_url ? 'Yes' : 'No'}`);
+
+        const layoutFileContent = fs.readFileSync(payload.layout_file, 'utf8');
+        let layoutJson = JSON.parse(layoutFileContent);
+        
+        console.log(`[LOG] Pre-filtering layout. Original object count: ${layoutJson.objects.length}`);
+        
+        // Filter out placeholder backgrounds before loading
+        if (layoutJson.objects && Array.isArray(layoutJson.objects)) {
+            layoutJson.objects = layoutJson.objects.filter(o => o.dataTag !== 'background' && o.dataTag !== 'ambilight_bg');
+        }
+        
+        console.log(`[LOG] Layout filtered. New object count: ${layoutJson.objects.length}`);
 
         // FIX: Pre-process Layout to handle relative URLs (Node.js doesn't support them)
         const API_BASE = "http://127.0.0.1:5000"; 
@@ -984,9 +1003,11 @@ function applyCustomEffects(canvas, settings, mainBg) {
             baseWidth = 3840;
             baseHeight = 2160;
         }
+        console.log(`[LOG] Canvas base resolution detected: ${baseWidth}x${baseHeight}`);
         const canvas = new fabric.StaticCanvas(null, { width: baseWidth, height: baseHeight });
 
         // Load JSON with a timeout to prevent hanging
+        console.log('[LOG] Loading canvas from filtered JSON...');
         await new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
                 console.warn("WARNING: canvas.loadFromJSON timed out, proceeding anyway.");
@@ -994,7 +1015,11 @@ function applyCustomEffects(canvas, settings, mainBg) {
             }, 10000); // 10 second timeout
             
             // Pass reviver to handle custom properties or errors if needed
-            canvas.loadFromJSON(layoutJson, () => { clearTimeout(timeout); resolve(); }, (o, object) => {
+            canvas.loadFromJSON(layoutJson, () => { 
+                console.log('[LOG] Canvas loaded from filtered JSON successfully.');
+                clearTimeout(timeout); 
+                resolve(); 
+            }, (o, object) => {
                  // Ensure dataTag and other properties are preserved
             });
         });
@@ -1003,21 +1028,27 @@ function applyCustomEffects(canvas, settings, mainBg) {
         // This ensures that subsequent operations (like bg scaling) use the correct 1920/4K width
         // instead of whatever width was saved in the JSON (e.g. 1280 from a buggy save).
         if (canvas.getWidth() !== baseWidth || canvas.getHeight() !== baseHeight) {
+             console.log(`[LOG] Correcting canvas dimensions from ${canvas.getWidth()}x${canvas.getHeight()} to ${baseWidth}x${baseHeight}`);
              canvas.setDimensions({ width: baseWidth, height: baseHeight });
         }
 
         const settings = layoutJson.custom_effects || layoutJson.metadata?.custom_effects || {};
+        console.log(`[LOG] Custom effects settings loaded. Fade: ${settings.fadeEffect}, BG Mode: ${settings.backgroundMode || 'solid'}`);
 
         const imagePromises = [];
         const certDir = path.join(__dirname, 'certification');
 
+        console.log('[LOG] Populating canvas objects with metadata...');
         canvas.getObjects().forEach(obj => {
             if (!obj.dataTag) return;
             let val = undefined;
 
             switch (obj.dataTag) {
                 case 'title':
-                    if (obj.type !== 'image') val = meta.title;
+                    if (obj.type !== 'image') {
+                        val = meta.title;
+                        console.log(`[LOG] Applying text title: "${val}"`);
+                    }
                     break;
                 case 'year':
                     val = meta.year;
@@ -1083,6 +1114,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 case 'certification':
                     const fname = getCertificationFilename(meta.officialRating);
                     if (fname) {
+                        console.log(`[LOG] Loading certification image: ${fname}`);
                         const p = new Promise(resolve => {
                             const fpath = path.join(certDir, fname);
                             if (fs.existsSync(fpath)) {
@@ -1100,10 +1132,14 @@ function applyCustomEffects(canvas, settings, mainBg) {
                                         img.scaleToHeight(targetH);
                                         canvas.remove(obj);
                                         canvas.add(img);
+                                        console.log('[LOG] Certification image applied.');
+                                    } else {
+                                        console.warn('[WARN] Failed to create certification image object from data.');
                                     }
                                     resolve();
                                 });
                             } else {
+                                console.warn(`[WARN] Certification file not found: ${fpath}`);
                                 obj.set('visible', false);
                                 resolve();
                             }
@@ -1139,14 +1175,18 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 };
             }
         });
+        console.log('[LOG] Metadata population complete.');
 
         if (imagePromises.length > 0) {
+            console.log(`[LOG] Waiting for ${imagePromises.length} async image operations...`);
             await Promise.all(imagePromises);
+            console.log('[LOG] Async image operations finished.');
         }
 
         let mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
         
         if (assets.backdrop_url) {
+            console.log(`[LOG] Loading backdrop from URL: ${assets.backdrop_url}`);
             let left = canvas.width / 2;
             let top = canvas.height / 2;
             let flipX = false;
@@ -1161,6 +1201,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 flipX = oldBg.flipX;
                 flipY = oldBg.flipY;
                 oldWidth = oldBg.width * oldBg.scaleX;
+                console.log('[LOG] Found existing background in layout. Preserving transformations.');
             }
 
             // FIX: Remove ALL existing backgrounds/ambilight layers to prevent ghosts/duplicates
@@ -1169,9 +1210,10 @@ function applyCustomEffects(canvas, settings, mainBg) {
             await new Promise(resolve => {
                 fabric.Image.fromURL(assets.backdrop_url, (img) => {
                     if (!img) { 
-                        console.warn(`DEBUG: Failed to fetch background from ${assets.backdrop_url}`);
+                        console.warn(`[WARN] Failed to load background from URL. It might be inaccessible or invalid.`);
                         resolve(); return; 
                     }
+                    console.log(`[LOG] Backdrop image loaded successfully (${img.width}x${img.height}).`);
                     
                     let scale = Math.max(canvas.width / img.width, canvas.height / img.height);
                     
@@ -1199,6 +1241,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
                     canvas.add(img);
                     canvas.sendToBack(img);
                     mainBg = img;
+                    console.log('[LOG] New backdrop image added to canvas and sent to back.');
                     resolve();
                 });
             });
@@ -1206,62 +1249,100 @@ function applyCustomEffects(canvas, settings, mainBg) {
         
         if (!mainBg) {
              mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
+             if (mainBg) console.log('[LOG] Found background image that was part of the initial layout.');
         }
 
         // FIX: Clear clipPath immediately to prevent crash in first renderAll (before applyCustomEffects runs)
         if (mainBg && mainBg.clipPath) {
+            console.log('[LOG] Clearing pre-existing clipPath from background image.');
             mainBg.clipPath = null;
         }
 
         // --- AUTO COLOR DETECTION / AMBILIGHT ---
         // Refactored Logic to match editor.js behavior
         if (mainBg && assets.backdrop_url) {
-            const style = settings.bgStyle || 'solid';
+            const style = settings.bgStyle || settings.backgroundMode || 'solid';
+            console.log(`[LOG] Detected background style: '${style}'`);
             
             // 1. AMBILIGHT MODE (Blur Extension)
             if (style === 'ambilight') {
-                await new Promise(resolve => {
-                    mainBg.clone(function(cloned) {
-                        const targetW = canvas.width;
-                        const targetH = canvas.height;
-                        let scale = Math.max(targetW / cloned.width, targetH / cloned.height);
-                        scale *= 1.5; // Extension factor
+                console.log('[LOG] Starting Ambilight generation...');
+                await new Promise(async (resolve) => {
+                    // --- Create the Ambilight Object for the Main Canvas ---
+                    const ambilightForCanvas = await new Promise(res => mainBg.clone(res));
+                    console.log('[LOG] Cloned main background for Ambilight.');
+                    
+                    const targetW = canvas.width;
+                    const targetH = canvas.height;
+                    let scale = Math.max(targetW / ambilightForCanvas.width, targetH / ambilightForCanvas.height);
+                    scale *= 1.5; // Extension factor
 
-                        cloned.set({
-                            left: targetW / 2,
-                            top: targetH / 2,
-                            originX: 'center',
-                            originY: 'center',
-                            scaleX: scale,
-                            scaleY: scale,
-                            dataTag: 'ambilight_bg',
-                            selectable: false,
-                            evented: false,
-                            opacity: 1
-                        });
-
-                        // Calculate brightness
-                        let bVal = parseInt(settings.bgBrightness);
-                        if (isNaN(bVal)) bVal = 20;
-                        // Map 0-100 to Fabric brightness (-1 to 1). Matches editor.js logic.
-                        const fabricBrightness = (bVal / 100) - 0.6;
-
-                        cloned.filters = [];
-                        cloned.filters.push(new fabric.Image.filters.Blur({ blur: 0.5 })); 
-                        cloned.filters.push(new fabric.Image.filters.Brightness({ brightness: fabricBrightness }));
-                        cloned.applyFilters();
-                        
-                        canvas.add(cloned);
-                        canvas.sendToBack(cloned);
-                        canvas.backgroundColor = null; // Clear solid/gradient bg
-                        
-                        console.log("Applied Ambilight Background");
-                        resolve();
+                    ambilightForCanvas.set({
+                        left: targetW / 2,
+                        top: targetH / 2,
+                        originX: 'center',
+                        originY: 'center',
+                        scaleX: scale,
+                        scaleY: scale,
+                        dataTag: 'ambilight_bg',
+                        selectable: false, evented: false, opacity: 1
                     });
+
+                    let bVal = parseInt(settings.bgBrightness);
+                    if (isNaN(bVal)) bVal = 20;
+                    const fabricBrightness = (bVal / 100) - 0.6;
+
+                    console.log('[LOG] Applying Blur and Brightness filters...');
+                    ambilightForCanvas.filters = [];
+                    ambilightForCanvas.filters.push(new fabric.Image.filters.Blur({ blur: 0.5 }));
+                    ambilightForCanvas.filters.push(new fabric.Image.filters.Brightness({ brightness: fabricBrightness }));
+                    ambilightForCanvas.applyFilters();
+                    
+                    const toRemove = [];
+                    canvas.forEachObject(o => { if (o.dataTag === 'ambilight_bg') toRemove.push(o); });
+                    toRemove.forEach(o => canvas.remove(o));
+
+                    canvas.add(ambilightForCanvas);
+                    canvas.sendToBack(ambilightForCanvas);
+                    canvas.backgroundColor = null;
+                    console.log("[LOG] Applied Ambilight Background directly to canvas and sent to back.");
+
+                    // --- Save separate Ambilight file using a new clone of the filtered object ---
+                    const ambilightForFile = await new Promise(res => ambilightForCanvas.clone(res));
+                    
+                    const ambilightPath = outputPath.replace(/\.(jpg|jpeg|png)$/, '.ambilight.jpg');
+                    console.log(`[LOG] Saving separate Ambilight file to: ${ambilightPath}`);
+
+                    const ambilightCanvas = new fabric.StaticCanvas(null, { 
+                        width: ambilightForFile.getScaledWidth(), 
+                        height: ambilightForFile.getScaledHeight() 
+                    });
+
+                    ambilightForFile.set({ left: ambilightCanvas.width / 2, top: ambilightCanvas.height / 2 });
+                    ambilightCanvas.add(ambilightForFile);
+                    ambilightCanvas.renderAll();
+
+                    await new Promise((resolveSave, rejectSave) => {
+                        const outStream = fs.createWriteStream(ambilightPath);
+                        const canvasStream = ambilightCanvas.createJPEGStream({ quality: 0.8 });
+                        canvasStream.pipe(outStream);
+                        outStream.on('finish', () => {
+                            console.log('[LOG] Ambilight file saved successfully.');
+                            resolveSave();
+                        });
+                        outStream.on('error', (err) => {
+                            console.error('[ERROR] Failed to save Ambilight file:', err);
+                            rejectSave(err);
+                        });
+                    });
+                    // --- End Save ---
+                    
+                    resolve();
                 });
             } 
             // 2. STANDARD COLOR/GRADIENT DETECTION
             else {
+                console.log(`[LOG] Starting '${style}' background color detection.`);
                 try {
                     // Load image specifically for node-canvas sampling
                     const imageForSampling = await canvasModule.loadImage(assets.backdrop_url);
@@ -1362,7 +1443,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
 
                             // State Sync
                             settings.bgColor = primaryHex; 
-                            console.log(`Auto-Color Applied (${style}): ${primaryHex} (Brightness: ${bVal}%)`);
+                            console.log(`[LOG] Auto-Color Applied (${style}): ${primaryHex} (Brightness: ${bVal}%)`);
 
                             // Sync Textbox backgrounds (Use primary solid color)
                             const rgb = finalColorObj.type === 'solid' ? finalColorObj.color : finalColorObj.c1;
@@ -1376,12 +1457,13 @@ function applyCustomEffects(canvas, settings, mainBg) {
                         }
                     }
                 } catch (e) {
-                    console.warn("Auto color detection error:", e.message);
+                    console.warn("[WARN] Auto color detection error:", e.message);
                 }
             }
         }
 
         if (assets.logo_url) {
+            console.log(`[LOG] Loading logo from URL: ${assets.logo_url}`);
             const titleObj = canvas.getObjects().find(o => o.dataTag === 'title');
             if (titleObj) {
                 const targetW = titleObj.width * titleObj.scaleX;
@@ -1404,10 +1486,12 @@ function applyCustomEffects(canvas, settings, mainBg) {
                     
                     if (shouldAutoFix && !loadUrl.includes('/api/proxy/image')) {
                         loadUrl = `${API_BASE}/api/proxy/image?url=${encodeURIComponent(assets.logo_url)}`;
+                        console.log(`[LOG] Using proxy for logo auto-fix: ${loadUrl}`);
                     }
 
                     fabric.Image.fromURL(loadUrl, (img) => {
                         if (img) {
+                            console.log(`[LOG] Logo image loaded successfully (${img.width}x${img.height}).`);
                             // --- Simplified Scaling Logic ---
                             // Scale to the width of the original placeholder for consistency.
                             let scale = oldWidth / img.width;
@@ -1457,16 +1541,21 @@ function applyCustomEffects(canvas, settings, mainBg) {
 
                             canvas.add(img);
                             canvas.bringToFront(img);
+                            console.log('[LOG] New logo image added to canvas.');
+                        } else {
+                            console.warn(`[WARN] Failed to load logo from URL: ${loadUrl}`);
                         }
                         resolve();
                     }, { crossOrigin: 'anonymous' });
                 });
             }
         } else {
+            console.log('[LOG] No logo URL provided. Checking for text title fallback.');
             // Fallback: If no logo (e.g. BoxSet item), ensure Title is Text
             // If the layout uses an Image for title (placeholder), replace it with Text
             const titleObj = canvas.getObjects().find(o => o.dataTag === 'title');
             if (titleObj && titleObj.type === 'image') {
+                console.log('[LOG] Title object is an image. Replacing with a new IText object.');
                 const is4K = canvas.width > 2000;
                 const fontSize = is4K ? 120 : 80;
                 const newText = new fabric.IText(meta.title || "Title", { 
@@ -1509,6 +1598,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
 
                 canvas.remove(titleObj);
                 canvas.add(newText);
+                console.log('[LOG] IText title object added to canvas.');
             }
         }
 
@@ -1525,7 +1615,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
                     overlayFound = true;
                     if (activeOverlay.blocked_areas) {
                         activeBlockedAreas = activeOverlay.blocked_areas;
-                        console.log(`[Overlay] Loaded ${activeBlockedAreas.length} blocked areas from server profile: ${activeOverlay.name}`);
+                        console.log(`[LOG] Loaded ${activeBlockedAreas.length} blocked areas from overlay profile: ${activeOverlay.name}`);
                     }
                     
                     // Determine correct overlay image file (4K vs 1080p)
@@ -1535,12 +1625,13 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 }
             }
         } catch (e) {
-            console.warn("Could not load blocked areas from overlays.json", e.message);
+            console.warn("[WARN] Could not load blocked areas from overlays.json", e.message);
         }
 
         // Fallback to settings from JSON only if overlay profile was not found on server
         if (!overlayFound && settings.blocked_areas && Array.isArray(settings.blocked_areas)) {
             activeBlockedAreas = settings.blocked_areas;
+             console.log(`[LOG] Loaded ${activeBlockedAreas.length} blocked areas from layout JSON.`);
         }
         
         // FIX: Enforce Fixed Canvas Resolution (Final Check before Layout)
@@ -1548,6 +1639,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
              canvas.setDimensions({ width: baseWidth, height: baseHeight });
         }
         
+        console.log('[LOG] Refreshing textboxes and element coordinates...');
         // FIX: Refresh textboxes and layout (Match batch.js behavior)
         // Ensure text metrics are calculated before layout update
         canvas.getObjects().forEach(obj => {
@@ -1558,16 +1650,22 @@ function applyCustomEffects(canvas, settings, mainBg) {
             obj.dirty = true;
         });
 
+        console.log('[LOG] Performing first render to calculate text widths...');
         canvas.renderAll(); // Force calc of text widths
 
+        console.log('[LOG] Updating vertical layout...');
         updateVerticalLayout(canvas, settings, activeBlockedAreas);
+        console.log('[LOG] Vertical layout update complete.');
         
         if (mainBg) {
+            console.log('[LOG] Applying custom background effects...');
             applyCustomEffects(canvas, settings, mainBg);
+            console.log('[LOG] Custom background effects applied.');
         } else {
-            console.warn("No main background found, skipping effects.");
+            console.warn("[WARN] No main background found, skipping custom effects.");
         }
 
+        console.log('[LOG] Performing final render...');
         canvas.renderAll();
         
         if (canvas.width === 0 || canvas.height === 0) {
@@ -1575,12 +1673,19 @@ function applyCustomEffects(canvas, settings, mainBg) {
             process.exit(1);
         }
 
+        console.log(`[LOG] Saving final image to: ${outputPath}`);
         await new Promise((resolve, reject) => {
             const outStream = fs.createWriteStream(outputPath);
             const canvasStream = canvas.createJPEGStream({ quality: 0.95 });
             canvasStream.pipe(outStream);
-            outStream.on('finish', resolve);
-            outStream.on('error', reject);
+            outStream.on('finish', () => {
+                console.log('[LOG] Final image saved successfully.');
+                resolve();
+            });
+            outStream.on('error', (err) => {
+                console.error('[ERROR] Failed to save final image:', err);
+                reject(err);
+            });
         });
 
         const toProxy = (url) => {
@@ -1601,6 +1706,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
         }
 
         const jsonOutPath = outputPath + ".json";
+        console.log(`[LOG] Saving canvas JSON to: ${jsonOutPath}`);
         const jsonOutput = canvas.toJSON([
             'dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 
             'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 
@@ -1630,6 +1736,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
         }
 
         fs.writeFileSync(jsonOutPath, JSON.stringify(jsonOutput));
+        console.log('[LOG] Canvas JSON saved successfully.');
 
         console.log("SUCCESS");
 
