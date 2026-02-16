@@ -6,7 +6,7 @@
     },
     "cron_jobs": [
         {
-            "id": "1771266543877",
+            "id": "1771280339857",
             "name": "T\u00e4glich",
             "enabled": true,
             "start_time": "00:00",
@@ -18,9 +18,9 @@
             "filter_mode": "all",
             "filter_value": "",
             "random_count": "10",
-            "logo_auto_fix": true,
+            "logo_auto_fix": false,
             "dry_run": false,
-            "created_at": "2026-02-16T18:29:03.877Z"
+            "created_at": "2026-02-16T22:18:59.857Z"
         }
     ],
     "editor": {
