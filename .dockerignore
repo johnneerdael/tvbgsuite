@@ -9,4 +9,6 @@ venv
 .gitignore
 config.json
 .env
-custom_icons
+node_modules
+*_backgrounds
+layouts/previews

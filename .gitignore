@@ -1,6 +1,6 @@
 env
 *_backgrounds/*
-*.tff
+*.ttf
 node_modules/
 
 # Sensitive configuration

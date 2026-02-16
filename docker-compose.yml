@@ -4,7 +4,6 @@ services:
   tv-background:
     build: .
     image: butch708/tv-background-suite:latest
-    container_name: tv-background-editor
     ports:
       - "5000:5000"
     volumes:

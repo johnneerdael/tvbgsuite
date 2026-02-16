@@ -31,7 +31,7 @@ COPY . .
 
 # Install Node.js dependencies
 # This ensures that packages like fabric and canvas are compiled for Linux
-RUN npm install
+RUN npm install && npm rebuild canvas --build-from-source
 
 # Create defaults directory and backup assets for volume initialization
 RUN mkdir -p /defaults && \

@@ -25,5 +25,5 @@
       ]
     }
   },
-  "postCreateCommand": "pip3 install -r requirements.txt && git config --global --add safe.directory /app"
+  "postCreateCommand": "pip3 install -r requirements.txt && git config --global --add safe.directory /app && npm install && npm rebuild canvas --build-from-source"
 }

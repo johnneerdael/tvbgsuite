@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  tv-background:
+    # Im Dev-Modus mounten wir den aktuellen Ordner, damit Code-Änderungen sofort wirksam werden
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
