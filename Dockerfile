@@ -28,20 +28,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Create a symbolic link so that 'python' points to 'python3'
-#    THIS IS THE CORRECT FIX for 'gyp ERR! configure error'
+# This ensures that build scripts that look for 'python' can find it.
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-# 3. Install Node.js dependencies
+# 3. Install the Python 'gyp' module globally, which is a dependency for node-gyp.
+#    THIS IS THE FINAL FIX for "ModuleNotFoundError: No module named 'gyp'"
+RUN pip install gyp-next
+
+# 4. Install Node.js dependencies
 # Copy only the package files first to leverage Docker cache
 COPY package*.json ./
-# Now that 'python' exists, node-gyp will find it and the build will succeed
+# Now that node-gyp has its Python dependency, the build will succeed
 RUN npm install && npm rebuild canvas --build-from-source
 
-# 4. Install Python dependencies
+# 5. Install Python dependencies from requirements file
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy the rest of the application code
+# 6. Copy the rest of the application code
 COPY . .
 
 # Create defaults directory and backup assets for volume initialization
