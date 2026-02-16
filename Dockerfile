@@ -27,14 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Clean up apt-get cache to keep the image small
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Configure npm to find the correct Python executable
-#    THIS IS THE CRUCIAL FIX for 'gyp ERR! configure error'
-RUN npm config set python python3
+# 2. Create a symbolic link so that 'python' points to 'python3'
+#    THIS IS THE CORRECT FIX for 'gyp ERR! configure error'
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # 3. Install Node.js dependencies
 # Copy only the package files first to leverage Docker cache
 COPY package*.json ./
-# Now that npm is configured correctly, this command should finally work
+# Now that 'python' exists, node-gyp will find it and the build will succeed
 RUN npm install && npm rebuild canvas --build-from-source
 
 # 4. Install Python dependencies
