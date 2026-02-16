@@ -132,6 +132,10 @@ async function startBatchProcess() {
     let initialState = null;
     if (!dryRun && typeof canvas !== 'undefined') {
         initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
+        // Filter out ambilight background to prevent stacking
+        if (initialState.objects) {
+            initialState.objects = initialState.objects.filter(o => o.dataTag !== 'ambilight_bg');
+        }
     }
 
     const total = itemsToProcess.length;
@@ -162,6 +166,12 @@ async function startBatchProcess() {
                     resolve();
                 });
             });
+        }
+
+        // Ensure Ambilight is removed before generating new image
+        if (!dryRun && typeof canvas !== 'undefined') {
+            const ambilightObjs = canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg');
+            ambilightObjs.forEach(o => canvas.remove(o));
         }
         
         // 1. Load data and update canvas text

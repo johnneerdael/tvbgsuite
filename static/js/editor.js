@@ -112,6 +112,7 @@ function extractFontsFromJSON(data) {
 
 let canvas, mainBg = null;
 let ambilightBg = null, backgroundMode = 'solid'; // 'solid' | 'ambilight'
+let lastValidBgState = null;
 let fades = { left: null, right: null, top: null, bottom: null, corner: null };
 let resizeRaf = null, lastFetchedData = null, layoutDebounceTimer = null;
 let preferredLogoWidth = null;
@@ -847,6 +848,39 @@ async function fetchMediaData(itemId = null) {
     if (!isBatchRunning) btn.innerText = "⏳ Loading...";
     if (!isBatchRunning) indicator.innerText = "Fetching...";
     
+    // Clear background and effects immediately to prevent persistence
+    let bgState = null;
+    if (canvas) {
+        const existingBg = canvas.getObjects().find(o => o.dataTag === 'background');
+        if (existingBg) {
+            bgState = {
+                left: existingBg.left,
+                top: existingBg.top,
+                scaleX: existingBg.scaleX,
+                scaleY: existingBg.scaleY,
+                flipX: existingBg.flipX,
+                flipY: existingBg.flipY,
+                width: existingBg.width,
+                height: existingBg.height,
+                originX: existingBg.originX,
+                originY: existingBg.originY
+            };
+            lastValidBgState = bgState;
+        }
+
+        const bgObjects = canvas.getObjects().filter(o => o.dataTag === 'background');
+        bgObjects.forEach(o => canvas.remove(o));
+        if (mainBg && !bgObjects.includes(mainBg)) { canvas.remove(mainBg); }
+        mainBg = null;
+        if (canvas.backgroundImage) { canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas)); }
+
+        const effectObjects = canvas.getObjects().filter(o => o.dataTag === 'fade_effect' || o.dataTag === 'ambilight_bg');
+        effectObjects.forEach(o => canvas.remove(o));
+        if (ambilightBg) { canvas.remove(ambilightBg); ambilightBg = null; }
+        
+        canvas.requestRenderAll();
+    }
+
     try {
         const url = itemId ? `/api/media/item/${itemId}` : '/api/media/random';
         const response = await fetch(url);
@@ -871,13 +905,33 @@ async function fetchMediaData(itemId = null) {
 
         // 2. Apply Background (using fixed resolution logic)
         if (data.backdrop_url) {
-            await loadBackground(data.backdrop_url, true);
+            await loadBackground(data.backdrop_url, true, bgState || lastValidBgState);
         } else {
-            if (mainBg) {
+            // Remove existing background(s)
+            const bgObjects = canvas.getObjects().filter(o => o.dataTag === 'background');
+            bgObjects.forEach(o => canvas.remove(o));
+
+            // Safety: Remove mainBg if it wasn't caught by the filter
+            if (mainBg && !bgObjects.includes(mainBg)) {
                 canvas.remove(mainBg);
-                mainBg = null;
             }
-            updateFades(true);
+            mainBg = null;
+
+            // Clear canvas background image if set
+            if (canvas.backgroundImage) {
+                canvas.setBackgroundImage(null, canvas.renderAll.bind(canvas));
+            }
+
+            // Remove existing fades
+            const fadeObjects = canvas.getObjects().filter(o => o.dataTag === 'fade_effect');
+            fadeObjects.forEach(o => canvas.remove(o));
+
+            // Remove Ambilight if exists
+            if (ambilightBg) { 
+                canvas.remove(ambilightBg); 
+                ambilightBg = null; 
+            }
+            canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg').forEach(o => canvas.remove(o));
         }
 
         await autoDetectBgColor(true, true);
@@ -2564,7 +2618,7 @@ function applyCustomEffects(eff) {
     // updateFadeControls(); // Removed here, called after bg set or via updateFades inside callback
 }
 
-function loadBackground(url, skipRender = false) {
+function loadBackground(url, skipRender = false, restoredState = null) {
     return new Promise((resolve) => {
         const proxiedUrl = url.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(url)}` : url;
         fabric.Image.fromURL(proxiedUrl, function(img, isError) {
@@ -2591,7 +2645,21 @@ function loadBackground(url, skipRender = false) {
 
             // Check for existing background to preserve state
             const oldBg = canvas.getObjects().find(o => o.dataTag === 'background');
-            if (oldBg) {
+            
+            if (restoredState) {
+                left = restoredState.left;
+                top = restoredState.top;
+                flipX = restoredState.flipX;
+                flipY = restoredState.flipY;
+                
+                if (restoredState.originX !== 'center') left += (restoredState.width * restoredState.scaleX) / 2;
+                if (restoredState.originY !== 'center') top += (restoredState.height * restoredState.scaleY) / 2;
+
+                if (img.width > 0) {
+                    scale = (restoredState.width * restoredState.scaleX) / img.width;
+                }
+                if (oldBg) canvas.remove(oldBg);
+            } else if (oldBg) {
                 const center = oldBg.getCenterPoint();
                 left = center.x;
                 top = center.y;
@@ -4033,6 +4101,7 @@ function resetLayout() {
     fades = {};
     preferredLogoWidth = null;
     lastFetchedData = null;
+    lastValidBgState = null;
 
     // 3. Reset UI Controls
     const resSelect = document.getElementById('resSelect');
