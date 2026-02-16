@@ -933,6 +933,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
 (async () => {
     try {
         const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf8'));
+        let preferredLogoWidth = payload.preferred_logo_width || null;
         const layoutJson = JSON.parse(fs.readFileSync(payload.layout_file, 'utf8'));
         const meta = payload.metadata;
         const assets = payload.assets;
@@ -1407,17 +1408,10 @@ function applyCustomEffects(canvas, settings, mainBg) {
 
                     fabric.Image.fromURL(loadUrl, (img) => {
                         if (img) {
-                            // --- SMART RESIZE LOGIC (Match editor.js) ---
-                            const baseMaxW = canvas.width * 0.55;
-                            const baseMaxH = canvas.height * 0.35;
-                            const ratio = img.width / img.height;
-                            let allowedHeight = baseMaxH;
-
-                            if (ratio < 0.65) allowedHeight = baseMaxH * 0.50;      // Tall logos
-                            else if (ratio < 1.2) allowedHeight = baseMaxH * 0.75;  // Square logos
-                            
-                            // Calculate scale based on canvas limits, ignoring placeholder size for better consistency
-                            let scale = Math.min(baseMaxW / img.width, allowedHeight / img.height) * 0.9;
+                            // --- Simplified Scaling Logic ---
+                            // Scale to the width of the original placeholder for consistency.
+                            let scale = oldWidth / img.width;
+                            preferredLogoWidth = oldWidth;
 
                             // --- ALIGNMENT CORRECTION ---
                             // Adjust 'left' to keep the anchor point stable based on alignment
@@ -1620,6 +1614,7 @@ function applyCustomEffects(canvas, settings, mainBg) {
             jsonOutput.action_url = meta.action_url;
         }
         jsonOutput.custom_effects = settings;
+        jsonOutput.preferred_logo_width = preferredLogoWidth;
 
         // FIX: Post-process JSON to ensure Certification URL is correct (Fixes Editor Preview)
         // We replace the embedded Base64 data with the API URL so the Editor can load it.

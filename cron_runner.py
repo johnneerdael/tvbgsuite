@@ -26,7 +26,7 @@ def log(msg):
     except:
         pass
 
-def run_node_renderer(layout_path, metadata):
+def run_node_renderer(layout_path, metadata, preferred_logo_width=None):
     # 1. Prepare Data - DIRECT PASS-THROUGH
     # We simply pass the Jellyfin URLs directly to Node.js.
     # Node.js will fetch them internally.
@@ -34,6 +34,7 @@ def run_node_renderer(layout_path, metadata):
     payload = {
         "layout_file": layout_path,
         "metadata": metadata,
+        "preferred_logo_width": preferred_logo_width,
         "assets": {
             # Pass the raw URL including the api_key
             "backdrop_url": metadata.get('backdrop_url'),
@@ -56,6 +57,7 @@ def run_node_renderer(layout_path, metadata):
     # 3. Execute Node
     image_b64 = None
     final_json = None
+    new_preferred_logo_width = None
     
     try:
         # Determine script directory for absolute paths
@@ -79,6 +81,7 @@ def run_node_renderer(layout_path, metadata):
             if os.path.exists(output_json_path):
                 with open(output_json_path, 'r', encoding='utf-8') as json_f:
                     final_json = json.load(json_f)
+                    new_preferred_logo_width = final_json.get('preferred_logo_width')
         else:
             # THIS IS THE IMPORTANT PART:
             log(f"--- NODE.JS CRASH REPORT ---")
@@ -98,7 +101,7 @@ def run_node_renderer(layout_path, metadata):
                 try: os.remove(p)
                 except: pass
 
-    return image_b64, final_json
+    return image_b64, final_json, new_preferred_logo_width
 
 def fetch_items_and_process(job=None):
     if not job: return
@@ -184,6 +187,7 @@ def fetch_items_and_process(job=None):
 
     log(f"Processing {len(items)} items...")
 
+    preferred_logo_width = None
     for item in items:
         if os.path.exists(STOP_SIGNAL_FILE): break
         
@@ -247,7 +251,10 @@ def fetch_items_and_process(job=None):
         }
 
         log(f"Rendering: {meta['title']}")
-        img_b64, json_data = run_node_renderer(layout_full_path, meta)
+        img_b64, json_data, new_pref_width = run_node_renderer(layout_full_path, meta, preferred_logo_width)
+        
+        if new_pref_width:
+            preferred_logo_width = new_pref_width
         
         if img_b64 and json_data:
             payload = {
