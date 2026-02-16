@@ -862,6 +862,9 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
 function applyCustomEffects(canvas, settings, mainBg) {
     if (!settings || !mainBg) return;
     
+    // FIX: Clear any existing clipPath (e.g. from JSON load) to prevent crashes if it's invalid
+    mainBg.clipPath = null;
+
     const bgColor = settings.bgColor || "#000000";
     canvas.backgroundColor = bgColor;
 
@@ -938,8 +941,25 @@ function applyCustomEffects(canvas, settings, mainBg) {
         const API_BASE = "http://127.0.0.1:5000"; 
         
         const fixUrl = (obj) => {
-            if (obj.src && obj.src.startsWith('/')) {
+            if (!obj) return;
+            // Fix Image src
+            if (obj.src && typeof obj.src === 'string' && obj.src.startsWith('/')) {
                 obj.src = API_BASE + obj.src;
+            }
+            // Fix Pattern source (e.g. in fill or stroke)
+            if (obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'pattern' && obj.fill.source && typeof obj.fill.source === 'string' && obj.fill.source.startsWith('/')) {
+                obj.fill.source = API_BASE + obj.fill.source;
+            }
+            if (obj.stroke && typeof obj.stroke === 'object' && obj.stroke.type === 'pattern' && obj.stroke.source && typeof obj.stroke.source === 'string' && obj.stroke.source.startsWith('/')) {
+                obj.stroke.source = API_BASE + obj.stroke.source;
+            }
+            // Fix direct source (e.g. backgroundImage as pattern)
+            if (obj.source && typeof obj.source === 'string' && obj.source.startsWith('/')) {
+                obj.source = API_BASE + obj.source;
+            }
+            // FIX: Recurse for clipPath to ensure relative URLs are fixed there too
+            if (obj.clipPath) {
+                fixUrl(obj.clipPath);
             }
         };
 
@@ -951,6 +971,9 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 }
             });
         }
+
+        if (layoutJson.backgroundImage) fixUrl(layoutJson.backgroundImage);
+        if (layoutJson.overlayImage) fixUrl(layoutJson.overlayImage);
 
         let baseWidth = 1920;
         let baseHeight = 1080;
@@ -1137,9 +1160,10 @@ function applyCustomEffects(canvas, settings, mainBg) {
                 flipX = oldBg.flipX;
                 flipY = oldBg.flipY;
                 oldWidth = oldBg.width * oldBg.scaleX;
-                
-                canvas.remove(oldBg);
             }
+
+            // FIX: Remove ALL existing backgrounds/ambilight layers to prevent ghosts/duplicates
+            canvas.getObjects().filter(o => o.dataTag === 'background' || o.dataTag === 'ambilight_bg').forEach(o => canvas.remove(o));
 
             await new Promise(resolve => {
                 fabric.Image.fromURL(assets.backdrop_url, (img) => {
@@ -1181,6 +1205,11 @@ function applyCustomEffects(canvas, settings, mainBg) {
         
         if (!mainBg) {
              mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
+        }
+
+        // FIX: Clear clipPath immediately to prevent crash in first renderAll (before applyCustomEffects runs)
+        if (mainBg && mainBg.clipPath) {
+            mainBg.clipPath = null;
         }
 
         // --- AUTO COLOR DETECTION / AMBILIGHT ---

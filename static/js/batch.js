@@ -42,8 +42,15 @@ async function loadBatchLayouts() {
 function logBatch(msg) {
     const log = document.getElementById('batchLog');
     const time = new Date().toLocaleTimeString();
-    log.innerText += `[${time}] ${msg}\n`;
-    log.scrollTop = log.scrollHeight;
+    
+    // Smart Auto-Scroll: Only scroll if user is near bottom (50px tolerance)
+    const isAtBottom = log.scrollHeight - log.scrollTop <= log.clientHeight + 50;
+
+    const line = document.createElement('div');
+    line.innerText = `[${time}] ${msg}`;
+    log.appendChild(line);
+    
+    if (isAtBottom) log.scrollTop = log.scrollHeight;
 }
 
 function stopBatchProcess() {
@@ -75,7 +82,6 @@ async function startBatchProcess() {
     const logDiv = document.getElementById('batchLog');
     if (logDiv) {
         logDiv.innerText = "";
-        logDiv.style.maxHeight = '300px';
         logDiv.style.overflowY = 'auto';
     }
     

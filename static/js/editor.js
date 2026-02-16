@@ -4582,7 +4582,6 @@ function startLogPolling() {
     if (logPollInterval) clearInterval(logPollInterval);
     const logDiv = document.getElementById('batchLog');
     if (logDiv) {
-        logDiv.style.maxHeight = '300px';
         logDiv.style.overflowY = 'auto';
         logDiv.innerHTML = "Waiting for server logs...";
     }
@@ -4591,9 +4590,14 @@ function startLogPolling() {
         try {
             const res = await fetch('/api/batch/logs');
             const logs = await res.json();
-            if (logs && logs.length > 0 && logDiv) {
+            
+            const selection = window.getSelection();
+            const hasSelection = selection.toString().length > 0 && logDiv.contains(selection.anchorNode);
+
+            if (!hasSelection && logs && logs.length > 0 && logDiv) {
+                const isAtBottom = logDiv.scrollHeight - logDiv.scrollTop <= logDiv.clientHeight + 50;
                 logDiv.innerHTML = logs.join('<br>');
-                logDiv.scrollTop = logDiv.scrollHeight;
+                if (isAtBottom) logDiv.scrollTop = logDiv.scrollHeight;
             }
             
             // Poll for latest image
