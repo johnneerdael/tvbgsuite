@@ -1086,7 +1086,7 @@ function getCertificationFilename(rating) {
                         mainBg = img;
                     }
                     resolve();
-                });
+                }, { crossOrigin: 'anonymous' });
             });
         }
 
@@ -1303,7 +1303,7 @@ function getCertificationFilename(rating) {
                 const ambilightOutPath = `${outputBasePath}.ambilight.jpg`;
                 await new Promise((resolve, reject) => {
                     const outStream = fs.createWriteStream(ambilightOutPath);
-                    const canvasStream = ambiCanvas.createJPEGStream({ quality: 0.85 });
+                    const canvasStream = ambiCanvas.createJPEGStream({ quality: 0.8 });
                     canvasStream.pipe(outStream);
                     outStream.on('finish', resolve);
                     outStream.on('error', reject);
@@ -1340,7 +1340,21 @@ function getCertificationFilename(rating) {
         console.log("Generating JSON output...");
 
         let jsonOutput;
-        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix'];
+        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin'];
+
+        // Fix Ambilight Object for JSON (Link to file instead of embedding Base64)
+        // Matches client-side batch.js behavior and prevents huge JSON files
+        const ambiObj = canvas.getObjects().find(o => o.dataTag === 'ambilight_bg');
+        if (ambiObj && settings.backgroundMode === 'ambilight') {
+            const relativeAmbiPath = `${path.basename(outputBasePath)}.ambilight.jpg`;
+            // We strip the data URL and point to the file we just saved
+            // This ensures the Gallery Editor loads the external file
+            // Setting 'src' directly on the object ensures toJSON uses this string
+            ambiObj.set({
+                src: relativeAmbiPath,
+                crossOrigin: 'anonymous'
+            });
+        }
 
         try {
             jsonOutput = canvas.toJSON(propertiesToInclude);
@@ -1364,6 +1378,8 @@ function getCertificationFilename(rating) {
         }
 
         jsonOutput.custom_effects = settings;
+        // Inject metadata to match batch / gallery editor requirements
+        jsonOutput.metadata = data;
         console.log("JSON generated.");
 
         const metaPath = `${outputBasePath}.json`;
