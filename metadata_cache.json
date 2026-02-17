@@ -7775,16 +7775,6 @@
             "action_url": "jellyfin://items/07f1ebd32de47e208258057ac1db33af"
         },
         {
-            "path": "/app/layouts/previews/batch/T2 Trainspotting - 2017.jpg",
-            "layout": "batch",
-            "genres": "Drama, Komödie, Krimi",
-            "officialRating": "FSK-16",
-            "year": 2017,
-            "rating": 0.0,
-            "title": "T2 Trainspotting",
-            "action_url": "jellyfin://items/5053febf3d116543d9be9d8729152b06"
-        },
-        {
             "path": "/app/layouts/previews/batch/65 - 2023.jpg",
             "layout": "batch",
             "genres": "Action, Abenteuer, Science Fiction",
@@ -8195,66 +8185,6 @@
             "action_url": "jellyfin://items/0da604bfc7c32c69eac1449fd3861c54"
         },
         {
-            "path": "/app/editor_backgrounds/batch/3 from Hell - 2019.jpg",
-            "layout": "batch",
-            "genres": "Horror, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2019,
-            "rating": 0.0,
-            "title": "3 from Hell",
-            "action_url": "jellyfin://items/be5149d8c5f48f098fd0b6a0c1c97486"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/8MM - Acht Millimeter - 1999.jpg",
-            "layout": "batch",
-            "genres": "Thriller, Krimi, Mystery",
-            "officialRating": "FSK-18",
-            "year": 1999,
-            "rating": 0.0,
-            "title": "8MM - Acht Millimeter",
-            "action_url": "jellyfin://items/d2c987f3dd86ec50f9f53d700808541b"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/13 Hours The Secret Soldiers of Benghazi - 2016.jpg",
-            "layout": "batch",
-            "genres": "Kriegsfilm, Action, Historie, Drama, Thriller",
-            "officialRating": "FSK-16",
-            "year": 2016,
-            "rating": 0.0,
-            "title": "13 Hours: The Secret Soldiers of Benghazi",
-            "action_url": "jellyfin://items/a37b573215db1814b66cc3d813481c2d"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/28 Years Later The Bone Temple - 2026.jpg",
-            "layout": "batch",
-            "genres": "Horror, Science Fiction, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2026,
-            "rating": 0.0,
-            "title": "28 Years Later: The Bone Temple",
-            "action_url": "jellyfin://items/acd3b58a1dac8be5768f5712133e9936"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/31 - 2016.jpg",
-            "layout": "batch",
-            "genres": "Horror, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2016,
-            "rating": 0.0,
-            "title": "31",
-            "action_url": "jellyfin://items/dec39b613df2870d944efc7f41f7880f"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/65 - 2023.jpg",
-            "layout": "batch",
-            "genres": "Action, Abenteuer, Science Fiction",
-            "officialRating": "FSK-16",
-            "year": 2023,
-            "rating": 0.0,
-            "title": "65",
-            "action_url": "jellyfin://items/80e8afb00348074a753a6884d7b35551"
-        },
-        {
             "path": "/app/editor_backgrounds/batch/100 Yards - 2024.jpg",
             "layout": "batch",
             "genres": "Action, Drama",
@@ -8463,26 +8393,6 @@
             "rating": 5.447,
             "title": "31",
             "action_url": "jellyfin://items/dec39b613df2870d944efc7f41f7880f"
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/12 Monkeys - 2015.jpg",
-            "layout": "batch",
-            "genres": "Sci-Fi & Fantasy, Drama",
-            "officialRating": "FSK-16",
-            "year": 2015,
-            "rating": 0.0,
-            "title": "12 Monkeys",
-            "action_url": null
-        },
-        {
-            "path": "/app/editor_backgrounds/batch/12 Monkeys - 1995.jpg",
-            "layout": "batch",
-            "genres": "Science Fiction, Thriller, Mystery",
-            "officialRating": "FSK-16",
-            "year": 1995,
-            "rating": 0.0,
-            "title": "12 Monkeys",
-            "action_url": null
         },
         {
             "path": "/app/layouts/previews/Default/Minions - Auf der Suche nach dem Mini-Boss - 2022.jpg",
@@ -9035,36 +8945,6 @@
             "action_url": "jellyfin://items/d049cb9ca4cb755d464924d77e5a90aa"
         },
         {
-            "path": "/app/editor_backgrounds/Default/American Horror Story - 2011.jpg",
-            "layout": "Default",
-            "genres": "Drama, Mystery, Sci-Fi & Fantasy",
-            "officialRating": "FSK-18",
-            "year": 2011,
-            "rating": 8.093,
-            "title": "American Horror Story",
-            "action_url": "jellyfin://items/8f2dceffb24ccde320a235707e4d0bef"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/American Psycho Filmreihe - None.jpg",
-            "layout": "Default",
-            "genres": "",
-            "officialRating": null,
-            "year": null,
-            "rating": 0.0,
-            "title": "American Psycho Filmreihe",
-            "action_url": "jellyfin://items/e7a091dfb6d571c59e5194a64bdf4ee7"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/American Riot - 2021.jpg",
-            "layout": "Default",
-            "genres": "Action, Drama, Thriller",
-            "officialRating": "FSK-16",
-            "year": 2021,
-            "rating": 5.4,
-            "title": "American Riot",
-            "action_url": "jellyfin://items/e9262b5347f0d2ba9046f1e7618ef146"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Amsterdam - 2022.jpg",
             "layout": "Default",
             "genres": "Mystery, Komödie, Drama",
@@ -9133,246 +9013,6 @@
             "rating": 6.117,
             "title": "ARQ",
             "action_url": "jellyfin://items/259a98f7a78656e95376ddc5f8a8cdb6"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/3 from Hell - 2019.jpg",
-            "layout": "Default",
-            "genres": "Horror, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2019,
-            "rating": 5.778,
-            "title": "3 from Hell",
-            "action_url": "jellyfin://items/be5149d8c5f48f098fd0b6a0c1c97486"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/8MM - Acht Millimeter - 1999.jpg",
-            "layout": "Default",
-            "genres": "Thriller, Krimi, Mystery",
-            "officialRating": "FSK-18",
-            "year": 1999,
-            "rating": 6.467,
-            "title": "8MM - Acht Millimeter",
-            "action_url": "jellyfin://items/d2c987f3dd86ec50f9f53d700808541b"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/12 Monkeys - 1995.jpg",
-            "layout": "Default",
-            "genres": "Science Fiction, Thriller, Mystery",
-            "officialRating": "FSK-16",
-            "year": 1995,
-            "rating": 7.603,
-            "title": "12 Monkeys",
-            "action_url": "jellyfin://items/f18302c2acb43e7e6c12a08b13e7af8f"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/12 Monkeys - 2015.jpg",
-            "layout": "Default",
-            "genres": "Sci-Fi & Fantasy, Drama",
-            "officialRating": "FSK-16",
-            "year": 2015,
-            "rating": 7.4,
-            "title": "12 Monkeys",
-            "action_url": "jellyfin://items/a7c4075447041fa3324eb9ae40159d6c"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/13 Hours The Secret Soldiers of Benghazi - 2016.jpg",
-            "layout": "Default",
-            "genres": "Kriegsfilm, Action, Historie, Drama, Thriller",
-            "officialRating": "FSK-16",
-            "year": 2016,
-            "rating": 7.272,
-            "title": "13 Hours: The Secret Soldiers of Benghazi",
-            "action_url": "jellyfin://items/a37b573215db1814b66cc3d813481c2d"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/28 Years Later The Bone Temple - 2026.jpg",
-            "layout": "Default",
-            "genres": "Horror, Science Fiction, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2026,
-            "rating": 7.272,
-            "title": "28 Years Later: The Bone Temple",
-            "action_url": "jellyfin://items/773d8168276b58a8e0b7e71c00e164bf"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/31 - 2016.jpg",
-            "layout": "Default",
-            "genres": "Horror, Thriller",
-            "officialRating": "FSK-18",
-            "year": 2016,
-            "rating": 5.447,
-            "title": "31",
-            "action_url": "jellyfin://items/dec39b613df2870d944efc7f41f7880f"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/65 - 2023.jpg",
-            "layout": "Default",
-            "genres": "Action, Abenteuer, Science Fiction",
-            "officialRating": "FSK-16",
-            "year": 2023,
-            "rating": 5.959,
-            "title": "65",
-            "action_url": "jellyfin://items/80e8afb00348074a753a6884d7b35551"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/100 Yards - 2024.jpg",
-            "layout": "Default",
-            "genres": "Action, Drama",
-            "officialRating": "FSK-16",
-            "year": 2024,
-            "rating": 6.1,
-            "title": "100 Yards",
-            "action_url": "jellyfin://items/accd58c305fd5221be7605ef09da0ed8"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/The Accountant Filmreihe - None.jpg",
-            "layout": "Default",
-            "genres": "",
-            "officialRating": null,
-            "year": null,
-            "rating": 0.0,
-            "title": "The Accountant Filmreihe",
-            "action_url": "jellyfin://items/af645cb5a2ef6e9882d672279f5a5237"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Action Point - 2018.jpg",
-            "layout": "Default",
-            "genres": "Komödie",
-            "officialRating": "FSK-12",
-            "year": 2018,
-            "rating": 5.458,
-            "title": "Action Point",
-            "action_url": "jellyfin://items/29f9ce4feabd4775410f9791ab330c84"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Adagio - Erbarmungslose Stadt - 2023.jpg",
-            "layout": "Default",
-            "genres": "Krimi, Thriller, Action",
-            "officialRating": "FSK-16",
-            "year": 2023,
-            "rating": 6.6,
-            "title": "Adagio - Erbarmungslose Stadt",
-            "action_url": "jellyfin://items/49b82dd9559634d4c561e5efb43fdc5a"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Afraid - 2024.jpg",
-            "layout": "Default",
-            "genres": "Horror, Science Fiction, Thriller",
-            "officialRating": "FSK-12",
-            "year": 2024,
-            "rating": 5.918,
-            "title": "Afraid",
-            "action_url": "jellyfin://items/1fae6a7e92b2ff031ee05c78485b9be2"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alice im Wunderland Filmreihe - None.jpg",
-            "layout": "Default",
-            "genres": "",
-            "officialRating": null,
-            "year": null,
-            "rating": 0.0,
-            "title": "Alice im Wunderland Filmreihe",
-            "action_url": "jellyfin://items/48505962f6305c339f79efd8f660d997"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alien - Das unheimliche Wesen aus einer fremden Welt - 1979.jpg",
-            "layout": "Default",
-            "genres": "Horror, Science Fiction",
-            "officialRating": "FSK-16",
-            "year": 1979,
-            "rating": 8.167,
-            "title": "Alien - Das unheimliche Wesen aus einer fremden Welt",
-            "action_url": "jellyfin://items/bb89e621c46f2a2f7c5023c37009ccb3"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alien Covenant - 2017.jpg",
-            "layout": "Default",
-            "genres": "Horror, Science Fiction, Thriller",
-            "officialRating": "FSK-16",
-            "year": 2017,
-            "rating": 6.169,
-            "title": "Alien: Covenant",
-            "action_url": "jellyfin://items/59168add8ddfbac9984e52b1f2c7d901"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alien Earth - 2025.jpg",
-            "layout": "Default",
-            "genres": "Sci-Fi & Fantasy, Drama",
-            "officialRating": "FSK-16",
-            "year": 2025,
-            "rating": 7.362,
-            "title": "Alien: Earth",
-            "action_url": "jellyfin://items/ec6a160fa11cd4b42916dd8a51e87cb7"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alien Romulus - 2024.jpg",
-            "layout": "Default",
-            "genres": "Horror, Science Fiction",
-            "officialRating": "FSK-16",
-            "year": 2024,
-            "rating": 7.169,
-            "title": "Alien: Romulus",
-            "action_url": "jellyfin://items/a5c5bd7dd16cd8eb4ebe478f10aeaaed"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alienoid Filmreihe - None.jpg",
-            "layout": "Default",
-            "genres": "",
-            "officialRating": null,
-            "year": null,
-            "rating": 0.0,
-            "title": "Alienoid Filmreihe",
-            "action_url": "jellyfin://items/deca7e5d6023258d716a3dbddd876a74"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alita Battle Angel - 2019.jpg",
-            "layout": "Default",
-            "genres": "Action, Science Fiction, Abenteuer",
-            "officialRating": "FSK-12",
-            "year": 2019,
-            "rating": 7.244,
-            "title": "Alita: Battle Angel",
-            "action_url": "jellyfin://items/79d6466ec398dd19261e5872e4bd999a"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/All You Need Is Blood - 2023.jpg",
-            "layout": "Default",
-            "genres": "Komödie, Horror, Liebesfilm",
-            "officialRating": null,
-            "year": 2023,
-            "rating": 5.9,
-            "title": "All You Need Is Blood",
-            "action_url": "jellyfin://items/f0a0a71fd97010916a7e8fb2f73945e8"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Allein zu Haus Filmreihe - None.jpg",
-            "layout": "Default",
-            "genres": "",
-            "officialRating": null,
-            "year": null,
-            "rating": 0.0,
-            "title": "Allein zu Haus Filmreihe",
-            "action_url": "jellyfin://items/110bc45c51aea78b68d15298a0b623ae"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Alter weisser Mann - 2024.jpg",
-            "layout": "Default",
-            "genres": "Komödie",
-            "officialRating": "FSK-6",
-            "year": 2024,
-            "rating": 6.808,
-            "title": "Alter weisser Mann",
-            "action_url": "jellyfin://items/d91a9c12a2b9e21d61dcc371938ad04f"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/American Boogeyman - Faszination des Bösen - 2021.jpg",
-            "layout": "Default",
-            "genres": "Thriller, Krimi",
-            "officialRating": "FSK-16",
-            "year": 2021,
-            "rating": 6.634,
-            "title": "American Boogeyman - Faszination des Bösen",
-            "action_url": "jellyfin://items/3ad2d6034635a16abf86b7e8ba382be1"
         },
         {
             "path": "/app/layouts/previews/Default 4k/Warcraft The Beginning - 2016.jpg",
@@ -11163,6 +10803,836 @@
             "rating": 5.918,
             "title": "Afraid",
             "action_url": "jellyfin://items/1fae6a7e92b2ff031ee05c78485b9be2"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Spaceballs - 1987.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Science Fiction",
+            "officialRating": "FSK-12",
+            "year": 1987,
+            "rating": 0.0,
+            "title": "Spaceballs",
+            "action_url": "jellyfin://items/40c164a4e8ee7771ca6897ca27deb618"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Fight Club - 1999.jpg",
+            "layout": "Default",
+            "genres": "Drama, Thriller",
+            "officialRating": "FSK-18",
+            "year": 1999,
+            "rating": 0.0,
+            "title": "Fight Club",
+            "action_url": "jellyfin://items/6cfb89d1ed62572d4165c493f96f94f2"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Reunion - 2024.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Mystery",
+            "officialRating": "R",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Reunion",
+            "action_url": "jellyfin://items/6d85b394fcf54f867d420e17ae271684"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Der wilde Roboter - 2024.jpg",
+            "layout": "Default",
+            "genres": "Animation, Science Fiction, Familie, Abenteuer, Drama",
+            "officialRating": "FSK-6",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Der wilde Roboter",
+            "action_url": "jellyfin://items/d6c27fcdae8d23e41b26f27462fda79c"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Luz The Flower of Evil - 2019.jpg",
+            "layout": "Default",
+            "genres": "Drama, Fantasy, Western, Horror",
+            "officialRating": "FSK-16",
+            "year": 2019,
+            "rating": 0.0,
+            "title": "Luz: The Flower of Evil",
+            "action_url": "jellyfin://items/6545304c6bf478f3210f93565eb63935"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Wonka - 2023.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Familie, Fantasy",
+            "officialRating": "FSK-0",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "Wonka",
+            "action_url": "jellyfin://items/7b102ecfe9eceb5ad8860537e846902c"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Made in France - Im Namen des Terrors - 2015.jpg",
+            "layout": "Default",
+            "genres": "Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2015,
+            "rating": 0.0,
+            "title": "Made in France - Im Namen des Terrors",
+            "action_url": "jellyfin://items/318f3b1856c1922ed8b48f492bcc80dc"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Tag - Along - 2015.jpg",
+            "layout": "Default",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2015,
+            "rating": 0.0,
+            "title": "The Tag - Along",
+            "action_url": "jellyfin://items/7ace041aa057a40a1b3a34a523560d88"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Lucky Luke - 1991.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Western",
+            "officialRating": "FSK-6",
+            "year": 1991,
+            "rating": 0.0,
+            "title": "Lucky Luke",
+            "action_url": "jellyfin://items/df693bd5b3b0eed4cd932bde0250645b"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Zero Theorem - 2013.jpg",
+            "layout": "Default",
+            "genres": "Drama, Fantasy, Science Fiction",
+            "officialRating": "FSK-12",
+            "year": 2013,
+            "rating": 0.0,
+            "title": "The Zero Theorem",
+            "action_url": "jellyfin://items/dee5e6fc2baecbfa1989f6d91ac4e766"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Substance - 2024.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "The Substance",
+            "action_url": "jellyfin://items/34c4a74fbd1668282b7e50f0a2369934"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Blacklight - Im Schatten des FBI - 2022.jpg",
+            "layout": "Default",
+            "genres": "Action, Thriller, Abenteuer",
+            "officialRating": "FSK-12",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Blacklight - Im Schatten des FBI",
+            "action_url": "jellyfin://items/a19fdb73a370fe5fef48d6344b0b7851"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Monkey - 2025.jpg",
+            "layout": "Default",
+            "genres": "Horror, Komödie",
+            "officialRating": "FSK-16",
+            "year": 2025,
+            "rating": 0.0,
+            "title": "The Monkey",
+            "action_url": "jellyfin://items/88ca7c44a49df56920ae5ef6515dcb58"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Fast  Furious 10 - 2023.jpg",
+            "layout": "Default",
+            "genres": "Action, Krimi, Thriller",
+            "officialRating": "FSK-12",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "Fast & Furious 10",
+            "action_url": "jellyfin://items/b4612d73ac1426400d9698e67c3c3d5e"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Vier Fäuste gegen Rio - 1984.jpg",
+            "layout": "Default",
+            "genres": "Action, Komödie",
+            "officialRating": "FSK-12",
+            "year": 1984,
+            "rating": 0.0,
+            "title": "Vier Fäuste gegen Rio",
+            "action_url": "jellyfin://items/1817bfa9aa13c1e7177da9e01c3ba49a"
+        },
+        {
+            "path": "/app/layouts/previews/Default/I Spit on Your Grave Déjà Vu - 2019.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Horror",
+            "officialRating": "FSK-18",
+            "year": 2019,
+            "rating": 0.0,
+            "title": "I Spit on Your Grave: Déjà Vu",
+            "action_url": "jellyfin://items/ba9bfec8e3237087f486b5b7e2748674"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Die Unfassbaren 3 - Now you see me - 2025.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Krimi, Mystery",
+            "officialRating": "FSK-12",
+            "year": 2025,
+            "rating": 0.0,
+            "title": "Die Unfassbaren 3 - Now you see me",
+            "action_url": "jellyfin://items/ac8d938fe86a925cc8ea10198223e4a0"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Django und die Bande der Gehenkten - 1968.jpg",
+            "layout": "Default",
+            "genres": "Western, Action, Drama",
+            "officialRating": "FSK-16",
+            "year": 1968,
+            "rating": 0.0,
+            "title": "Django und die Bande der Gehenkten",
+            "action_url": "jellyfin://items/559e65eadc8facc1474900b9040e82db"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Riddick Krieger der Finsternis - 2004.jpg",
+            "layout": "Default",
+            "genres": "Animation, Action, Science Fiction, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2004,
+            "rating": 0.0,
+            "title": "Riddick: Krieger der Finsternis",
+            "action_url": "jellyfin://items/2def189f5d2b4d92b7444a45182f0b6f"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Late Night with the Devil - 2024.jpg",
+            "layout": "batch",
+            "genres": "Horror",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Late Night with the Devil",
+            "action_url": "jellyfin://items/c77105b9987fed21f8b158a75f74160a"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Traffic - Macht des Kartells - 2000.jpg",
+            "layout": "batch",
+            "genres": "Thriller, Drama, Krimi",
+            "officialRating": "FSK-16",
+            "year": 2000,
+            "rating": 0.0,
+            "title": "Traffic - Macht des Kartells",
+            "action_url": "jellyfin://items/d9718d3e9924de628ff5f4870229db75"
+        },
+        {
+            "path": "/app/layouts/previews/batch/November - 2017.jpg",
+            "layout": "batch",
+            "genres": "Drama, Fantasy, Liebesfilm, Horror",
+            "officialRating": "FSK-16",
+            "year": 2017,
+            "rating": 0.0,
+            "title": "November",
+            "action_url": "jellyfin://items/cc0a63d352f40c95eda4241f1d8501a5"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Das fünfte Element - 1997.jpg",
+            "layout": "batch",
+            "genres": "Science Fiction, Action, Abenteuer",
+            "officialRating": "FSK-12",
+            "year": 1997,
+            "rating": 0.0,
+            "title": "Das fünfte Element",
+            "action_url": "jellyfin://items/79e95e591cb31134ce1a089319d378f4"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Operation Raqqa - Im Schatten des IS - 2024.jpg",
+            "layout": "batch",
+            "genres": "Thriller",
+            "officialRating": "",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Operation: Raqqa - Im Schatten des IS",
+            "action_url": "jellyfin://items/54b3be6d852d8c3e166c1c69e1be64a2"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Geheimsache Malta - 2024.jpg",
+            "layout": "batch",
+            "genres": "Action, Thriller",
+            "officialRating": "R",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Geheimsache Malta",
+            "action_url": "jellyfin://items/3f6a9d0337725ca68259b0214cc09330"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Jadotville - 2016.jpg",
+            "layout": "batch",
+            "genres": "Kriegsfilm, Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "Jadotville",
+            "action_url": "jellyfin://items/cf79183a8bfb11435c8b7472c22fef02"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Napoleon - 2023.jpg",
+            "layout": "batch",
+            "genres": "Historie, Kriegsfilm, Liebesfilm",
+            "officialRating": "FSK-12",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "Napoleon",
+            "action_url": "jellyfin://items/f2198c465ce3705f8d03f71ef5446487"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Zoomania 2 - 2025.jpg",
+            "layout": "batch",
+            "genres": "Animation, Komödie, Abenteuer, Familie, Mystery",
+            "officialRating": "FSK-6",
+            "year": 2025,
+            "rating": 0.0,
+            "title": "Zoomania 2",
+            "action_url": "jellyfin://items/99cae378b85e39d93b0cd36985f0722b"
+        },
+        {
+            "path": "/app/layouts/previews/batch/House Party - Fake it till you make it - 2023.jpg",
+            "layout": "batch",
+            "genres": "Komödie",
+            "officialRating": "FSK-12",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "House Party - Fake it till you make it",
+            "action_url": "jellyfin://items/2bf62c92aced89d46fbdc312f93a2609"
+        },
+        {
+            "path": "/app/layouts/previews/batch/T2 Trainspotting - 2017.jpg",
+            "layout": "batch",
+            "genres": "Drama, Komödie, Krimi",
+            "officialRating": "FSK-16",
+            "year": 2017,
+            "rating": 0.0,
+            "title": "T2 Trainspotting",
+            "action_url": "jellyfin://items/5053febf3d116543d9be9d8729152b06"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Damaged - 2024.jpg",
+            "layout": "batch",
+            "genres": "Action, Drama, Thriller, Krimi",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Damaged",
+            "action_url": "jellyfin://items/02aa588bd8cda6ce34f56afdd95c6053"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Split - 2017.jpg",
+            "layout": "batch",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2017,
+            "rating": 0.0,
+            "title": "Split",
+            "action_url": "jellyfin://items/bf16a6c5f4278ecd809d934cfbe48597"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Jeepers Creepers Reborn - 2022.jpg",
+            "layout": "batch",
+            "genres": "Horror",
+            "officialRating": "FSK-16",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Jeepers Creepers: Reborn",
+            "action_url": "jellyfin://items/9ef2da5f26777d6c57e0bafc978b5eb2"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Colonia Dignidad - Es gibt kein zurück - 2015.jpg",
+            "layout": "batch",
+            "genres": "Drama, Historie",
+            "officialRating": "FSK-16",
+            "year": 2015,
+            "rating": 0.0,
+            "title": "Colonia Dignidad - Es gibt kein zurück",
+            "action_url": "jellyfin://items/d547182e030350ca5db10414010047db"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Des Teufels Bad - 2024.jpg",
+            "layout": "batch",
+            "genres": "Drama, Mystery, Historie, Horror",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Des Teufels Bad",
+            "action_url": "jellyfin://items/bd22c74e85de8c36bb923bbf35bcd76f"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Equilibrium - 2002.jpg",
+            "layout": "batch",
+            "genres": "Action, Science Fiction, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2002,
+            "rating": 0.0,
+            "title": "Equilibrium",
+            "action_url": "jellyfin://items/a72c1b19e9479f727a916d45d7ece61a"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Die Behandlung - 2014.jpg",
+            "layout": "batch",
+            "genres": "Krimi, Mystery, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2014,
+            "rating": 0.0,
+            "title": "Die Behandlung",
+            "action_url": "jellyfin://items/cff8a6f2bf5889251c8f0bcaa9b49e1b"
+        },
+        {
+            "path": "/app/layouts/previews/batch/Awake - Der Alptraum beginnt - 2019.jpg",
+            "layout": "batch",
+            "genres": "Action, Thriller",
+            "officialRating": "FSK-12",
+            "year": 2019,
+            "rating": 0.0,
+            "title": "Awake - Der Alptraum beginnt",
+            "action_url": "jellyfin://items/42190e3eec9bbcddce8a8d354a44e2cb"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/3 from Hell - 2019.jpg",
+            "layout": "batch",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2019,
+            "rating": 0.0,
+            "title": "3 from Hell",
+            "action_url": "jellyfin://items/be5149d8c5f48f098fd0b6a0c1c97486"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/8MM - Acht Millimeter - 1999.jpg",
+            "layout": "batch",
+            "genres": "Thriller, Krimi, Mystery",
+            "officialRating": "FSK-18",
+            "year": 1999,
+            "rating": 0.0,
+            "title": "8MM - Acht Millimeter",
+            "action_url": "jellyfin://items/d2c987f3dd86ec50f9f53d700808541b"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/12 Monkeys - 1995.jpg",
+            "layout": "batch",
+            "genres": "Science Fiction, Thriller, Mystery",
+            "officialRating": "FSK-16",
+            "year": 1995,
+            "rating": 0.0,
+            "title": "12 Monkeys",
+            "action_url": "jellyfin://items/f18302c2acb43e7e6c12a08b13e7af8f"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/12 Monkeys - 2015.jpg",
+            "layout": "batch",
+            "genres": "Sci-Fi & Fantasy, Drama",
+            "officialRating": "FSK-16",
+            "year": 2015,
+            "rating": 0.0,
+            "title": "12 Monkeys",
+            "action_url": "jellyfin://items/a7c4075447041fa3324eb9ae40159d6c"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/13 Hours The Secret Soldiers of Benghazi - 2016.jpg",
+            "layout": "batch",
+            "genres": "Kriegsfilm, Action, Historie, Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "13 Hours: The Secret Soldiers of Benghazi",
+            "action_url": "jellyfin://items/a37b573215db1814b66cc3d813481c2d"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/28 Years Later The Bone Temple - 2026.jpg",
+            "layout": "batch",
+            "genres": "Horror, Science Fiction, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2026,
+            "rating": 0.0,
+            "title": "28 Years Later: The Bone Temple",
+            "action_url": "jellyfin://items/773d8168276b58a8e0b7e71c00e164bf"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/31 - 2016.jpg",
+            "layout": "batch",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "31",
+            "action_url": "jellyfin://items/dec39b613df2870d944efc7f41f7880f"
+        },
+        {
+            "path": "/app/editor_backgrounds/batch/65 - 2023.jpg",
+            "layout": "batch",
+            "genres": "Action, Abenteuer, Science Fiction",
+            "officialRating": "FSK-16",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "65",
+            "action_url": "jellyfin://items/80e8afb00348074a753a6884d7b35551"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Adagio - Erbarmungslose Stadt - 2023.jpg",
+            "layout": "Default",
+            "genres": "Krimi, Thriller, Action",
+            "officialRating": "FSK-16",
+            "year": 2023,
+            "rating": 6.6,
+            "title": "Adagio - Erbarmungslose Stadt",
+            "action_url": "jellyfin://items/49b82dd9559634d4c561e5efb43fdc5a"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Afraid - 2024.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction, Thriller",
+            "officialRating": "FSK-12",
+            "year": 2024,
+            "rating": 5.918,
+            "title": "Afraid",
+            "action_url": "jellyfin://items/1fae6a7e92b2ff031ee05c78485b9be2"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alice im Wunderland Filmreihe - None.jpg",
+            "layout": "Default",
+            "genres": "",
+            "officialRating": null,
+            "year": null,
+            "rating": 0.0,
+            "title": "Alice im Wunderland Filmreihe",
+            "action_url": "jellyfin://items/48505962f6305c339f79efd8f660d997"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alien - Das unheimliche Wesen aus einer fremden Welt - 1979.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction",
+            "officialRating": "FSK-16",
+            "year": 1979,
+            "rating": 8.167,
+            "title": "Alien - Das unheimliche Wesen aus einer fremden Welt",
+            "action_url": "jellyfin://items/bb89e621c46f2a2f7c5023c37009ccb3"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alien Covenant - 2017.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2017,
+            "rating": 6.169,
+            "title": "Alien: Covenant",
+            "action_url": "jellyfin://items/59168add8ddfbac9984e52b1f2c7d901"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alien Earth - 2025.jpg",
+            "layout": "Default",
+            "genres": "Sci-Fi & Fantasy, Drama",
+            "officialRating": "FSK-16",
+            "year": 2025,
+            "rating": 7.362,
+            "title": "Alien: Earth",
+            "action_url": "jellyfin://items/ec6a160fa11cd4b42916dd8a51e87cb7"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alien Romulus - 2024.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 7.169,
+            "title": "Alien: Romulus",
+            "action_url": "jellyfin://items/a5c5bd7dd16cd8eb4ebe478f10aeaaed"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alienoid Filmreihe - None.jpg",
+            "layout": "Default",
+            "genres": "",
+            "officialRating": null,
+            "year": null,
+            "rating": 0.0,
+            "title": "Alienoid Filmreihe",
+            "action_url": "jellyfin://items/deca7e5d6023258d716a3dbddd876a74"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alita Battle Angel - 2019.jpg",
+            "layout": "Default",
+            "genres": "Action, Science Fiction, Abenteuer",
+            "officialRating": "FSK-12",
+            "year": 2019,
+            "rating": 7.244,
+            "title": "Alita: Battle Angel",
+            "action_url": "jellyfin://items/79d6466ec398dd19261e5872e4bd999a"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/All You Need Is Blood - 2023.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Horror, Liebesfilm",
+            "officialRating": null,
+            "year": 2023,
+            "rating": 5.9,
+            "title": "All You Need Is Blood",
+            "action_url": "jellyfin://items/f0a0a71fd97010916a7e8fb2f73945e8"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Allein zu Haus Filmreihe - None.jpg",
+            "layout": "Default",
+            "genres": "",
+            "officialRating": null,
+            "year": null,
+            "rating": 0.0,
+            "title": "Allein zu Haus Filmreihe",
+            "action_url": "jellyfin://items/110bc45c51aea78b68d15298a0b623ae"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Alter weisser Mann - 2024.jpg",
+            "layout": "Default",
+            "genres": "Komödie",
+            "officialRating": "FSK-6",
+            "year": 2024,
+            "rating": 6.808,
+            "title": "Alter weisser Mann",
+            "action_url": "jellyfin://items/d91a9c12a2b9e21d61dcc371938ad04f"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/American Boogeyman - Faszination des Bösen - 2021.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Krimi",
+            "officialRating": "FSK-16",
+            "year": 2021,
+            "rating": 6.634,
+            "title": "American Boogeyman - Faszination des Bösen",
+            "action_url": "jellyfin://items/3ad2d6034635a16abf86b7e8ba382be1"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/American Horror Story - 2011.jpg",
+            "layout": "Default",
+            "genres": "Drama, Mystery, Sci-Fi & Fantasy",
+            "officialRating": "FSK-18",
+            "year": 2011,
+            "rating": 8.093,
+            "title": "American Horror Story",
+            "action_url": "jellyfin://items/8f2dceffb24ccde320a235707e4d0bef"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/American Psycho Filmreihe - None.jpg",
+            "layout": "Default",
+            "genres": "",
+            "officialRating": null,
+            "year": null,
+            "rating": 0.0,
+            "title": "American Psycho Filmreihe",
+            "action_url": "jellyfin://items/e7a091dfb6d571c59e5194a64bdf4ee7"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/American Riot - 2021.jpg",
+            "layout": "Default",
+            "genres": "Action, Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2021,
+            "rating": 5.4,
+            "title": "American Riot",
+            "action_url": "jellyfin://items/e9262b5347f0d2ba9046f1e7618ef146"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Many Saints of Newark - 2021.jpg",
+            "layout": "Default",
+            "genres": "Krimi, Drama",
+            "officialRating": "FSK-16",
+            "year": 2021,
+            "rating": 0.0,
+            "title": "The Many Saints of Newark",
+            "action_url": "jellyfin://items/ab98c9cfb45c40f9262ce36dd25eb1d1"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Happytime Murders - 2018.jpg",
+            "layout": "Default",
+            "genres": "Action, Krimi, Komödie",
+            "officialRating": "FSK-12",
+            "year": 2018,
+            "rating": 0.0,
+            "title": "The Happytime Murders",
+            "action_url": "jellyfin://items/514d5335ee7de601011a750c8f8e2f6e"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Caligula - Aufstieg und Fall eines Tyrannen - 1979.jpg",
+            "layout": "Default",
+            "genres": "Drama, Historie",
+            "officialRating": "FSK-18",
+            "year": 1979,
+            "rating": 0.0,
+            "title": "Caligula - Aufstieg und Fall eines Tyrannen",
+            "action_url": "jellyfin://items/1d38abab8388197aa53ee9633159e72d"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Malignant - 2021.jpg",
+            "layout": "Default",
+            "genres": "Horror, Mystery",
+            "officialRating": "FSK-16",
+            "year": 2021,
+            "rating": 0.0,
+            "title": "Malignant",
+            "action_url": "jellyfin://items/109f65641fb7d76b69f7da78bceffd5a"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Die wahren Memoiren eines internationalen Killers - 2016.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Action",
+            "officialRating": "FSK-12",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "Die wahren Memoiren eines internationalen Killers",
+            "action_url": "jellyfin://items/c35ab089fb61ab44392609e5d1922847"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Der Brotverdiener - 2017.jpg",
+            "layout": "Default",
+            "genres": "Animation, Kriegsfilm, Drama, Familie",
+            "officialRating": "FSK-12",
+            "year": 2017,
+            "rating": 0.0,
+            "title": "Der Brotverdiener",
+            "action_url": "jellyfin://items/625adf273bdd05f03e8a216f7f4f4be7"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Green Room - 2016.jpg",
+            "layout": "Default",
+            "genres": "Horror, Krimi, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "Green Room",
+            "action_url": "jellyfin://items/352907bf9920e14b547a6e600a428926"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Electroboy - 2014.jpg",
+            "layout": "Default",
+            "genres": "Dokumentarfilm",
+            "officialRating": "",
+            "year": 2014,
+            "rating": 0.0,
+            "title": "Electroboy",
+            "action_url": "jellyfin://items/fdbd673a67f6d74f856b8706603ffceb"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Split - 2017.jpg",
+            "layout": "Default",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2017,
+            "rating": 0.0,
+            "title": "Split",
+            "action_url": "jellyfin://items/bf16a6c5f4278ecd809d934cfbe48597"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Die Geschichte der Menschheit - leicht gekürzt - 2022.jpg",
+            "layout": "Default",
+            "genres": "Komödie",
+            "officialRating": "FSK-12",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Die Geschichte der Menschheit - leicht gekürzt",
+            "action_url": "jellyfin://items/82423f852e8b28e8a80039395597b41f"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/3 from Hell - 2019.jpg",
+            "layout": "Default",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2019,
+            "rating": 5.778,
+            "title": "3 from Hell",
+            "action_url": "jellyfin://items/be5149d8c5f48f098fd0b6a0c1c97486"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/8MM - Acht Millimeter - 1999.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Krimi, Mystery",
+            "officialRating": "FSK-18",
+            "year": 1999,
+            "rating": 6.467,
+            "title": "8MM - Acht Millimeter",
+            "action_url": "jellyfin://items/d2c987f3dd86ec50f9f53d700808541b"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/12 Monkeys - 1995.jpg",
+            "layout": "Default",
+            "genres": "Science Fiction, Thriller, Mystery",
+            "officialRating": "FSK-16",
+            "year": 1995,
+            "rating": 7.603,
+            "title": "12 Monkeys",
+            "action_url": "jellyfin://items/f18302c2acb43e7e6c12a08b13e7af8f"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/12 Monkeys - 2015.jpg",
+            "layout": "Default",
+            "genres": "Sci-Fi & Fantasy, Drama",
+            "officialRating": "FSK-16",
+            "year": 2015,
+            "rating": 7.4,
+            "title": "12 Monkeys",
+            "action_url": "jellyfin://items/a7c4075447041fa3324eb9ae40159d6c"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/13 Hours The Secret Soldiers of Benghazi - 2016.jpg",
+            "layout": "Default",
+            "genres": "Kriegsfilm, Action, Historie, Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2016,
+            "rating": 7.272,
+            "title": "13 Hours: The Secret Soldiers of Benghazi",
+            "action_url": "jellyfin://items/a37b573215db1814b66cc3d813481c2d"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/28 Years Later The Bone Temple - 2026.jpg",
+            "layout": "Default",
+            "genres": "Horror, Science Fiction, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2026,
+            "rating": 7.272,
+            "title": "28 Years Later: The Bone Temple",
+            "action_url": "jellyfin://items/773d8168276b58a8e0b7e71c00e164bf"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/31 - 2016.jpg",
+            "layout": "Default",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-18",
+            "year": 2016,
+            "rating": 5.447,
+            "title": "31",
+            "action_url": "jellyfin://items/dec39b613df2870d944efc7f41f7880f"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/65 - 2023.jpg",
+            "layout": "Default",
+            "genres": "Action, Abenteuer, Science Fiction",
+            "officialRating": "FSK-16",
+            "year": 2023,
+            "rating": 5.959,
+            "title": "65",
+            "action_url": "jellyfin://items/80e8afb00348074a753a6884d7b35551"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/100 Yards - 2024.jpg",
+            "layout": "Default",
+            "genres": "Action, Drama",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 6.1,
+            "title": "100 Yards",
+            "action_url": "jellyfin://items/accd58c305fd5221be7605ef09da0ed8"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/The Accountant Filmreihe - None.jpg",
+            "layout": "Default",
+            "genres": "",
+            "officialRating": null,
+            "year": null,
+            "rating": 0.0,
+            "title": "The Accountant Filmreihe",
+            "action_url": "jellyfin://items/af645cb5a2ef6e9882d672279f5a5237"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Action Point - 2018.jpg",
+            "layout": "Default",
+            "genres": "Komödie",
+            "officialRating": "FSK-12",
+            "year": 2018,
+            "rating": 5.458,
+            "title": "Action Point",
+            "action_url": "jellyfin://items/29f9ce4feabd4775410f9791ab330c84"
         }
     ]
 }

@@ -1144,7 +1144,7 @@ function getCertificationFilename(rating) {
                     fontFamily: 'Roboto', fontSize: fontSize,
                     fill: 'white', dataTag: 'title',
                     textAlign: align,
-                    splitByGrapheme: true
+                    splitByGrapheme: false
                 });
                 canvas.add(text);
             }
@@ -1153,43 +1153,171 @@ function getCertificationFilename(rating) {
         if (imagePromises.length > 0) await Promise.all(imagePromises);
 
         // 6. LAYOUT & EFFECTS
-        // This call was moved into the async image loader to prevent race conditions
+        try {
+            updateVerticalLayout(canvas, settings, blockedAreas);
+        } catch (e) {
+            console.warn("Layout update failed in pre-pass:", e.message);
+        }
 
         // 7. AMBILIGHT (Separate Output)
-        let ambilightDataURL = null;
         if (settings.backgroundMode === 'ambilight' && mainBg) {
             // Ensure canvas BG is transparent
             canvas.backgroundColor = null;
 
-            // Create Ambilight Object
+            console.log("Generating Ambilight background...");
+
+            // Create Ambilight Object from Main BG
             const ambilightObj = await new Promise(res => mainBg.clone(res));
-            const scale = Math.max(canvas.width / ambilightObj.width, canvas.height / ambilightObj.height) * 1.5;
-            ambilightObj.set({
-                left: canvas.width / 2, top: canvas.height / 2, originX: 'center', originY: 'center',
-                scaleX: scale, scaleY: scale, opacity: 1
+
+            // Implementation of "Downscale -> Blur -> Upscale" pipeline matching editor.js
+            // 1. Calculate dimensions (1/4 of total size, consistent with frontend)
+            const smallW = baseWidth / 4;
+            const smallH = baseHeight / 4;
+            const multiplier = smallW / ambilightObj.getScaledWidth();
+
+            // 2. Render object to a small raw canvas first
+            const rawSmallCanvas = ambilightObj.toCanvasElement({
+                multiplier: multiplier,
+                width: smallW,
+                height: smallH,
+                enableRetinaScaling: false
             });
 
-            // Filters
+            // 3. Create a new canvas for filtering
+            const filterCanvas = canvasModule.createCanvas(rawSmallCanvas.width, rawSmallCanvas.height);
+            const fCtx = filterCanvas.getContext('2d');
+
+            // 4. Determine Brightness correction
+            // Logic must match editor.js: brightness = 0.4 + (val / 100)
             let bVal = parseInt(settings.bgBrightness);
             if (isNaN(bVal)) bVal = 20;
-            const fabricBrightness = (bVal / 100) - 0.6;
-            ambilightObj.filters = [
-                new fabric.Image.filters.Blur({ blur: 0.5 }),
-                new fabric.Image.filters.Brightness({ brightness: fabricBrightness })
-            ];
-            ambilightObj.applyFilters();
+            const brightness = 0.4 + (bVal / 100);
 
-            // Save Separate File
-            const ambilightCanvas = new fabric.StaticCanvas(null, { width: ambilightObj.getScaledWidth(), height: ambilightObj.getScaledHeight() });
-            ambilightObj.set({ left: ambilightCanvas.width / 2, top: ambilightCanvas.height / 2 });
-            ambilightCanvas.add(ambilightObj);
-            ambilightCanvas.renderAll();
+            // 5. Apply "Massive" Blur MANUALLY
+            // Node-canvas often does not support 'filter', so we must blur manually.
+            // We use a simplified StackBlur algorithm for high performance.
 
-            const ambilightOutPath = `${outputBasePath}.ambilight.jpg`;
-            const outStream = fs.createWriteStream(ambilightOutPath);
-            const canvasStream = ambilightCanvas.createJPEGStream({ quality: 0.8 });
-            canvasStream.pipe(outStream);
-            await new Promise(r => outStream.on('finish', r));
+            // Bridge: Load dataURL to ensure compatibility with node-canvas drawImage
+            const rawData = rawSmallCanvas.toDataURL();
+            const bridgeImg = await canvasModule.loadImage(rawData);
+            fCtx.drawImage(bridgeImg, 0, 0);
+
+            // Apply blur
+            fastBlur(fCtx, rawSmallCanvas.width, rawSmallCanvas.height, 60);
+
+            // Apply Brightness manually (since filter is also unsupported)
+            if (brightness !== 1) {
+                const imageData = fCtx.getImageData(0, 0, rawSmallCanvas.width, rawSmallCanvas.height);
+                const data = imageData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.min(255, data[i] * brightness);
+                    data[i + 1] = Math.min(255, data[i + 1] * brightness);
+                    data[i + 2] = Math.min(255, data[i + 2] * brightness);
+                }
+                fCtx.putImageData(imageData, 0, 0);
+            }
+
+            // 6. Load filtered image back to Fabric
+            const smallData = filterCanvas.toDataURL();
+
+            const blurredImg = await new Promise(resolve => {
+                fabric.Image.fromURL(smallData, (img) => {
+                    if (!img) { resolve(null); return; }
+
+                    // Scale to fill output
+                    const scale = Math.max(baseWidth / img.width, baseHeight / img.height);
+                    img.set({
+                        originX: 'center', originY: 'center',
+                        left: baseWidth / 2, top: baseHeight / 2,
+                        scaleX: scale, scaleY: scale
+                    });
+
+                    resolve(img);
+                });
+            });
+
+            // SIMPLIFIED BOX BLUR (Multiple passes = Gaussian approximation)
+            function fastBlur(ctx, width, height, radius) {
+                if (radius < 1) return;
+                // 3 passes of box blur approximates gaussian
+                boxBlurCanvasRGBA(ctx, width, height, radius);
+                boxBlurCanvasRGBA(ctx, width, height, radius);
+                boxBlurCanvasRGBA(ctx, width, height, radius);
+            }
+
+            function boxBlurCanvasRGBA(ctx, width, height, radius) {
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const pixels = imageData.data;
+                const temp = new Uint8ClampedArray(pixels.length);
+
+                // Horizontal
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        let r = 0, g = 0, b = 0, a = 0, count = 0;
+                        for (let i = -radius; i <= radius; i++) {
+                            const nx = Math.min(width - 1, Math.max(0, x + i));
+                            const idx = (y * width + nx) * 4;
+                            r += pixels[idx];
+                            g += pixels[idx + 1];
+                            b += pixels[idx + 2];
+                            a += pixels[idx + 3];
+                            count++;
+                        }
+                        const tidx = (y * width + x) * 4;
+                        temp[tidx] = r / count;
+                        temp[tidx + 1] = g / count;
+                        temp[tidx + 2] = b / count;
+                        temp[tidx + 3] = a / count;
+                    }
+                }
+
+                // Vertical
+                for (let x = 0; x < width; x++) {
+                    for (let y = 0; y < height; y++) {
+                        let r = 0, g = 0, b = 0, a = 0, count = 0;
+                        for (let i = -radius; i <= radius; i++) {
+                            const ny = Math.min(height - 1, Math.max(0, y + i));
+                            const idx = (ny * width + x) * 4;
+                            r += temp[idx];
+                            g += temp[idx + 1];
+                            b += temp[idx + 2];
+                            a += temp[idx + 3];
+                            count++;
+                        }
+                        const idx = (y * width + x) * 4;
+                        pixels[idx] = r / count;
+                        pixels[idx + 1] = g / count;
+                        pixels[idx + 2] = b / count;
+                        pixels[idx + 3] = a / count;
+                    }
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+            }
+            // Render Ambilight Output to File
+            if (blurredImg) {
+                const ambiCanvas = new fabric.StaticCanvas(null, { width: baseWidth, height: baseHeight });
+                ambiCanvas.add(blurredImg);
+                ambiCanvas.renderAll();
+
+                const ambilightOutPath = `${outputBasePath}.ambilight.jpg`;
+                await new Promise((resolve, reject) => {
+                    const outStream = fs.createWriteStream(ambilightOutPath);
+                    const canvasStream = ambiCanvas.createJPEGStream({ quality: 0.85 });
+                    canvasStream.pipe(outStream);
+                    outStream.on('finish', resolve);
+                    outStream.on('error', reject);
+                });
+            }
+
+            // Add blurred object to main canvas
+            if (blurredImg) {
+                blurredImg.set({
+                    dataTag: 'ambilight_bg'
+                });
+                canvas.add(blurredImg);
+                canvas.sendToBack(blurredImg);
+            }
         }
 
         // Apply Custom Effects (Ambilight Mask or Fades)
