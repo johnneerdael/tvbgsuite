@@ -591,6 +591,62 @@ function drawRoundedPath(ctx, x, y, w, h, r) {
     ctx.closePath();
 }
 
+// Manual box blur for corner softness - shadowBlur is unreliable in node-canvas
+function applyBoxBlur(imageData, width, height, radius) {
+    if (radius < 1) return imageData;
+
+    const data = imageData.data;
+    const tempData = new Uint8ClampedArray(data);
+
+    // Horizontal blur pass
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            let r = 0, g = 0, b = 0, a = 0, count = 0;
+
+            for (let kx = -radius; kx <= radius; kx++) {
+                const px = Math.min(width - 1, Math.max(0, x + kx));
+                const idx = (y * width + px) * 4;
+                r += data[idx];
+                g += data[idx + 1];
+                b += data[idx + 2];
+                a += data[idx + 3];
+                count++;
+            }
+
+            const idx = (y * width + x) * 4;
+            tempData[idx] = r / count;
+            tempData[idx + 1] = g / count;
+            tempData[idx + 2] = b / count;
+            tempData[idx + 3] = a / count;
+        }
+    }
+
+    // Vertical blur pass
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            let r = 0, g = 0, b = 0, a = 0, count = 0;
+
+            for (let ky = -radius; ky <= radius; ky++) {
+                const py = Math.min(height - 1, Math.max(0, y + ky));
+                const idx = (py * width + x) * 4;
+                r += tempData[idx];
+                g += tempData[idx + 1];
+                b += tempData[idx + 2];
+                a += tempData[idx + 3];
+                count++;
+            }
+
+            const idx = (y * width + x) * 4;
+            data[idx] = r / count;
+            data[idx + 1] = g / count;
+            data[idx + 2] = b / count;
+            data[idx + 3] = a / count;
+        }
+    }
+
+    return imageData;
+}
+
 function generateAlphaMask(mainBg, settings) {
     if (!mainBg) return null;
     const w = mainBg.width;
@@ -647,32 +703,90 @@ function generateAlphaMask(mainBg, settings) {
         if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
         if (sR > 0) { const g = ctx.createLinearGradient(w, 0, w - sR, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(w - sR, 0, sR, h); }
     } else {
-        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, w, h);
+        // Default: create elliptical vignette fade for Ambilight
+        // Pure radial gradient approach - no shadowBlur to avoid colored overlay
+        const cx = w / 2;
+        const cy = h / 2;
+        const rx = w / 2;
+        const ry = h / 2;
+
+        // Use larger radius for elliptical gradient
+        const maxDim = Math.max(w, h);
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.6);
+
+        // Smooth gradient fade stops for seamless blending
+        grad.addColorStop(0, 'rgba(0,0,0,1)');      // Full opacity at center
+        grad.addColorStop(0.7, 'rgba(0,0,0,1)');    // Solid through 70%
+        grad.addColorStop(0.85, 'rgba(0,0,0,0.9)'); // Very subtle fade
+        grad.addColorStop(0.95, 'rgba(0,0,0,0.5)'); // Moderate transparency
+        grad.addColorStop(1, 'rgba(0,0,0,0)');      // Fully transparent
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
     }
 
+    // Apply rounded corners with manual blur for softness
+    // shadowBlur is unreliable in node-canvas, so we use pixel-level blur
     if (radius > 0) {
         ctx.globalCompositeOperation = 'destination-in';
+
         if (softness > 0) {
-            const temp = canvasModule.createCanvas(w, h);
+            // Optimization: Perform blur on a smaller canvas to improve performance
+            // Processing 1920x1080 pixels in JS is very slow.
+            // Scaling down by 4 reduces pixel count by 16x, making it mucn faster.
+            const scale = 0.25;
+            const sw = Math.ceil(w * scale);
+            const sh = Math.ceil(h * scale);
+
+            // Create small temp canvas
+            const temp = canvasModule.createCanvas(sw, sh);
             const tCtx = temp.getContext('2d');
-            tCtx.fillStyle = 'black';
-            tCtx.shadowColor = "black";
-            tCtx.shadowBlur = softness;
-            const inset = softness;
-            const rectW = Math.max(0, w - inset * 2);
-            const rectH = Math.max(0, h - inset * 2);
+
+            // Calculate scaled dimensions
+            // Maximize radius: inset = 0 to prevent shrinking
+            const scaledSoftness = softness * scale;
+            const scaledRadius = radius * scale;
+            const inset = 0;
+
+            const rectW = Math.max(0, sw - inset * 2);
+            const rectH = Math.max(0, sh - inset * 2);
             const maxR = Math.min(rectW, rectH) / 2;
-            const safeR = Math.min(Math.max(0, radius - inset), maxR);
+            const safeR = Math.min(Math.max(0, scaledRadius - inset), maxR);
+
+            // Draw white rounded rect on small canvas
+            tCtx.fillStyle = 'white';
+            tCtx.beginPath();
             drawRoundedPath(tCtx, inset, inset, rectW, rectH, safeR);
             tCtx.fill();
-            ctx.drawImage(temp, 0, 0);
+
+            // Apply blur on small image data
+            const imageData = tCtx.getImageData(0, 0, sw, sh);
+            // Scale blur radius accordingly
+            const blurRadius = Math.max(1, Math.ceil((softness / 3) * scale));
+
+            // Apply blur 3 times
+            applyBoxBlur(imageData, sw, sh, blurRadius);
+            applyBoxBlur(imageData, sw, sh, blurRadius);
+            applyBoxBlur(imageData, sw, sh, blurRadius);
+
+            tCtx.putImageData(imageData, 0, 0);
+
+            // Draw scaled-up result back to main canvas
+            // The scaling up automatically adds some smoothness too
+            ctx.drawImage(temp, 0, 0, sw, sh, 0, 0, w, h);
         } else {
+            // No softness - use clean hard edges
             const safeR = Math.min(radius, Math.min(w, h) / 2);
+            ctx.fillStyle = 'black';
             ctx.beginPath();
             drawRoundedPath(ctx, 0, 0, w, h, safeR);
             ctx.fill();
         }
     }
+
+    // REMOVED: shadowBlur rounded rectangle approach
+    // It creates colored overlay instead of clean alpha fade
+    // Using pure radial gradient instead for seamless blending
     return maskCanvas;
 }
 
@@ -793,22 +907,35 @@ function addVignette(canvas, mainBg, radius, bgColor) {
 
 async function applyCustomEffects(canvas, settings, mainBg) {
     if (!settings || !mainBg) return;
-    mainBg.clipPath = null; // Reset for all paths
+    // DO NOT reset clipPath here - preserve it from layout JSON if it exists
+
+
 
     if (settings.backgroundMode === 'ambilight' && mainBg) {
-        // Mask Main BG on Canvas - made async to fix race condition
-        const maskCanvas = generateAlphaMask(mainBg, settings);
+        // For Ambilight, ALWAYS generate a fresh mask matching current backdrop dimensions
+        // Layout clipPath is designed for placeholder image and won't fit dynamically loaded images
+
+        // Override fadeEffect to ensure we use our custom vignette logic
+        // The 'mask' fadeEffect creates rectangular fades which don't work well for Ambilight
+        const ambilightSettings = {
+            ...settings,
+            fadeEffect: 'none', // Force default vignette path
+            fadeRadius: parseInt(settings.fadeRadius) || 1000,
+            fadeSoftness: parseInt(settings.fadeSoftness) || 40 // Use value from settings
+        };
+
+        const maskCanvas = generateAlphaMask(mainBg, ambilightSettings);
         if (maskCanvas) {
             await new Promise(resolve => {
-                const dataURL = maskCanvas.toDataURL(); // This creates the data URL
-                // fromURL is async, so we wrap it
+                const dataURL = maskCanvas.toDataURL();
                 fabric.Image.fromURL(dataURL, (maskImg) => {
                     if (maskImg) {
                         maskImg.originX = 'center';
                         maskImg.originY = 'center';
                         mainBg.clipPath = maskImg;
+                        console.log("Applied Ambilight fade mask to backdrop");
                     }
-                    resolve(); // Resolve the promise once the image is loaded and set
+                    resolve();
                 });
             });
         }
@@ -1044,7 +1171,9 @@ function getCertificationFilename(rating) {
                     originY: mainBg.originY,
                     // Calculate target dimensions instead of raw scale
                     targetWidth: mainBg.width * mainBg.scaleX,
-                    targetHeight: mainBg.height * mainBg.scaleY,
+                    targetHeight: mainBg.height * mainBg.scaleY
+                    // DO NOT preserve clipPath - it's sized for placeholder, not actual image
+                    // applyCustomEffects will generate fresh clipPath for actual dimensions
                 };
             }
 
@@ -1067,6 +1196,7 @@ function getCertificationFilename(rating) {
                                 scaleX: newScaleX,
                                 scaleY: newScaleY,
                                 dataTag: 'background'
+                                // DO NOT restore clipPath - fresh one will be generated for actual size
                             });
                         } else {
                             // Fallback to "cover" logic if no placeholder existed
@@ -1340,7 +1470,7 @@ function getCertificationFilename(rating) {
         console.log("Generating JSON output...");
 
         let jsonOutput;
-        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin'];
+        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin', 'clipPath'];
 
         // Fix Ambilight Object for JSON (Link to file instead of embedding Base64)
         // Matches client-side batch.js behavior and prevents huge JSON files
