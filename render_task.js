@@ -1166,26 +1166,31 @@ function getCertificationFilename(rating) {
 
             console.log("Generating Ambilight background...");
 
-            // Create Ambilight Object from Main BG
-            const ambilightObj = await new Promise(res => mainBg.clone(res));
+            // OPTIMIZED AMBILIGHT GENERATION
+            // Downscale full image to 1/4 size, apply heavy blur, then upscale
+            // The heavy blur naturally emphasizes edge colors over center details
 
-            // Implementation of "Downscale -> Blur -> Upscale" pipeline matching editor.js
-            // 1. Calculate dimensions (1/4 of total size, consistent with frontend)
+            // 1. Calculate dimensions (1/4 of total size)
             const smallW = baseWidth / 4;
             const smallH = baseHeight / 4;
-            const multiplier = smallW / ambilightObj.getScaledWidth();
 
-            // 2. Render object to a small raw canvas first
-            const rawSmallCanvas = ambilightObj.toCanvasElement({
-                multiplier: multiplier,
-                width: smallW,
-                height: smallH,
-                enableRetinaScaling: false
-            });
+            // 2. Render backdrop to downscaled canvas
+            const bgScaleX = mainBg.scaleX || 1;
+            const bgScaleY = mainBg.scaleY || 1;
+            const bgWidth = Math.floor(mainBg.width * bgScaleX);
+            const bgHeight = Math.floor(mainBg.height * bgScaleY);
 
-            // 3. Create a new canvas for filtering
-            const filterCanvas = canvasModule.createCanvas(rawSmallCanvas.width, rawSmallCanvas.height);
+            const bgImg = await canvasModule.loadImage(mainBg._element.src);
+
+            // Create small canvas for downscaled render
+            const smallCanvas = canvasModule.createCanvas(smallW, smallH);
+            const smallCtx = smallCanvas.getContext('2d');
+            smallCtx.drawImage(bgImg, 0, 0, smallW, smallH);
+
+            // 3. Create filtering canvas
+            const filterCanvas = canvasModule.createCanvas(smallW, smallH);
             const fCtx = filterCanvas.getContext('2d');
+            fCtx.drawImage(smallCanvas, 0, 0);
 
             // 4. Determine Brightness correction
             // Logic must match editor.js: brightness = 0.4 + (val / 100)
@@ -1197,17 +1202,12 @@ function getCertificationFilename(rating) {
             // Node-canvas often does not support 'filter', so we must blur manually.
             // We use a simplified StackBlur algorithm for high performance.
 
-            // Bridge: Load dataURL to ensure compatibility with node-canvas drawImage
-            const rawData = rawSmallCanvas.toDataURL();
-            const bridgeImg = await canvasModule.loadImage(rawData);
-            fCtx.drawImage(bridgeImg, 0, 0);
+            // 5. Apply blur to the edge-sampled canvas
+            fastBlur(fCtx, smallW, smallH, 60);
 
-            // Apply blur
-            fastBlur(fCtx, rawSmallCanvas.width, rawSmallCanvas.height, 60);
-
-            // Apply Brightness manually (since filter is also unsupported)
+            // 6. Apply Brightness manually (since filter is also unsupported)
             if (brightness !== 1) {
-                const imageData = fCtx.getImageData(0, 0, rawSmallCanvas.width, rawSmallCanvas.height);
+                const imageData = fCtx.getImageData(0, 0, smallW, smallH);
                 const data = imageData.data;
                 for (let i = 0; i < data.length; i += 4) {
                     data[i] = Math.min(255, data[i] * brightness);
@@ -1217,7 +1217,7 @@ function getCertificationFilename(rating) {
                 fCtx.putImageData(imageData, 0, 0);
             }
 
-            // 6. Load filtered image back to Fabric
+            // 7. Load filtered image back to Fabric
             const smallData = filterCanvas.toDataURL();
 
             const blurredImg = await new Promise(resolve => {
