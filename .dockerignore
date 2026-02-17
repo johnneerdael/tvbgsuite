@@ -10,5 +10,5 @@ venv
 config.json
 .env
 node_modules
-*_backgrounds
+# *_backgrounds
 layouts/previews

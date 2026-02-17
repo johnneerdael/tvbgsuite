@@ -157,7 +157,7 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
     });
 }
 
-function groupElementsByRow(elements, threshold = 30) {
+function groupElementsByRow(elements, threshold = 5) {
     if (!elements.length) return [];
     elements.sort((a, b) => a.top - b.top);
     const rows = [];
@@ -206,48 +206,23 @@ function fitTextToContainer(canvas, textbox) {
 
 // ADAPTED from editor.js: updateVerticalLayout
 // Replaces DOM lookups with 'settings' object usage
-function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], initialAnchorState) {
+function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
     if (!canvas) return;
 
     const anchor = canvas.getObjects().find(o => o.dataTag === 'title');
     if (!anchor) return;
 
-    // Force-reset anchor to its initial state to guarantee a stable layout starting point
-    if (initialAnchorState) {
-        // Always reset the position to the saved state.
-        anchor.set({
-            left: initialAnchorState.left,
-            top: initialAnchorState.top,
-        });
-
-        // Apply scaling logic based on the object type.
-        if (anchor.type === 'image') {
-            // For images, scale proportionally to match the original placeholder's rendered width.
-            const targetWidth = initialAnchorState.width * initialAnchorState.scaleX;
-            anchor.scaleToWidth(targetWidth);
-        } else if (anchor.type === 'i-text' || anchor.type === 'textbox') {
-            // For text, restore the exact scale and font size to maintain its natural width.
-            anchor.set({
-                scaleX: initialAnchorState.scaleX,
-                scaleY: initialAnchorState.scaleY,
-                fontSize: initialAnchorState.fontSize
-            });
-        }
-
-        anchor.setCoords();
-    }
-
     // Mapping settings
     const padding = parseInt(settings.lineSpacing) || 20;
     const hPadding = parseInt(settings.tagPadding) || 20;
-    const rowThreshold = 30;
+    const rowThreshold = 5;
 
     const marginTop = parseInt(settings.margins?.top || 50);
     const marginBottom = parseInt(settings.margins?.bottom || 50);
     const marginLeft = parseInt(settings.margins?.left || 50);
     const marginRight = parseInt(settings.margins?.right || 50);
 
-    const scaleFactor = (canvas.width > 2000) ? 2 : 1; // 4K vs 1080p
+    const scaleFactor = 1;
 
     // Update Text Alignments
     const textAlignment = settings.textContentAlignment || 'left';
@@ -425,6 +400,17 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], initial
         }
 
         if (shift !== 0) { anchor.set('left', anchor.left + shift); anchor.setCoords(); }
+        if (shift !== 0) {
+            anchor.set('left', anchor.left + shift);
+
+            // Re-clamp anchor to margins to prevent sliding off screen
+            if (anchor.left < marginLeft) anchor.set('left', marginLeft);
+            if (anchor.left + (anchor.width * anchor.scaleX) > canvas.width - marginRight) {
+                anchor.set('left', Math.max(marginLeft, canvas.width - marginRight - (anchor.width * anchor.scaleX)));
+            }
+
+            anchor.setCoords();
+        }
     }
 
     const anchorLeft = anchor.left;
@@ -914,24 +900,10 @@ function getCertificationFilename(rating) {
         }
 
         console.log("Loading layout into canvas...");
-        let initialAnchorState = null;
         try {
             await new Promise((resolve, reject) => {
                 canvas.loadFromJSON(layoutJson, () => {
                     console.log("Canvas loaded successfully.");
-                    // Capture the initial state of the anchor (title) object
-                    const initialAnchor = canvas.getObjects().find(o => o.dataTag === 'title');
-                    if (initialAnchor) {
-                        initialAnchorState = {
-                            left: initialAnchor.left,
-                            top: initialAnchor.top,
-                            scaleX: initialAnchor.scaleX,
-                            scaleY: initialAnchor.scaleY,
-                            width: initialAnchor.width,
-                            height: initialAnchor.height,
-                            fontSize: initialAnchor.fontSize,
-                        };
-                    }
                     resolve();
                 }, (o, object) => {
                     // console.log("Reviver processing:", object.type);
@@ -1112,8 +1084,6 @@ function getCertificationFilename(rating) {
                         canvas.add(img);
                         canvas.sendToBack(img);
                         mainBg = img;
-                        // Reposition text elements based on the new background geometry
-                        updateVerticalLayout(canvas, settings, blockedAreas, initialAnchorState);
                     }
                     resolve();
                 });
@@ -1153,8 +1123,6 @@ function getCertificationFilename(rating) {
                             });
                             canvas.add(img);
                             canvas.bringToFront(img);
-                            // Relayout after adding new logo
-                            updateVerticalLayout(canvas, settings, blockedAreas, initialAnchorState);
                         }
                         resolve();
                     }, { crossOrigin: 'anonymous' });
@@ -1166,9 +1134,17 @@ function getCertificationFilename(rating) {
             if (titleObj && titleObj.type === 'image') {
                 canvas.remove(titleObj);
                 const fontSize = baseWidth > 3000 ? 120 : 80;
-                const text = new fabric.IText(data.title || "Title", {
-                    left: titleObj.left, top: titleObj.top, fontFamily: 'Roboto', fontSize: fontSize,
-                    fill: 'white', dataTag: 'title'
+                const placeholderWidth = titleObj.width * titleObj.scaleX;
+                const align = settings.tagAlignment || 'left';
+
+                const text = new fabric.Textbox(data.title || "Title", {
+                    left: titleObj.left, top: titleObj.top,
+                    originX: titleObj.originX, originY: titleObj.originY,
+                    width: placeholderWidth,
+                    fontFamily: 'Roboto', fontSize: fontSize,
+                    fill: 'white', dataTag: 'title',
+                    textAlign: align,
+                    splitByGrapheme: true
                 });
                 canvas.add(text);
             }
@@ -1221,7 +1197,7 @@ function getCertificationFilename(rating) {
 
         // 8. RENDER MAIN OUTPUT (JPEG)
         console.log("Updating vertical layout for final render...");
-        updateVerticalLayout(canvas, settings, blockedAreas, initialAnchorState); // Final pass
+        updateVerticalLayout(canvas, settings, blockedAreas);
         console.log("Rendering all...");
         canvas.renderAll();
 
