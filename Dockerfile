@@ -39,7 +39,7 @@ RUN pip install gyp-next
 # Copy only the package files first to leverage Docker cache
 COPY package*.json ./
 # Now that node-gyp has its Python dependency, the build will succeed
-RUN npm install --legacy-peer-deps && npm rebuild canvas --build-from-source
+RUN npm install && npm rebuild canvas --build-from-source
 # 5. Install Python dependencies from requirements file
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

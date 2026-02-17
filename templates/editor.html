@@ -897,10 +897,6 @@
                     <!-- IMAGE CONTROLS -->
                     <div class="ribbon-group" data-for="image" style="display:none;">
                         <span class="ribbon-label" data-i18n="layout">Layout</span>
-                        <div style="display:flex; align-items:center; margin-right:10px;">
-                            <input type="checkbox" id="ribbonImgSnap" onchange="syncInput('snapToggleIcon', this.checked); toggleObjectSnapping('icon')" style="margin-right:5px;">
-                            <span style="font-size:11px; color:#ccc;" data-i18n="snap">Snap</span>
-                        </div>
                         <div id="ribbonImgMatchHeightGroup" style="display:none; align-items:center; margin-right:10px;">
                             <input type="checkbox" id="ribbonImgMatchHeight" onchange="syncInput('matchHeightToggle', this.checked); toggleMatchHeight()" style="margin-right:5px;">
                             <span style="font-size:11px; color:#ccc;" data-i18n="match_height_short">Match Height</span>
@@ -932,6 +928,15 @@
                     <!-- COMMON CONTROLS -->
                     <div class="ribbon-group" data-for="common">
                         <span class="ribbon-label" data-i18n="layout">Layer</span>
+                        <div style="display:flex; align-items:center; margin-right:10px;">
+                            <input type="checkbox" id="ribbonCommonSnap" onchange="toggleCommonSnap(this.checked)">
+                            <span style="font-size:11px; color:#ccc; margin-left:3px;" data-i18n="snap">Snap</span>
+                        </div>
+                        <div style="display:flex; gap:1px; background:#333; border-radius:3px; margin-right:10px;">
+                            <button class="panel-btn" id="ribbonTagAlignLeft" onclick="setTagAlignment('left')" title="Align Tags Left">L</button>
+                            <button class="panel-btn" id="ribbonTagAlignCenter" onclick="setTagAlignment('center')" title="Align Tags Center">C</button>
+                            <button class="panel-btn" id="ribbonTagAlignRight" onclick="setTagAlignment('right')" title="Align Tags Right">R</button>
+                        </div>
                         <button class="panel-btn" onclick="moveLayer('up')">⬆</button>
                         <button class="panel-btn" onclick="moveLayer('down')">⬇</button>
                     </div>
@@ -1931,7 +1936,6 @@
                 <div class="panel-section" data-for="image" style="display:none;">
                     <div class="panel-row">
                         <label data-i18n="options" style="width:auto;">Options</label>
-                        <input type="checkbox" id="floatImgSnap" onchange="syncInput('snapToggleIcon', this.checked); toggleObjectSnapping('icon')"> <span style="font-size:10px; color:#aaa; margin-right:5px;" data-i18n="snap">Snap</span>
                         <span id="floatImgAutoFixGroup">
                             <input type="checkbox" id="floatImgAutoFix" onchange="syncInput('logoAutoFixToggle', this.checked); toggleLogoAutoFix()"> <span style="font-size:10px; color:#aaa;" data-i18n="logo_auto_fix">Auto-Fix Color</span>
                         </span>
@@ -1959,6 +1963,24 @@
                     </div>
                     <div class="panel-row" id="floatImgSwitchRow">
                         <button class="panel-btn" onclick="toggleTitleType()" style="width:100%" data-i18n="switch_to_text">Switch to Text</button>
+                    </div>
+                </div>
+
+                <!-- COMMON SECTION -->
+                <div class="panel-section" data-for="common">
+                    <div class="panel-group">
+                        <div class="panel-row">
+                            <label data-i18n="snap">Snap</label>
+                            <input type="checkbox" id="floatCommonSnap" onchange="toggleCommonSnap(this.checked)">
+                        </div>
+                        <div class="panel-row">
+                            <label data-i18n="tag_align">Tag Align</label>
+                            <div style="display:flex; gap:1px; background:#333; border-radius:4px; flex:1">
+                                <button class="panel-btn" id="floatTagAlignLeft" onclick="setTagAlignment('left')">L</button>
+                                <button class="panel-btn" id="floatTagAlignCenter" onclick="setTagAlignment('center')">C</button>
+                                <button class="panel-btn" id="floatTagAlignRight" onclick="setTagAlignment('right')">R</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2021,6 +2043,36 @@
             // Sync values of selectors
             document.getElementById('floatFillType').value = val;
             document.getElementById('ribbonFillType').value = val;
+        }
+
+        function setTagAlignment(align) {
+            const select = document.getElementById('tagAlignSelect');
+            if(select) {
+                select.value = align;
+                if(typeof updateVerticalLayout === 'function') updateVerticalLayout();
+                if(typeof saveToLocalStorage === 'function') saveToLocalStorage();
+                updateAlternativeUIs();
+            }
+        }
+
+        function toggleCommonSnap(checked) {
+            if (!canvas) return;
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+            
+            const isText = obj.type === 'i-text' || obj.type === 'textbox' || (obj.type === 'group' && (obj.dataTag === 'rating' || obj.dataTag === 'rating_star'));
+            const type = isText ? 'text' : 'icon';
+            const targetId = isText ? 'snapToggleText' : 'snapToggleIcon';
+            
+            syncInput(targetId, checked);
+            if (typeof toggleObjectSnapping === 'function') {
+                toggleObjectSnapping(type);
+            }
+            
+            const rSnap = document.getElementById('ribbonCommonSnap');
+            if(rSnap) rSnap.checked = checked;
+            const fSnap = document.getElementById('floatCommonSnap');
+            if(fSnap) fSnap.checked = checked;
         }
 
         // Populate Font Selects in new panels
@@ -2160,7 +2212,6 @@
                 // Ribbon
                 document.getElementById('ribbonBrightness').value = brightVal;
                 document.getElementById('ribbonLogoColor').value = colorVal;
-                document.getElementById('ribbonImgSnap').checked = snap;
                 document.getElementById('ribbonImgAutoFix').checked = autoFix;
                 document.getElementById('ribbonImgMatchHeight').checked = matchHeight;
                 
@@ -2176,7 +2227,6 @@
                 // Floating
                 document.getElementById('floatBrightness').value = brightVal;
                 document.getElementById('floatLogoColor').value = colorVal;
-                document.getElementById('floatImgSnap').checked = snap;
                 document.getElementById('floatImgAutoFix').checked = autoFix;
                 document.getElementById('floatImgMatchHeight').checked = matchHeight;
                 
@@ -2188,6 +2238,27 @@
                 document.getElementById('floatImgBgEnable').checked = !!bg;
                 document.getElementById('floatImgBgColor').value = bgHex;
                 document.getElementById('floatImgSwitchRow').style.display = isTitle ? 'flex' : 'none';
+            }
+
+            // Sync Common Snap
+            const snap = obj.snapToObjects !== false;
+            const rSnap = document.getElementById('ribbonCommonSnap');
+            if(rSnap) rSnap.checked = snap;
+            const fSnap = document.getElementById('floatCommonSnap');
+            if(fSnap) fSnap.checked = snap;
+
+            // Sync Tag Alignment Buttons
+            const tagAlignSelect = document.getElementById('tagAlignSelect');
+            if (tagAlignSelect) {
+                const currentAlign = tagAlignSelect.value;
+                ['Left', 'Center', 'Right'].forEach(align => {
+                    const lower = align.toLowerCase();
+                    const color = (currentAlign === lower) ? '#007bff' : '';
+                    const rBtn = document.getElementById('ribbonTagAlign' + align);
+                    if(rBtn) rBtn.style.backgroundColor = color;
+                    const fBtn = document.getElementById('floatTagAlign' + align);
+                    if(fBtn) fBtn.style.backgroundColor = color;
+                });
             }
         }
 
