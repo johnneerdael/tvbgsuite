@@ -140,7 +140,7 @@ async function startBatchProcess() {
     // --- FIX: Capture initial layout state ---
     let initialState = null;
     if (!dryRun && typeof canvas !== 'undefined') {
-        initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
+        initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
         // Filter out ambilight background to prevent stacking
         if (initialState.objects) {
             initialState.objects = initialState.objects.filter(o => o.dataTag !== 'ambilight_bg');
@@ -207,7 +207,7 @@ async function startBatchProcess() {
             // B. CRITICAL: Re-align right-aligned tags
             // This pulls tags back to the left if they grew wider.
             if (typeof updateVerticalLayout === 'function') {
-                updateVerticalLayout();
+                await updateVerticalLayout();
             }
 
             // C. Force a clean redraw
@@ -264,7 +264,7 @@ async function startBatchProcess() {
         }
         // --- End New ---
 
-        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity']);
+        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'maxItems', 'fullList']);
 
         // Inject custom_effects so the saved JSON contains overlay info & blocked areas
         json.custom_effects = {
@@ -280,6 +280,19 @@ async function startBatchProcess() {
             tagAlignment: document.getElementById('tagAlignSelect').value,
             tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
             lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+            tagSeparator: document.getElementById('tagSeparatorInput') ? document.getElementById('tagSeparatorInput').value : '',
+            tagSeparatorSize: document.getElementById('tagSeparatorSizeInput') ? document.getElementById('tagSeparatorSizeInput').value : 30,
+            tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
+            tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
+            tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
+            rowSeparatorStyle: document.getElementById('rowSeparatorStyle') ? document.getElementById('rowSeparatorStyle').value : '',
+            rowSeparatorThickness: document.getElementById('rowSeparatorThickness') ? document.getElementById('rowSeparatorThickness').value : 2,
+            rowSeparatorColor: document.getElementById('rowSeparatorColor') ? document.getElementById('rowSeparatorColor').value : '#ffffff',
+            rowSeparatorTexture: document.getElementById('rowSeparatorTextureSelect') ? document.getElementById('rowSeparatorTextureSelect').value : '',
+            rowSeparatorOpacity: document.getElementById('rowSeparatorOpacityInput') ? document.getElementById('rowSeparatorOpacityInput').value : 100,
+            rowSeparatorAlign: document.getElementById('rowSeparatorAlign') ? document.getElementById('rowSeparatorAlign').value : 'center',
+            rowSeparatorAutoWidth: document.getElementById('rowSeparatorAutoWidth') ? document.getElementById('rowSeparatorAutoWidth').checked : true,
+            rowSeparatorWidth: document.getElementById('rowSeparatorWidth') ? document.getElementById('rowSeparatorWidth').value : 500,
             textContentAlignment: document.getElementById('textContentAlignSelect').value,
             genreLimit: document.getElementById('genreLimitSlider').value,
             overlayId: document.getElementById('overlaySelect').value,

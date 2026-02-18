@@ -12,16 +12,16 @@
         "file_4k": "ec26c288-c32c-4da2-a395-99a7e507f950_4k.png",
         "blocked_areas": [
             {
-                "left": 1353,
-                "top": 59,
-                "width": 492,
-                "height": 106
+                "left": 1346,
+                "top": -6,
+                "width": 578,
+                "height": 175
             },
             {
-                "left": 83,
-                "top": 686,
-                "width": 1942,
-                "height": 220
+                "left": -2,
+                "top": 668,
+                "width": 1924,
+                "height": 419
             }
         ]
     }

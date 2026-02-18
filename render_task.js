@@ -210,17 +210,49 @@ function fitTextToContainer(canvas, textbox) {
     }
 }
 
+/**
+ * Trims the width of a Textbox to match its longest rendered line,
+ * clamping it to a maximum width.
+ */
+function shrinkTextboxToContent(textbox, maxWidth) {
+    if (!textbox || textbox.type !== 'textbox' || !textbox._textLines) return;
+
+    let maxLineW = 0;
+    for (let i = 0; i < textbox._textLines.length; i++) {
+        const w = textbox.getLineWidth(i);
+        if (w > maxLineW) maxLineW = w;
+    }
+
+    if (maxLineW > 0) {
+        // Use a small buffer to prevent accidental wrapping
+        textbox.set('width', Math.min(maxLineW + 10, maxWidth));
+        if (typeof textbox.setCoords === 'function') textbox.setCoords();
+    }
+}
+
 // ADAPTED from editor.js: updateVerticalLayout
 // Replaces DOM lookups with 'settings' object usage
-function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry = false) {
+function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retryCount = 0) {
     if (!canvas) return;
 
     const anchor = canvas.getObjects().find(o => o.dataTag === 'title');
     if (!anchor) return;
 
     // Remove existing separators to prevent duplicates on re-render
-    const separators = canvas.getObjects().filter(o => o.dataTag === 'separator');
-    separators.forEach(o => canvas.remove(o));
+    const toRemove = canvas.getObjects().filter(o => o.dataTag === 'separator' || o.dataTag === 'row_separator');
+    if (toRemove.length > 0) canvas.remove(...toRemove);
+
+    // Filter elements early to check for unready images if needed (though StaticCanvas usually handles this during load)
+    const elements = canvas.getObjects().filter(o => {
+        if (o.dataTag === 'background') return false;
+        if (o.dataTag === 'title') return false;
+        if (o.dataTag === 'guide' || o.dataTag === 'fade_effect' || o.dataTag === 'grid_line' || o.dataTag === 'guide_overlay' || o.dataTag === 'ambilight_bg') return false;
+        if (o.dataTag === 'separator') return false;
+        if (o.dataTag === 'row_separator') return false;
+        if (!o.dataTag) return false;
+        if (o.snapToObjects === false) return false;
+        return true;
+    });
 
     // Mapping settings
     const padding = parseInt(settings.lineSpacing) || 20;
@@ -229,6 +261,15 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
     const separatorSize = parseInt(settings.tagSeparatorSize) || 30;
     const separatorColor = settings.tagSeparatorColor || '#ffffff';
     const separatorOpacity = (settings.tagSeparatorOpacity !== undefined) ? (parseInt(settings.tagSeparatorOpacity) / 100) : 1.0;
+
+    const rowSeparatorStyle = settings.rowSeparatorStyle || '';
+    const rowSeparatorThickness = parseInt(settings.rowSeparatorThickness) || 2;
+    const rowSeparatorColor = settings.rowSeparatorColor || '#ffffff';
+    const rowSeparatorOpacity = (settings.rowSeparatorOpacity !== undefined) ? (parseInt(settings.rowSeparatorOpacity) / 100) : 1.0;
+    const rowSeparatorAlign = settings.rowSeparatorAlign || 'center';
+    const rowSeparatorAutoWidth = (settings.rowSeparatorAutoWidth !== undefined) ? settings.rowSeparatorAutoWidth : true;
+    const rowSeparatorWidth = parseInt(settings.rowSeparatorWidth) || 500;
+
     const rowThreshold = 4;
 
     const marginTop = parseInt(settings.margins?.top || 50);
@@ -236,7 +277,15 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
     const marginLeft = parseInt(settings.margins?.left || 50);
     const marginRight = parseInt(settings.margins?.right || 50);
 
-    const scaleFactor = 1;
+    const currentRes = canvas.width >= 3000 ? '2160' : '1080';
+    const scaleFactor = (currentRes === '2160') ? 2 : 1;
+
+    // Restore preferred size at start of fresh layout calculation (Grow back logic)
+    // In render_task, we use the setting or the initial width we captured
+    const preferredLogoWidth = settings.preferredLogoWidth;
+    if (retryCount === 0 && anchor.type === 'image' && preferredLogoWidth) {
+        anchor.scale(preferredLogoWidth / anchor.width);
+    }
 
     // Update Text Alignments
     const textAlignment = settings.textContentAlignment || 'left';
@@ -259,13 +308,30 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
     }
     anchor.setCoords();
 
-    // 2. Auto-Scale Anchor (Gap Fitting)
+    // 2.5. Auto-Scale Anchor to fit in vertical gaps between blocked areas
     if (activeBlockedAreas.length > 0) {
-        const anchorH = anchor.height * anchor.scaleY;
-        const anchorCenterY = anchor.top + (anchorH / 2);
-        const anchorLeft = anchor.left;
-        const anchorRight = anchor.left + (anchor.width * anchor.scaleX);
+        let tagsH = 0;
+        let blockLeft = anchor.left;
+        let blockRight = anchor.left + (anchor.width * anchor.scaleX);
 
+        const rows = groupElementsByRow(elements, rowThreshold);
+
+        rows.forEach(row => {
+            let maxH = 0;
+            row.forEach(el => {
+                const b = el.getBoundingRect();
+                if (b.left < blockLeft) blockLeft = b.left;
+                if (b.left + b.width > blockRight) blockRight = b.left + b.width;
+                const h = (el.height * el.scaleY) + ((el.padding || 0) * 2);
+                if (h > maxH) maxH = h;
+            });
+            tagsH += maxH + padding;
+        });
+
+        const blockH = (anchor.height * anchor.scaleY) + tagsH;
+        const anchorCenterY = anchor.top + ((anchor.height * anchor.scaleY) / 2);
+
+        // Define vertical boundaries (obstacles) based on COMPREHENSIVE X range of all items
         const obstacles = [];
         obstacles.push({ top: -Infinity, bottom: marginTop });
         obstacles.push({ top: canvas.height - marginBottom, bottom: Infinity });
@@ -274,13 +340,16 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             const aLeft = area.left * scaleFactor;
             const aWidth = area.width * scaleFactor;
             const aRight = aLeft + aWidth;
-            if (aLeft < anchorRight && aRight > anchorLeft) {
+
+            // Check horizontal intersection with ANY part of the layout block
+            if (aLeft < blockRight && aRight > blockLeft) {
                 const aTop = area.top * scaleFactor;
                 const aHeight = area.height * scaleFactor;
                 obstacles.push({ top: aTop, bottom: aTop + aHeight });
             }
         });
 
+        // Sort and merge
         obstacles.sort((a, b) => a.top - b.top);
         const merged = [];
         if (obstacles.length > 0) {
@@ -296,14 +365,19 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             merged.push(curr);
         }
 
+        // Find gaps
         const gaps = [];
         for (let i = 0; i < merged.length - 1; i++) {
             const top = merged[i].bottom;
             const bottom = merged[i + 1].top;
-            if (bottom > top) gaps.push({ top, bottom, height: bottom - top });
+            if (bottom > top) {
+                gaps.push({ top, bottom, height: bottom - top });
+            }
         }
 
+        // Find relevant gap (closest to center)
         let bestGap = gaps.find(g => anchorCenterY >= g.top && anchorCenterY <= g.bottom);
+
         if (!bestGap && gaps.length > 0) {
             bestGap = gaps.reduce((prev, curr) => {
                 const prevDist = Math.min(Math.abs(anchorCenterY - prev.top), Math.abs(anchorCenterY - prev.bottom));
@@ -314,24 +388,29 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
 
         if (bestGap) {
             const currentH = anchor.height * anchor.scaleY;
-            const maxH = Math.max(20, bestGap.height - 10);
-            const targetH = currentH; // In render task, we stick to current/preferred size
-            const finalH = Math.min(targetH, maxH);
+            const maxBlockH = Math.max(20, bestGap.height - 10);
 
+            let targetAnchorH = currentH;
+            if (preferredLogoWidth && anchor.type === 'image') {
+                const aspect = anchor.width / anchor.height;
+                targetAnchorH = preferredLogoWidth / aspect;
+            }
+
+            // Calculate required anchor reduction
+            const finalAnchorH = Math.min(targetAnchorH, maxBlockH - tagsH);
+            const finalH = Math.max(20, finalAnchorH);
+
+            // Apply if different (with small tolerance to avoid jitter)
             if (Math.abs(finalH - currentH) > 1) {
-                const oldLeft = anchor.left;
-                const oldWidth = anchor.width * anchor.scaleX;
-                const oldRight = oldLeft + oldWidth;
-                const oldCenterX = oldLeft + (oldWidth / 2);
+                const oldCenterX = anchor.left + ((anchor.width * anchor.scaleX) / 2);
+                const oldRight = anchor.left + (anchor.width * anchor.scaleX);
 
                 anchor.scaleToHeight(finalH);
-                const newWidth = anchor.width * anchor.scaleX;
 
-                if (alignment === 'right') anchor.set('left', oldRight - newWidth);
-                else if (alignment === 'center') anchor.set('left', oldCenterX - (newWidth / 2));
-                else anchor.set('left', oldLeft);
+                if (alignment === 'right') anchor.set('left', oldRight - (anchor.width * anchor.scaleX));
+                else if (alignment === 'center') anchor.set('left', oldCenterX - ((anchor.width * anchor.scaleX) / 2));
 
-                anchor.set('top', bestGap.top + (bestGap.height - finalH) / 2);
+                anchor.set('top', bestGap.top + 5);
                 anchor.setCoords();
             }
         }
@@ -373,17 +452,6 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
 
     let current_y = anchor.top + (anchor.height * anchor.scaleY) + padding;
 
-    // Filter elements
-    const elements = canvas.getObjects().filter(o => {
-        if (o.dataTag === 'background') return false;
-        if (o.dataTag === 'title') return false;
-        if (o.dataTag === 'guide' || o.dataTag === 'fade_effect' || o.dataTag === 'grid_line' || o.dataTag === 'guide_overlay' || o.dataTag === 'ambilight_bg') return false;
-        if (o.dataTag === 'separator') return false;
-        if (!o.dataTag) return false;
-        if (o.snapToObjects === false) return false; // Manual mode check (preserved from original JSON)
-        return true;
-    });
-
     const rows = groupElementsByRow(elements, rowThreshold);
 
     if (rows.length > 0) {
@@ -415,23 +483,12 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
         }
 
         if (shift !== 0) { anchor.set('left', anchor.left + shift); anchor.setCoords(); }
-        if (shift !== 0) {
-            anchor.set('left', anchor.left + shift);
-
-            // Re-clamp anchor to margins to prevent sliding off screen
-            if (anchor.left < marginLeft) anchor.set('left', marginLeft);
-            if (anchor.left + (anchor.width * anchor.scaleX) > canvas.width - marginRight) {
-                anchor.set('left', Math.max(marginLeft, canvas.width - marginRight - (anchor.width * anchor.scaleX)));
-            }
-
-            anchor.setCoords();
-        }
     }
 
     const anchorLeft = anchor.left;
     const anchorWidth = anchor.width * anchor.scaleX;
 
-    rows.forEach(row => {
+    rows.forEach((row, rowIndex) => {
         // Match Height Logic
         const resizableIcons = row.filter(el => el.type === 'image' && el.matchHeight && el.visible);
         if (resizableIcons.length > 0) {
@@ -470,6 +527,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             const firstEl = visibleEls[0];
             if (firstEl) current_x -= (firstEl.padding || 0);
         }
+        const rowStartX = current_x;
 
         if (current_x < marginLeft) current_x = marginLeft;
         if (current_x + totalRowWidth > canvas.width - marginRight) {
@@ -477,10 +535,11 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
         }
 
         const maxRowHeight = Math.max(...row.map(el => el.visible ? (el.height * el.scaleY) + ((el.padding || 0) * 2) : 0));
+        const maxRowPadding = Math.max(...row.map(el => el.padding || 0));
 
         row.forEach(el => {
             const pad = el.padding || 0;
-            el.set({ top: current_y + pad, left: current_x + pad });
+            el.set({ top: current_y + maxRowPadding, left: current_x + pad });
             el.setCoords();
 
             const startX = current_x;
@@ -521,7 +580,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
                         originY: 'center',
                         shadow: (el.type === 'i-text' || el.type === 'textbox') ? el.shadow : null
                     });
-                    
+
                     sep.left = current_x - (hPadding / 2);
                     sep.top = el.top + ((el.height * el.scaleY) / 2);
                     canvas.add(sep);
@@ -544,6 +603,56 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             }
         }
 
+        // --- Row Separator Logic ---
+        const isRowVisible = row.some(el => el.visible);
+        let hasNextVisibleRow = false;
+        for (let i = rowIndex + 1; i < rows.length; i++) {
+            if (rows[i].some(e => e.visible)) {
+                hasNextVisibleRow = true;
+                break;
+            }
+        }
+
+        if (rowSeparatorStyle && isRowVisible && hasNextVisibleRow) {
+            const lineY = current_y + maxRowHeight + (padding / 2);
+            let lineWidth = rowSeparatorWidth;
+            if (rowSeparatorAutoWidth) lineWidth = totalRowWidth;
+
+            let lineLeft;
+            if (rowSeparatorAlign === 'left') {
+                lineLeft = rowStartX;
+            } else if (rowSeparatorAlign === 'right') {
+                lineLeft = rowStartX + totalRowWidth - lineWidth;
+            } else {
+                // Center
+                const centerX = rowStartX + (totalRowWidth / 2);
+                lineLeft = centerX - (lineWidth / 2);
+            }
+
+            let dashArray = null;
+            if (rowSeparatorStyle === 'dotted') dashArray = [rowSeparatorThickness, rowSeparatorThickness];
+            else if (rowSeparatorStyle === 'dashed') dashArray = [rowSeparatorThickness * 4, rowSeparatorThickness * 2];
+
+            let strokeVal = rowSeparatorColor;
+            if (settings._rowSeparatorPattern) {
+                strokeVal = settings._rowSeparatorPattern;
+            }
+
+            const line = new fabric.Line([0, 0, lineWidth, 0], {
+                left: lineLeft,
+                top: lineY,
+                stroke: strokeVal,
+                opacity: rowSeparatorOpacity,
+                strokeWidth: rowSeparatorThickness,
+                strokeDashArray: dashArray,
+                selectable: false,
+                evented: false,
+                dataTag: 'row_separator',
+                originY: 'center'
+            });
+            canvas.add(line);
+        }
+
         if (maxRowHeight > 0) current_y += maxRowHeight + padding;
         else current_y += 5;
     });
@@ -551,9 +660,20 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
     const contentBottom = current_y - padding;
     const maxBottom = canvas.height - marginBottom;
 
-    let maxBlockedShift = 0;
+    // Determine the full horizontal range of the layout block
     const allElements = [anchor];
     rows.forEach(row => row.forEach(el => { if (el.visible) allElements.push(el); }));
+
+    let blockLeft = anchor.left;
+    let blockRight = anchor.left + (anchor.width * anchor.scaleX);
+    allElements.forEach(el => {
+        const b = el.getBoundingRect();
+        if (b.left < blockLeft) blockLeft = b.left;
+        if (b.left + b.width > blockRight) blockRight = b.left + b.width;
+    });
+
+    let maxBlockedShiftUp = 0;
+    let maxBlockedShiftDown = 0;
 
     allElements.forEach(el => {
         const b = el.getBoundingRect();
@@ -564,19 +684,27 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             const aHeight = area.height * scaleFactor;
             if (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
                 b.top < aTop + aHeight && b.top + b.height > aTop) {
-                const overlap = (b.top + b.height) - aTop;
-                if (overlap > 0 && overlap > maxBlockedShift) maxBlockedShift = overlap;
+
+                const areaCenterY = aTop + (aHeight / 2);
+                const canvasCenterY = canvas.height / 2;
+
+                if (areaCenterY > canvasCenterY) {
+                    const overlap = (b.top + b.height) - aTop;
+                    if (overlap > 0 && overlap > maxBlockedShiftUp) maxBlockedShiftUp = overlap;
+                } else {
+                    const overlap = (aTop + aHeight) - b.top;
+                    if (overlap > 0 && overlap > maxBlockedShiftDown) maxBlockedShiftDown = overlap;
+                }
             }
         });
     });
 
-    const marginShift = Math.max(0, contentBottom - maxBottom);
-    const totalShift = Math.max(marginShift, maxBlockedShift);
+    // 4. Resolve Conflicts (Unified logic)
+    if (maxBlockedShiftDown > 0 || maxBlockedShiftUp > 0 || contentBottom > maxBottom) {
+        if (retryCount > 10) return;
 
-    if (totalShift > 0) {
         let limitTop = marginTop;
-        const anchorLeft = anchor.left;
-        const anchorRight = anchor.left + (anchor.width * anchor.scaleX);
+        let limitBottom = maxBottom;
 
         activeBlockedAreas.forEach(area => {
             const aLeft = area.left * scaleFactor;
@@ -586,41 +714,63 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry =
             const aHeight = area.height * scaleFactor;
             const aBottom = aTop + aHeight;
 
-            if (aLeft < anchorRight && aRight > anchorLeft) {
-                if (aBottom <= anchor.top + 5) {
+            if (aLeft < blockRight && aRight > blockLeft) {
+                if (aBottom <= anchor.top + 10) {
                     if (aBottom > limitTop) limitTop = aBottom;
+                } else if (aTop >= (current_y - padding - 10)) {
+                    if (aTop < limitBottom) limitBottom = aTop;
                 }
             }
         });
 
-        const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
-        
-        if (retry) return;
+        const availableH = limitBottom - limitTop;
+        const contentH = contentBottom - anchor.top;
+        const totalShiftNeeded = Math.max(0, (contentBottom - limitBottom), maxBlockedShiftUp);
 
-        if (totalShift > maxSafeShiftUp) {
-            const deficit = totalShift - maxSafeShiftUp;
-            const currentHeight = anchor.height * anchor.scaleY;
-            const newHeight = Math.max(20, currentHeight - deficit);
+        // CASE A: Pinned or too large -> Shrink
+        if (maxBlockedShiftDown > 0 && maxBlockedShiftUp > 0 || (contentH > availableH)) {
+            const deficit = contentH - availableH;
+            const currentAnchorH = anchor.height * anchor.scaleY;
+            const newAnchorH = Math.max(20, currentAnchorH - deficit - 5);
 
-            const oldLeft = anchor.left;
-            const oldWidth = anchor.width * anchor.scaleX;
-            const oldRight = oldLeft + oldWidth;
-            const oldCenterX = oldLeft + (oldWidth / 2);
+            const oldCenterX = anchor.left + ((anchor.width * anchor.scaleX) / 2);
+            const oldRight = anchor.left + (anchor.width * anchor.scaleX);
 
-            anchor.scaleToHeight(newHeight);
-            const newWidth = anchor.width * anchor.scaleX;
+            anchor.scaleToHeight(newAnchorH);
 
-            if (alignment === 'right') anchor.set('left', oldRight - newWidth);
-            else if (alignment === 'center') anchor.set('left', oldCenterX - (newWidth / 2));
+            const alignment = settings.tagAlignment || 'left';
+            if (alignment === 'center') anchor.set('left', oldCenterX - ((anchor.width * anchor.scaleX) / 2));
+            else if (alignment === 'right') anchor.set('left', oldRight - (anchor.width * anchor.scaleX));
 
             anchor.set('top', limitTop);
-            updateVerticalLayout(canvas, settings, activeBlockedAreas, true);
-            return;
-        } else {
-            anchor.set('top', anchor.top - totalShift);
-            updateVerticalLayout(canvas, settings, activeBlockedAreas, true);
-            return;
+            updateVerticalLayout(canvas, settings, activeBlockedAreas, retryCount + 1);
         }
+        // CASE B: Hit Top obstacle (move down)
+        else if (maxBlockedShiftDown > 0) {
+            anchor.top += maxBlockedShiftDown;
+            updateVerticalLayout(canvas, settings, activeBlockedAreas, retryCount + 1);
+        }
+        // CASE C: Hit Bottom obstacle or Margin (move up)
+        else if (totalShiftNeeded > 0) {
+            const safeShiftUp = Math.max(0, anchor.top - limitTop);
+            if (totalShiftNeeded > safeShiftUp) {
+                const deficit = totalShiftNeeded - safeShiftUp;
+                const oldCenterX = anchor.left + ((anchor.width * anchor.scaleX) / 2);
+                const oldRight = anchor.left + (anchor.width * anchor.scaleX);
+
+                anchor.scaleToHeight((anchor.height * anchor.scaleY) - deficit);
+
+                const alignment = settings.tagAlignment || 'left';
+                if (alignment === 'center') anchor.set('left', oldCenterX - ((anchor.width * anchor.scaleX) / 2));
+                else if (alignment === 'right') anchor.set('left', oldRight - (anchor.width * anchor.scaleX));
+
+                anchor.set('top', limitTop);
+            } else {
+                anchor.top -= totalShiftNeeded;
+            }
+            updateVerticalLayout(canvas, settings, activeBlockedAreas, retryCount + 1);
+        }
+        return;
     }
 }
 
@@ -750,6 +900,11 @@ function generateAlphaMask(mainBg, settings) {
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
+    } else if (type === 'soft_round') {
+        // Gaussian Blurred Mask
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, w, h);
+        // The rounded corners logic at the end will handle the blur
     } else if (type === 'mask') {
         ctx.clearRect(0, 0, w, h);
         const gV = ctx.createLinearGradient(0, 0, 0, h);
@@ -767,17 +922,26 @@ function generateAlphaMask(mainBg, settings) {
         else { gH.addColorStop(1, 'rgba(0,0,0,1)'); }
         ctx.fillStyle = gH; ctx.fillRect(0, 0, w, h);
     } else if (type === 'gradient') {
-        ctx.fillStyle = 'black'; ctx.fillRect(0, 0, w, h);
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = grad;
+        // Linear Erasers (Destination Out)
+        ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, w, h);
+
+        ctx.globalCompositeOperation = 'destination-out';
+        const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
+
+        if (sT > 0) { const g = ctx.createLinearGradient(0, 0, 0, sT); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, w, sT); }
+        if (sB > 0) { const g = ctx.createLinearGradient(0, h, 0, h - sB); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, h - sB, w, sB); }
+        if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
+        if (sR > 0) { const g = ctx.createLinearGradient(w, 0, w - sR, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(w - sR, 0, sR, h); }
+        ctx.globalCompositeOperation = 'source-over'; // Reset
     } else {
         // Default (or 'none'): create elliptical vignette fade for Ambilight
-        // Pure radial gradient approach - no shadowBlur to avoid colored overlay
         const cx = w / 2;
         const cy = h / 2;
         const maxDim = Math.max(w, h);
-        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.6);
+        // Respect radius if type is none but we are in Ambilight
+        const rFactor = (type === 'none' && radius > 0) ? radius / 500 : 0.6;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * rFactor);
 
         // Smooth gradient fade stops for seamless blending
         grad.addColorStop(0, 'rgba(0,0,0,1)');      // Full opacity at center
@@ -990,7 +1154,7 @@ async function applyCustomEffects(canvas, settings, mainBg) {
         // The 'mask' fadeEffect creates rectangular fades which don't work well for Ambilight
         const ambilightSettings = {
             ...settings,
-            fadeEffect: 'none', // Force default vignette path
+            fadeEffect: settings.fadeEffect || 'none', // Respect selection, default to none
             fadeRadius: parseInt(settings.fadeRadius) || 1000,
             fadeSoftness: parseInt(settings.fadeSoftness) || 40 // Use value from settings
         };
@@ -1119,7 +1283,12 @@ function getCertificationFilename(rating) {
 
         const settings = layoutJson.custom_effects || {};
         const blockedAreas = settings.blocked_areas || [];
-        // Merge with data-provided settings if any (not typical but possible)
+
+        // Capture preferred logo width for "grow back" logic
+        const initialTitle = canvas.getObjects().find(o => o.dataTag === 'title');
+        if (initialTitle) {
+            settings.preferredLogoWidth = initialTitle.width * initialTitle.scaleX;
+        }
 
         // --- PRELOAD SEPARATOR TEXTURE IF NEEDED ---
         if (settings.tagSeparatorTexture) {
@@ -1145,13 +1314,36 @@ function getCertificationFilename(rating) {
             } catch (e) { console.error("Failed to load separator texture:", e); }
         }
 
+        // --- PRELOAD ROW SEPARATOR TEXTURE IF NEEDED ---
+        if (settings.rowSeparatorTexture) {
+            try {
+                const texturesPath = path.join(__dirname, 'textures.json');
+                if (fs.existsSync(texturesPath)) {
+                    const textures = JSON.parse(fs.readFileSync(texturesPath, 'utf8'));
+                    const profile = textures.find(t => t.id === settings.rowSeparatorTexture);
+                    if (profile) {
+                        const texFile = path.join(__dirname, 'textures', profile.filename);
+                        if (fs.existsSync(texFile)) {
+                            const imgData = fs.readFileSync(texFile);
+                            const img = new canvasModule.Image();
+                            img.src = imgData;
+                            settings._rowSeparatorPattern = new fabric.Pattern({
+                                source: img,
+                                repeat: 'repeat'
+                            });
+                        }
+                    }
+                }
+            } catch (e) { console.error("Failed to load row separator texture:", e); }
+        }
+
         // 4. POPULATE DATA
         const imagePromises = [];
         const certDir = path.join(__dirname, 'certification');
 
         // Remove existing fade effects (will be re-applied)
-        canvas.getObjects().filter(o => o.dataTag === 'fade_effect').forEach(o => canvas.remove(o));
-        canvas.getObjects().filter(o => o.dataTag === 'separator').forEach(o => canvas.remove(o));
+        const objsToRemove = canvas.getObjects().filter(o => o.dataTag === 'fade_effect' || o.dataTag === 'separator' || o.dataTag === 'row_separator');
+        if (objsToRemove.length > 0) canvas.remove(...objsToRemove);
 
         canvas.getObjects().forEach(obj => {
             if (!obj.dataTag) return;
@@ -1354,7 +1546,28 @@ function getCertificationFilename(rating) {
                 if (val === null || val === "" || val === "N/A") {
                     obj.set('visible', false);
                 } else {
-                    obj.set({ text: String(val), visible: true });
+                    // Apply automatic wrapping for actors/directors (Synced with editor.js)
+                    if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && (obj.type === 'i-text' || obj.type === 'text')) {
+                        // Migration: Convert to Textbox for wrapping support
+                        const props = obj.toObject(['dataTag', 'maxItems', 'fullList', 'selectable', 'evented', 'matchHeight']);
+                        delete props.type;
+                        const newObj = new fabric.Textbox(String(val), {
+                            ...props,
+                            width: canvas.width * 0.5,
+                            splitByGrapheme: false,
+                            editable: false,
+                            visible: true
+                        });
+                        canvas.remove(obj);
+                        canvas.add(newObj);
+                        obj = newObj;
+                        shrinkTextboxToContent(obj, canvas.width * 0.5);
+                    } else if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.type === 'textbox') {
+                        obj.set({ width: canvas.width * 0.5, text: String(val), visible: true });
+                        shrinkTextboxToContent(obj, canvas.width * 0.5);
+                    } else {
+                        obj.set({ text: String(val), visible: true });
+                    }
                 }
             }
 

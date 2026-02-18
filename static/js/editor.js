@@ -122,6 +122,7 @@ let currentEditingOverlayId = null;
 let activeBlockedAreas = []; // Active blocked areas for layout
 let textureProfiles = [];
 let separatorTextureImg = null; // Global for separator texture
+let rowSeparatorTextureImg = null; // Global for row separator texture
 let gridEnabled = false, movingObjects = [], snapLines = { v: [], h: [] }, guideLines = [], isBatchRunning = false;
 const gridSize = 50;
 const BASE_WIDTH = 1920;
@@ -130,6 +131,7 @@ const BASE_HEIGHT = 1080;
 let undoStack = [];
 let redoStack = [];
 let isUndoRedoProcessing = false;
+let autosaveTimer = null;
 const MAX_HISTORY = 10;
 
 const FADE_OPTIONS = {
@@ -825,6 +827,26 @@ function fitTextToContainer(textbox) {
     canvas.requestRenderAll();
 }
 
+/**
+ * Trims the width of a Textbox to match its longest rendered line,
+ * clamping it to a maximum width.
+ */
+function shrinkTextboxToContent(textbox, maxWidth) {
+    if (!textbox || textbox.type !== 'textbox' || !textbox._textLines) return;
+
+    let maxLineW = 0;
+    for (let i = 0; i < textbox._textLines.length; i++) {
+        const w = textbox.getLineWidth(i);
+        if (w > maxLineW) maxLineW = w;
+    }
+
+    if (maxLineW > 0) {
+        // Use a small buffer to prevent accidental wrapping
+        textbox.set('width', Math.min(maxLineW + 10, maxWidth));
+        textbox.setCoords();
+    }
+}
+
 function extractMetadata(item) {
     if (!item) return {};
 
@@ -1409,7 +1431,26 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                     if (val === null || val === "" || val === "N/A") {
                         obj.set('visible', false);
                     } else {
-                        obj.set({ text: String(val), visible: true });
+                        // Apply automatic wrapping for actors/directors
+                        if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.type === 'i-text') {
+                            // Migration: Convert IText to Textbox for wrapping support
+                            const props = obj.toObject(['dataTag', 'maxItems', 'fullList']);
+                            delete props.type;
+                            const newObj = new fabric.Textbox(String(val), {
+                                ...props,
+                                width: canvas.width * 0.5,
+                                splitByGrapheme: false,
+                                editable: false,
+                                visible: true
+                            });
+                            canvas.remove(obj);
+                            canvas.add(newObj);
+                            obj = newObj; // Continue with the new object
+                        } else if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.type === 'textbox') {
+                            obj.set({ width: canvas.width * 0.5, text: String(val), visible: true });
+                        } else {
+                            obj.set({ text: String(val), visible: true });
+                        }
                     }
                 }
             }
@@ -1422,10 +1463,11 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                 canvas.getObjects().forEach(obj => {
                     if (obj.dataTag === 'overview' && obj.type === 'textbox') {
                         fitTextToContainer(obj);
+                    } else if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.type === 'textbox') {
+                        shrinkTextboxToContent(obj, canvas.width * 0.5);
                     }
                 });
-                updateVerticalLayout(skipRender);
-                resolve();
+                updateVerticalLayout(skipRender).then(resolve);
             });
         });
     });
@@ -1586,6 +1628,9 @@ function addMetadataTag(type, placeholder) {
     if (type === 'overview') {
         textObj = new fabric.Textbox(placeholder, { ...props, width: 600, height: 300, fixedHeight: 300, splitByGrapheme: false, lockScalingY: false, fullMediaText: placeholder, editable: false, objectCaching: false });
         fitTextToContainer(textObj);
+    } else if (type === 'actors' || type === 'directors') {
+        textObj = new fabric.Textbox(placeholder, { ...props, width: canvas.width * 0.5, splitByGrapheme: false, editable: false });
+        shrinkTextboxToContent(textObj, canvas.width * 0.5);
     } else {
         textObj = new fabric.IText(placeholder, { ...props, editable: false });
     }
@@ -1726,12 +1771,14 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
     });
 }
 
-function updateVerticalLayout(skipRender = false, retry = false) {
-    if (!canvas) return;
+function updateVerticalLayout(skipRender = false, retryCount = 0) {
+    if (!canvas) return Promise.resolve();
 
-    // Remove existing separators
+    // Remove existing separators (Optimized: remove all at once)
     const separators = canvas.getObjects().filter(o => o.dataTag === 'separator');
-    separators.forEach(o => canvas.remove(o));
+    const rowSeparators = canvas.getObjects().filter(o => o.dataTag === 'row_separator');
+    const toRemove = [...separators, ...rowSeparators];
+    if (toRemove.length > 0) canvas.remove(...toRemove);
 
     // 1. Check for unready images (width/height 0)
     const unreadyImages = canvas.getObjects().some(o =>
@@ -1739,11 +1786,12 @@ function updateVerticalLayout(skipRender = false, retry = false) {
     );
 
     if (unreadyImages) {
-        setTimeout(() => updateVerticalLayout(skipRender, retry), 100);
-        return;
+        return new Promise(resolve => {
+            setTimeout(() => resolve(updateVerticalLayout(skipRender, retryCount)), 100);
+        });
     }
 
-    document.fonts.ready.then(() => {
+    return document.fonts.ready.then(() => {
         const lineSpacingInput = document.getElementById('lineSpacingInput');
         const padding = lineSpacingInput ? parseInt(lineSpacingInput.value) : 20;
         const tagPaddingInput = document.getElementById('tagPaddingInput');
@@ -1752,6 +1800,15 @@ function updateVerticalLayout(skipRender = false, retry = false) {
         const separatorSize = document.getElementById('tagSeparatorSizeInput') ? parseInt(document.getElementById('tagSeparatorSizeInput').value) : 30;
         const separatorColor = document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff';
         const separatorOpacity = document.getElementById('tagSeparatorOpacityInput') ? (parseInt(document.getElementById('tagSeparatorOpacityInput').value) / 100) : 1.0;
+
+        const rowSeparatorStyle = document.getElementById('rowSeparatorStyle') ? document.getElementById('rowSeparatorStyle').value : '';
+        const rowSeparatorThickness = document.getElementById('rowSeparatorThickness') ? parseInt(document.getElementById('rowSeparatorThickness').value) : 2;
+        const rowSeparatorColor = document.getElementById('rowSeparatorColor') ? document.getElementById('rowSeparatorColor').value : '#ffffff';
+        const rowSeparatorOpacity = document.getElementById('rowSeparatorOpacityInput') ? (parseInt(document.getElementById('rowSeparatorOpacityInput').value) / 100) : 1.0;
+        const rowSeparatorAlign = document.getElementById('rowSeparatorAlign') ? document.getElementById('rowSeparatorAlign').value : 'center';
+        const rowSeparatorAutoWidth = document.getElementById('rowSeparatorAutoWidth') ? document.getElementById('rowSeparatorAutoWidth').checked : true;
+        const rowSeparatorWidth = document.getElementById('rowSeparatorWidth') ? parseInt(document.getElementById('rowSeparatorWidth').value) : 500;
+
         const rowThreshold = 4; // How close elements must be to be considered in the same row
 
         const marginTop = parseInt(document.getElementById('marginTopInput').value) || 50;
@@ -1762,10 +1819,15 @@ function updateVerticalLayout(skipRender = false, retry = false) {
         const currentRes = document.getElementById('resSelect') ? document.getElementById('resSelect').value : '1080';
         const scaleFactor = (currentRes === '2160') ? 2 : 1;
 
-        canvas.renderAll(); // Ensure all dimensions (especially i-text) are calculated correctly
+        // REMOVED: canvas.renderAll(); -- This caused the lag! Fabric calculates dimensions automatically on setCoords/text change.
 
         const anchor = canvas.getObjects().find(o => o.dataTag === 'title');
         if (!anchor) { canvas.requestRenderAll(); return; }
+
+        // Restore preferred size at start of fresh layout calculation (Grow back logic)
+        if (retryCount === 0 && anchor.type === 'image' && typeof preferredLogoWidth !== 'undefined' && preferredLogoWidth) {
+            anchor.scale(preferredLogoWidth / anchor.width);
+        }
 
         // Auto-switch alignment based on position (Left vs Right)
         const alignSelect = document.getElementById('tagAlignSelect');
@@ -1799,25 +1861,46 @@ function updateVerticalLayout(skipRender = false, retry = false) {
 
         // 2.5. Auto-Scale Anchor to fit in vertical gaps between blocked areas
         if (activeBlockedAreas.length > 0) {
+            // First pass: Calculate initial block dimensions to understand space needs
+            const elements = canvas.getObjects().filter(o => {
+                if (o.dataTag === 'background') return false;
+                if (o.dataTag === 'title') return false;
+                if (['guide', 'fade_effect', 'grid_line', 'guide_overlay', 'ambilight_bg', 'separator', 'row_separator'].includes(o.dataTag)) return false;
+                if (!o.dataTag || o.snapToObjects === false) return false;
+                return true;
+            });
+            const rows = groupElementsByRow(elements, 4);
+            let tagsH = 0;
+            let blockLeft = anchor.left;
+            let blockRight = anchor.left + anchor.getScaledWidth();
+
+            rows.forEach(row => {
+                let maxH = 0;
+                row.forEach(el => {
+                    const b = el.getBoundingRect();
+                    if (b.left < blockLeft) blockLeft = b.left;
+                    if (b.left + b.width > blockRight) blockRight = b.left + b.width;
+                    const h = el.getScaledHeight() + ((el.padding || 0) * 2);
+                    if (h > maxH) maxH = h;
+                });
+                tagsH += maxH + padding;
+            });
+
+            const blockH = anchor.getScaledHeight() + tagsH;
             const anchorCenterY = anchor.top + (anchor.getScaledHeight() / 2);
-            const anchorLeft = anchor.left;
-            const anchorRight = anchor.left + anchor.getScaledWidth();
 
-            // Define vertical boundaries (obstacles) based on current X position
+            // Define vertical boundaries (obstacles) based on COMPREHENSIVE X range of all items
             const obstacles = [];
-
-            // Margins
             obstacles.push({ top: -Infinity, bottom: marginTop });
             obstacles.push({ top: canvas.height - marginBottom, bottom: Infinity });
 
-            // Blocked Areas that intersect horizontally
             activeBlockedAreas.forEach(area => {
                 const aLeft = area.left * scaleFactor;
                 const aWidth = area.width * scaleFactor;
                 const aRight = aLeft + aWidth;
 
-                // Check horizontal intersection
-                if (aLeft < anchorRight && aRight > anchorLeft) {
+                // Check horizontal intersection with ANY part of the layout block
+                if (aLeft < blockRight && aRight > blockLeft) {
                     const aTop = area.top * scaleFactor;
                     const aHeight = area.height * scaleFactor;
                     obstacles.push({ top: aTop, bottom: aTop + aHeight });
@@ -1863,18 +1946,19 @@ function updateVerticalLayout(skipRender = false, retry = false) {
 
             if (bestGap) {
                 const currentH = anchor.getScaledHeight();
-                const maxH = Math.max(20, bestGap.height - 10); // Max available height in gap (with padding)
+                const currentBlockH = blockH;
+                const maxBlockH = Math.max(20, bestGap.height - 10);
 
-                let targetH = currentH;
-
-                // Try to restore to preferred size if available
+                let targetAnchorH = currentH;
                 if (preferredLogoWidth && anchor.type === 'image') {
                     const aspect = anchor.width / anchor.height;
-                    targetH = preferredLogoWidth / aspect;
+                    targetAnchorH = preferredLogoWidth / aspect;
                 }
 
-                // Constrain target height to available gap
-                const finalH = Math.min(targetH, maxH);
+                // If current block is too big for total gap, calculate required anchor reduction
+                const tagsHConst = tagsH;
+                const finalAnchorH = Math.min(targetAnchorH, maxBlockH - tagsHConst);
+                const finalH = Math.max(20, finalAnchorH);
 
                 // Apply if different (with small tolerance to avoid jitter)
                 if (Math.abs(finalH - currentH) > 1) {
@@ -1891,12 +1975,13 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                     } else if (alignment === 'left') {
                         anchor.set('left', oldLeft);
                     } else {
-                        // Center
                         anchor.set('left', oldCenterX - (newWidth / 2));
                     }
 
-                    // Center in gap
-                    anchor.set('top', bestGap.top + (bestGap.height - finalH) / 2);
+                    // Position anchor at the top of the content block within the gap
+                    // (The tags follow below it in the layout steps)
+                    const totalNewBlockH = finalH + tagsH;
+                    anchor.set('top', bestGap.top + 5);
                     anchor.setCoords();
                 }
             }
@@ -1953,6 +2038,7 @@ function updateVerticalLayout(skipRender = false, retry = false) {
             if (o.dataTag === 'guide_overlay') return false;
             if (o.dataTag === 'ambilight_bg') return false;
             if (o.dataTag === 'separator') return false;
+            if (o.dataTag === 'row_separator') return false;
             if (!o.dataTag) return false;
 
             // FIX: Ignore objects that have snapping disabled (Manual Mode)
@@ -1996,10 +2082,20 @@ function updateVerticalLayout(skipRender = false, retry = false) {
         const anchorLeft = anchor.left;
         const anchorWidth = anchor.getScaledWidth();
 
-        // Track created separators to move them later if needed
-        const createdSeparators = [];
+        // Pre-calculate patterns to avoid creating them in the loop (Performance)
+        let separatorPattern = null;
+        if (separatorTextureImg) {
+            separatorPattern = new fabric.Pattern({ source: separatorTextureImg, repeat: 'repeat' });
+        }
+        let rowSeparatorPattern = null;
+        if (rowSeparatorTextureImg) {
+            rowSeparatorPattern = new fabric.Pattern({ source: rowSeparatorTextureImg, repeat: 'repeat' });
+        }
 
-        rows.forEach(row => {
+        // Track created separators to move them later if needed
+        // const createdSeparators = []; // Not strictly needed unless we move them in step 3
+
+        rows.forEach((row, rowIndex) => {
             // Auto-resize icons if enabled (Match Height)
             const resizableIcons = row.filter(el => el.type === 'image' && el.matchHeight && el.visible);
             if (resizableIcons.length > 0) {
@@ -2043,6 +2139,7 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                 const firstEl = visibleEls[0];
                 if (firstEl) current_x -= (firstEl.padding || 0);
             }
+            const rowStartX = current_x; // Capture start X for row separator centering
 
             // Ensure tags don't go off-screen (apply margins)
             if (current_x < marginLeft) current_x = marginLeft;
@@ -2051,7 +2148,7 @@ function updateVerticalLayout(skipRender = false, retry = false) {
             }
 
             const maxRowHeight = Math.max(...row.map(el => el.visible ? el.getScaledHeight() + ((el.padding || 0) * 2) : 0));
-            
+
             // FIX: Calculate max padding in this row to align all elements to a common baseline
             // This prevents elements with different padding (e.g. background box) from having different 'top' values,
             // which would cause them to be split into different rows on the next reload.
@@ -2091,12 +2188,7 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                     const visIdx = visibleEls.indexOf(el);
                     if (separatorChar && visIdx > -1 && visIdx < visibleEls.length - 1) {
                         let fillVal = separatorColor;
-                        if (separatorTextureImg) {
-                            fillVal = new fabric.Pattern({
-                                source: separatorTextureImg,
-                                repeat: 'repeat'
-                            });
-                        }
+                        if (separatorPattern) fillVal = separatorPattern;
 
                         const sep = new fabric.IText(separatorChar, {
                             fontFamily: (el.type === 'i-text' || el.type === 'textbox') ? el.fontFamily : 'Roboto',
@@ -2114,7 +2206,7 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                         sep.left = current_x - (hPadding / 2);
                         sep.top = el.top + (el.getScaledHeight() / 2);
                         canvas.add(sep);
-                        createdSeparators.push(sep);
+                        // createdSeparators.push(sep);
                     }
                 } else {
                     // Increment tiny amount to preserve order for next sort without visual gap
@@ -2136,6 +2228,54 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                 }
             }
 
+            // --- Row Separator Logic ---
+            const isRowVisible = row.some(el => el.visible);
+            let hasNextVisibleRow = false;
+            for (let i = rowIndex + 1; i < rows.length; i++) {
+                if (rows[i].some(e => e.visible)) {
+                    hasNextVisibleRow = true;
+                    break;
+                }
+            }
+
+            if (rowSeparatorStyle && isRowVisible && hasNextVisibleRow) {
+                const lineY = current_y + maxRowHeight + (padding / 2);
+                let lineWidth = rowSeparatorWidth;
+                if (rowSeparatorAutoWidth) lineWidth = totalRowWidth;
+
+                let lineLeft;
+                if (rowSeparatorAlign === 'left') {
+                    lineLeft = rowStartX;
+                } else if (rowSeparatorAlign === 'right') {
+                    lineLeft = rowStartX + totalRowWidth - lineWidth;
+                } else {
+                    // Center
+                    const centerX = rowStartX + (totalRowWidth / 2);
+                    lineLeft = centerX - (lineWidth / 2);
+                }
+
+                let dashArray = null;
+                if (rowSeparatorStyle === 'dotted') dashArray = [rowSeparatorThickness, rowSeparatorThickness];
+                else if (rowSeparatorStyle === 'dashed') dashArray = [rowSeparatorThickness * 4, rowSeparatorThickness * 2];
+
+                let strokeVal = rowSeparatorColor;
+                if (rowSeparatorPattern) strokeVal = rowSeparatorPattern;
+
+                const line = new fabric.Line([0, 0, lineWidth, 0], {
+                    left: lineLeft,
+                    top: lineY,
+                    stroke: strokeVal,
+                    opacity: rowSeparatorOpacity,
+                    strokeWidth: rowSeparatorThickness,
+                    strokeDashArray: dashArray,
+                    selectable: false,
+                    evented: false,
+                    dataTag: 'row_separator',
+                    originY: 'center'
+                });
+                canvas.add(line);
+            }
+
             if (maxRowHeight > 0) {
                 current_y += maxRowHeight + padding;
             } else {
@@ -2147,10 +2287,20 @@ function updateVerticalLayout(skipRender = false, retry = false) {
         const contentBottom = current_y - padding;
         const maxBottom = canvas.height - marginBottom;
 
-        // NEW: Check collision with blocked areas for all placed elements to trigger vertical shift
-        let maxBlockedShift = 0;
+        // Determine the full horizontal range of the layout block
         const allElements = [anchor];
         rows.forEach(row => row.forEach(el => { if (el.visible) allElements.push(el); }));
+
+        let blockLeft = anchor.left;
+        let blockRight = anchor.left + anchor.getScaledWidth();
+        allElements.forEach(el => {
+            const b = el.getBoundingRect();
+            if (b.left < blockLeft) blockLeft = b.left;
+            if (b.left + b.width > blockRight) blockRight = b.left + b.width;
+        });
+
+        let maxBlockedShiftUp = 0;
+        let maxBlockedShiftDown = 0;
 
         allElements.forEach(el => {
             const b = el.getBoundingRect();
@@ -2162,21 +2312,28 @@ function updateVerticalLayout(skipRender = false, retry = false) {
 
                 if (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
                     b.top < aTop + aHeight && b.top + b.height > aTop) {
-                    const overlap = (b.top + b.height) - aTop;
-                    if (overlap > 0 && overlap > maxBlockedShift) maxBlockedShift = overlap;
+
+                    const areaCenterY = aTop + (aHeight / 2);
+                    const canvasCenterY = canvas.height / 2;
+
+                    if (areaCenterY > canvasCenterY) {
+                        const overlap = (b.top + b.height) - aTop;
+                        if (overlap > 0 && overlap > maxBlockedShiftUp) maxBlockedShiftUp = overlap;
+                    } else {
+                        const overlap = (aTop + aHeight) - b.top;
+                        if (overlap > 0 && overlap > maxBlockedShiftDown) maxBlockedShiftDown = overlap;
+                    }
                 }
             });
         });
 
-        const marginShift = Math.max(0, contentBottom - maxBottom);
-        const totalShift = Math.max(marginShift, maxBlockedShift);
+        // 4. Resolve Conflicts (Unified logic)
+        if (maxBlockedShiftDown > 0 || maxBlockedShiftUp > 0 || contentBottom > maxBottom) {
+            if (retryCount > 10) return;
 
-        if (totalShift > 0) {
-            // Calculate available space above considering margins AND blocked areas
+            // Calculate current constraints
             let limitTop = marginTop;
-
-            const anchorLeft = anchor.left;
-            const anchorRight = anchor.left + anchor.getScaledWidth();
+            let limitBottom = maxBottom;
 
             activeBlockedAreas.forEach(area => {
                 const aLeft = area.left * scaleFactor;
@@ -2186,60 +2343,63 @@ function updateVerticalLayout(skipRender = false, retry = false) {
                 const aHeight = area.height * scaleFactor;
                 const aBottom = aTop + aHeight;
 
-                // Check horizontal intersection with anchor
-                if (aLeft < anchorRight && aRight > anchorLeft) {
-                    // If this area is above the anchor (with slight tolerance)
-                    if (aBottom <= anchor.top + 5) {
+                // Robust: Check horizontal intersection with ANY part of the layout block
+                if (aLeft < blockRight && aRight > blockLeft) {
+                    if (aBottom <= anchor.top + 10) { // Area is above
                         if (aBottom > limitTop) limitTop = aBottom;
+                    } else if (aTop >= (current_y - padding - 10)) { // Area is below
+                        if (aTop < limitBottom) limitBottom = aTop;
                     }
                 }
             });
 
-            const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
+            const availableH = limitBottom - limitTop;
+            const contentH = contentBottom - anchor.top;
+            const totalShiftNeeded = Math.max(0, (contentBottom - limitBottom), maxBlockedShiftUp);
 
-            // If we need to adjust, we apply the change to the anchor and RE-RUN the layout.
-            // This ensures horizontal alignment (centering) is recalculated for the new anchor width,
-            // and separators are generated in the correct positions.
-            // We use a 'retry' flag to prevent infinite loops in edge cases.
-            if (retry) return; 
+            // CASE A: Pinned or too large -> Shrink
+            if (maxBlockedShiftDown > 0 && maxBlockedShiftUp > 0 || (contentH > availableH)) {
+                const deficit = contentH - availableH;
+                const currentAnchorH = anchor.getScaledHeight();
+                const newAnchorH = Math.max(20, currentAnchorH - deficit - 5);
 
-            if (totalShift > maxSafeShiftUp) {
-                // Need to shrink because we can't shift up enough
-                const deficit = totalShift - maxSafeShiftUp;
-                const currentHeight = anchor.getScaledHeight();
-                const newHeight = Math.max(20, currentHeight - deficit); // Min height 20px
+                const oldCenterX = anchor.left + (anchor.getScaledWidth() / 2);
+                const oldRight = anchor.left + anchor.getScaledWidth();
 
-                // Capture old state for alignment preservation
-                const oldLeft = anchor.left;
-                const oldWidth = anchor.getScaledWidth();
-                const oldRight = oldLeft + oldWidth;
-                const oldCenterX = oldLeft + (oldWidth / 2);
+                anchor.scaleToHeight(newAnchorH);
 
-                // Apply shrink and move to limit
-                anchor.scaleToHeight(newHeight);
-                const newWidth = anchor.getScaledWidth();
-
-                // Restore horizontal alignment
-                if (alignment === 'right') {
-                    anchor.set('left', oldRight - newWidth);
-                } else if (alignment === 'center') {
-                    anchor.set('left', oldCenterX - (newWidth / 2));
-                }
-                // 'left' is default (anchor.left stays oldLeft)
+                if (alignment === 'center') anchor.set('left', oldCenterX - (anchor.getScaledWidth() / 2));
+                else if (alignment === 'right') anchor.set('left', oldRight - anchor.getScaledWidth());
 
                 anchor.set('top', limitTop);
-                
-                // RESTART LAYOUT with new anchor size/pos
-                updateVerticalLayout(skipRender, true);
-                return;
-            } else {
-                // Standard shift (enough space above)
-                anchor.set('top', anchor.top - totalShift);
-                
-                // RESTART LAYOUT with new anchor pos
-                updateVerticalLayout(skipRender, true);
-                return;
+                return updateVerticalLayout(skipRender, retryCount + 1);
             }
+            // CASE B: Hit Top obstacle (move down)
+            else if (maxBlockedShiftDown > 0) {
+                anchor.top += maxBlockedShiftDown;
+                return updateVerticalLayout(skipRender, retryCount + 1);
+            }
+            // CASE C: Hit Bottom obstacle or Margin (move up)
+            else if (totalShiftNeeded > 0) {
+                const safeShiftUp = Math.max(0, anchor.top - limitTop);
+                if (totalShiftNeeded > safeShiftUp) {
+                    // Cannot shift enough, must shrink deficit
+                    const deficit = totalShiftNeeded - safeShiftUp;
+                    const oldCenterX = anchor.left + (anchor.getScaledWidth() / 2);
+                    const oldRight = anchor.left + anchor.getScaledWidth();
+
+                    anchor.scaleToHeight(anchor.getScaledHeight() - deficit);
+
+                    if (alignment === 'center') anchor.set('left', oldCenterX - (anchor.getScaledWidth() / 2));
+                    else if (alignment === 'right') anchor.set('left', oldRight - anchor.getScaledWidth());
+
+                    anchor.set('top', limitTop);
+                } else {
+                    anchor.top -= totalShiftNeeded;
+                }
+                return updateVerticalLayout(skipRender, retryCount + 1);
+            }
+            return;
         }
 
         canvas.getObjects().forEach(o => o.setCoords());
@@ -2650,6 +2810,14 @@ function saveHistory(force = false) {
         tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
         tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
         tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
+        rowSeparatorStyle: document.getElementById('rowSeparatorStyle') ? document.getElementById('rowSeparatorStyle').value : '',
+        rowSeparatorThickness: document.getElementById('rowSeparatorThickness') ? document.getElementById('rowSeparatorThickness').value : 2,
+        rowSeparatorColor: document.getElementById('rowSeparatorColor') ? document.getElementById('rowSeparatorColor').value : '#ffffff',
+        rowSeparatorTexture: document.getElementById('rowSeparatorTextureSelect') ? document.getElementById('rowSeparatorTextureSelect').value : '',
+        rowSeparatorOpacity: document.getElementById('rowSeparatorOpacityInput') ? document.getElementById('rowSeparatorOpacityInput').value : 100,
+        rowSeparatorAlign: document.getElementById('rowSeparatorAlign') ? document.getElementById('rowSeparatorAlign').value : 'center',
+        rowSeparatorAutoWidth: document.getElementById('rowSeparatorAutoWidth') ? document.getElementById('rowSeparatorAutoWidth').checked : true,
+        rowSeparatorWidth: document.getElementById('rowSeparatorWidth') ? document.getElementById('rowSeparatorWidth').value : 500,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -2877,6 +3045,51 @@ function applyCustomEffects(eff) {
         if (el) {
             el.value = eff.tagSeparatorTexture;
             updateSeparatorTexture(); // Load the texture
+        }
+    }
+    if (eff.rowSeparatorStyle !== undefined) {
+        const el = document.getElementById('rowSeparatorStyle');
+        if (el) el.value = eff.rowSeparatorStyle;
+    }
+    if (eff.rowSeparatorThickness) {
+        const el = document.getElementById('rowSeparatorThickness');
+        if (el) {
+            el.value = eff.rowSeparatorThickness;
+            document.getElementById('rowSeparatorThicknessVal').innerText = eff.rowSeparatorThickness + "px";
+        }
+    }
+    if (eff.rowSeparatorColor) {
+        const el = document.getElementById('rowSeparatorColor');
+        if (el) el.value = eff.rowSeparatorColor;
+    }
+    if (eff.rowSeparatorTexture !== undefined) {
+        const el = document.getElementById('rowSeparatorTextureSelect');
+        if (el) {
+            el.value = eff.rowSeparatorTexture;
+            updateRowSeparatorTexture();
+        }
+    }
+    if (eff.rowSeparatorOpacity !== undefined) {
+        const el = document.getElementById('rowSeparatorOpacityInput');
+        if (el) {
+            el.value = eff.rowSeparatorOpacity;
+            document.getElementById('rowSeparatorOpacityVal').innerText = eff.rowSeparatorOpacity + "%";
+        }
+    }
+    if (eff.rowSeparatorAlign) {
+        const el = document.getElementById('rowSeparatorAlign');
+        if (el) el.value = eff.rowSeparatorAlign;
+    }
+    if (eff.rowSeparatorAutoWidth !== undefined) {
+        const el = document.getElementById('rowSeparatorAutoWidth');
+        if (el) el.checked = eff.rowSeparatorAutoWidth;
+        toggleRowSeparatorWidthControl();
+    }
+    if (eff.rowSeparatorWidth) {
+        const el = document.getElementById('rowSeparatorWidth');
+        if (el) {
+            el.value = eff.rowSeparatorWidth;
+            document.getElementById('rowSeparatorWidthVal').innerText = eff.rowSeparatorWidth + "px";
         }
     }
     if (eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
@@ -4178,6 +4391,14 @@ async function saveLayout() {
         tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
         tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
         tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
+        rowSeparatorStyle: document.getElementById('rowSeparatorStyle') ? document.getElementById('rowSeparatorStyle').value : '',
+        rowSeparatorThickness: document.getElementById('rowSeparatorThickness') ? document.getElementById('rowSeparatorThickness').value : 2,
+        rowSeparatorColor: document.getElementById('rowSeparatorColor') ? document.getElementById('rowSeparatorColor').value : '#ffffff',
+        rowSeparatorTexture: document.getElementById('rowSeparatorTextureSelect') ? document.getElementById('rowSeparatorTextureSelect').value : '',
+        rowSeparatorOpacity: document.getElementById('rowSeparatorOpacityInput') ? document.getElementById('rowSeparatorOpacityInput').value : 100,
+        rowSeparatorAlign: document.getElementById('rowSeparatorAlign') ? document.getElementById('rowSeparatorAlign').value : 'center',
+        rowSeparatorAutoWidth: document.getElementById('rowSeparatorAutoWidth') ? document.getElementById('rowSeparatorAutoWidth').checked : true,
+        rowSeparatorWidth: document.getElementById('rowSeparatorWidth') ? document.getElementById('rowSeparatorWidth').value : 500,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -4444,10 +4665,15 @@ function mirrorBackground() {
 }
 
 function saveToLocalStorage() {
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(performSaveToLocalStorage, 1000);
+}
+
+function performSaveToLocalStorage() {
     if (!canvas) return;
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
     // Filter out fade effects so they aren't saved as static objects
-    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'separator');
+    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'separator' && o.dataTag !== 'row_separator');
     // Filter out ambilight background (it is auto-generated)
     json.objects = json.objects.filter(o => o.dataTag !== 'ambilight_bg');
 
@@ -4480,6 +4706,14 @@ function saveToLocalStorage() {
         tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
         tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
         tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
+        rowSeparatorStyle: document.getElementById('rowSeparatorStyle') ? document.getElementById('rowSeparatorStyle').value : '',
+        rowSeparatorThickness: document.getElementById('rowSeparatorThickness') ? document.getElementById('rowSeparatorThickness').value : 2,
+        rowSeparatorColor: document.getElementById('rowSeparatorColor') ? document.getElementById('rowSeparatorColor').value : '#ffffff',
+        rowSeparatorTexture: document.getElementById('rowSeparatorTextureSelect') ? document.getElementById('rowSeparatorTextureSelect').value : '',
+        rowSeparatorOpacity: document.getElementById('rowSeparatorOpacityInput') ? document.getElementById('rowSeparatorOpacityInput').value : 100,
+        rowSeparatorAlign: document.getElementById('rowSeparatorAlign') ? document.getElementById('rowSeparatorAlign').value : 'center',
+        rowSeparatorAutoWidth: document.getElementById('rowSeparatorAutoWidth') ? document.getElementById('rowSeparatorAutoWidth').checked : true,
+        rowSeparatorWidth: document.getElementById('rowSeparatorWidth') ? document.getElementById('rowSeparatorWidth').value : 500,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -4585,6 +4819,7 @@ async function loadFromLocalStorage() {
                     o.dataTag === 'fade_effect' ||
                     o.dataTag === 'grid_line' ||
                     o.dataTag === 'separator' ||
+                    o.dataTag === 'row_separator' ||
                     o.dataTag === 'guide_overlay' ||
                     (o.type === 'rect' && !o.selectable && !o.evented) ||
                     (o.type === 'line' && o.stroke === '#555' && !o.selectable)
@@ -5265,6 +5500,33 @@ function updateSeparatorOpacity() {
     saveToLocalStorage();
 }
 
+function updateRowSeparatorOpacity() {
+    const val = document.getElementById('rowSeparatorOpacityInput').value;
+    document.getElementById('rowSeparatorOpacityVal').innerText = val + "%";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
+function updateRowSeparatorTexture() {
+    const textureId = document.getElementById('rowSeparatorTextureSelect').value;
+    if (!textureId) {
+        rowSeparatorTextureImg = null;
+        updateVerticalLayout();
+        saveToLocalStorage();
+        return;
+    }
+
+    const profile = textureProfiles.find(p => p.id === textureId);
+    if (!profile) return;
+
+    const url = `/api/textures/image/${profile.filename}`;
+    fabric.util.loadImage(url, function (img) {
+        rowSeparatorTextureImg = img;
+        updateVerticalLayout();
+        saveToLocalStorage();
+    });
+}
+
 function updateSeparatorTexture() {
     const textureId = document.getElementById('tagSeparatorTextureSelect').value;
     if (!textureId) {
@@ -5278,7 +5540,7 @@ function updateSeparatorTexture() {
     if (!profile) return;
 
     const url = `/api/textures/image/${profile.filename}`;
-    fabric.util.loadImage(url, function(img) {
+    fabric.util.loadImage(url, function (img) {
         separatorTextureImg = img;
         updateVerticalLayout();
         saveToLocalStorage();
@@ -5287,18 +5549,42 @@ function updateSeparatorTexture() {
 
 // Update loadTextureProfiles to populate separator select
 const originalLoadTextureProfiles = loadTextureProfiles;
-loadTextureProfiles = async function() {
+loadTextureProfiles = async function () {
     await originalLoadTextureProfiles();
     const sel = document.getElementById('tagSeparatorTextureSelect');
     if (sel) {
+        const selRow = document.getElementById('rowSeparatorTextureSelect');
         const current = sel.value;
+        const currentRow = selRow ? selRow.value : '';
         sel.innerHTML = '<option value="">No Texture</option>';
+        if (selRow) selRow.innerHTML = '<option value="">No Texture</option>';
         textureProfiles.forEach(p => {
             const opt = document.createElement('option');
             opt.value = p.id;
             opt.innerText = p.name;
             sel.appendChild(opt);
+            if (selRow) selRow.appendChild(opt.cloneNode(true));
         });
         sel.value = current;
+        if (selRow) selRow.value = currentRow;
     }
 };
+
+function updateRowSeparatorThickness() {
+    const val = document.getElementById('rowSeparatorThickness').value;
+    document.getElementById('rowSeparatorThicknessVal').innerText = val + "px";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
+function toggleRowSeparatorWidthControl() {
+    const auto = document.getElementById('rowSeparatorAutoWidth').checked;
+    document.getElementById('rowSeparatorWidthControl').style.display = auto ? 'none' : 'block';
+}
+
+function updateRowSeparatorWidth() {
+    const val = document.getElementById('rowSeparatorWidth').value;
+    document.getElementById('rowSeparatorWidthVal').innerText = val + "px";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}

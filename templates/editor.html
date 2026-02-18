@@ -941,6 +941,53 @@
                     </div>
                     <input type="range" id="tagSeparatorOpacityInput" min="0" max="100" value="100" oninput="updateSeparatorOpacity()" style="margin-top:2px;">
 
+                    <label style="margin-top:10px; display:block; font-size:11px;" data-i18n="row_separator">Row Separator</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="rowSeparatorStyle" onchange="updateVerticalLayout(); saveToLocalStorage()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
+                            <option value="">None</option>
+                            <option value="solid">Solid Line</option>
+                            <option value="dotted">Dotted Line</option>
+                            <option value="dashed">Dashed Line</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="thickness">Thickness</label>
+                        <span id="rowSeparatorThicknessVal" style="font-size:11px;">2px</span>
+                    </div>
+                    <input type="range" id="rowSeparatorThickness" min="1" max="20" value="2" oninput="updateRowSeparatorThickness()" style="margin-top:2px;">
+                    
+                    <label style="font-size:11px; margin-top:5px; display:block;" data-i18n="row_separator_align">Line Alignment</label>
+                    <select id="rowSeparatorAlign" onchange="updateVerticalLayout(); saveToLocalStorage()" style="width:100%; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
+                        <option value="center" data-i18n="align_center">Center</option>
+                        <option value="left" data-i18n="align_left">Left</option>
+                        <option value="right" data-i18n="align_right">Right</option>
+                    </select>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="color_texture">Color / Texture</label>
+                    </div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="color" id="rowSeparatorColor" value="#ffffff" oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:20px; width:40px; border:none; padding:0; background:none; cursor:pointer;">
+                        <select id="rowSeparatorTextureSelect" onchange="updateRowSeparatorTexture()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:2px; font-size:11px;"></select>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="opacity">Opacity</label>
+                        <span id="rowSeparatorOpacityVal" style="font-size:11px;">100%</span>
+                    </div>
+                    <input type="range" id="rowSeparatorOpacityInput" min="0" max="100" value="100" oninput="updateRowSeparatorOpacity()" style="margin-top:2px;">
+
+                    <div style="display:flex; align-items:center; margin-top:5px; gap:5px;">
+                        <input type="checkbox" id="rowSeparatorAutoWidth" onchange="toggleRowSeparatorWidthControl(); updateVerticalLayout(); saveToLocalStorage()" checked>
+                        <label for="rowSeparatorAutoWidth" style="font-size:11px; margin:0;" data-i18n="auto_width">Auto Width</label>
+                    </div>
+                    <div id="rowSeparatorWidthControl" style="display:none;">
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="width">Width</label>
+                            <span id="rowSeparatorWidthVal" style="font-size:11px;">500px</span>
+                        </div>
+                        <input type="range" id="rowSeparatorWidth" min="10" max="1920" value="500" oninput="updateRowSeparatorWidth()" style="margin-top:2px;">
+                    </div>
+
                     <div id="layerControlContainer" style="display:none; gap:5px; margin-top:10px;">
                         <button onclick="moveLayer('up')" style="flex:1; font-size:11px; padding:4px;">⬆ Bring
                             Forward</button>
