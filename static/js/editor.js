@@ -114,7 +114,7 @@ let canvas, mainBg = null;
 let ambilightBg = null, backgroundMode = 'solid'; // 'solid' | 'ambilight'
 let lastValidBgState = null;
 let fades = { left: null, right: null, top: null, bottom: null, corner: null };
-let resizeRaf = null, lastFetchedData = null, layoutDebounceTimer = null;
+let resizeRaf = null, lastFetchedData = null, layoutDebounceTimer = null, previewDebounceTimer = null;
 let preferredLogoWidth = null;
 let overlayProfiles = [];
 let overlayCanvasFabric = null;
@@ -313,7 +313,7 @@ function updateSelectionUI(e) {
                 useTextBtn.style.display = (activeObj.dataTag === 'title') ? 'block' : 'none';
             }
         }
-    } else if (activeObj.type === 'i-text' || activeObj.type === 'textbox' || (activeObj.type === 'group' && (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating')) || activeObj.dataTag === 'title') {
+    } else if (activeObj.type === 'i-text' || activeObj.type === 'textbox' || (activeObj.type === 'group' && (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating' || activeObj.dataTag === 'provider_source')) || activeObj.dataTag === 'title') {
         if (textPanel) {
             textPanel.style.display = 'block';
             expandGroup('group-text');
@@ -440,6 +440,22 @@ function updateSelectedFontSize() {
                         textObj.set('left', imgObj.left + imgObj.getScaledWidth() + 10);
                         textObj.set('top', imgObj.top + (imgObj.getScaledHeight() - textObj.getScaledHeight()) / 2);
                     }
+                } else if (activeObj.dataTag === 'provider_source') {
+                    const imgObj = activeObj.getObjects().find(o => o.type === 'image');
+                    if (imgObj) {
+                        // Scale Logo relative to Text Height (1.5x)
+                        const targetH = textObj.height * textObj.scaleY; // Text height varies with font size
+                        // Note: 'fontSize' property change on IText affects dimensions.
+                        // But we need to ensure the logo scales proportionally.
+                        // The original logic was img.scaleToHeight(targetH * 1.5).
+                        // Here we assume textObj has updated dimensions.
+                        // Force update of text dimensions
+                        textObj.setCoords();
+                        const currentTextHeight = textObj.getScaledHeight();
+                        imgObj.scaleToHeight(currentTextHeight * 1.2); // Matching render_task logic (1.2) - editor had 1.5, adjusting to match
+                        // Reposition Logo
+                        imgObj.set({ left: textObj.getScaledWidth() + 15 });
+                    }
                 }
                 activeObj.addWithUpdate();
             }
@@ -478,6 +494,21 @@ function updateSelectedFontFamily() {
                         const imgObj = activeObj.getObjects().find(o => o.type === 'image');
                         if (imgObj && textObj) {
                             textObj.set('top', imgObj.top + (imgObj.getScaledHeight() - textObj.getScaledHeight()) / 2);
+                        }
+                    } else if (activeObj.dataTag === 'provider_source') {
+                        canvas.renderAll(); // Force dimension update for text
+                        const imgObj = activeObj.getObjects().find(o => o.type === 'image');
+                        if (imgObj && textObj) {
+                            // Re-layout: Text at 0, Logo after text
+                            // Reset text position relative to group 0
+                            textObj.set({ left: 0, originX: 'left' });
+
+                            // Rescale Logo to match new font metrics
+                            const targetH = textObj.getScaledHeight();
+                            imgObj.scaleToHeight(targetH * 1.2);
+
+                            // Position logo after text with padding
+                            imgObj.set({ left: textObj.getScaledWidth() + 15, originX: 'left' });
                         }
                     }
                     activeObj.addWithUpdate();
@@ -1194,14 +1225,101 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         val = mediaData.officialRating;
                         break;
                     case 'provider_source':
-                        const src = (mediaData.source || "").toLowerCase();
-                        if (src === 'radarr' || src === 'sonarr') {
-                            val = "Available soon...";
-                        } else if (src) {
-                            const pName = src === 'tmdb' ? 'TMDB' : src.charAt(0).toUpperCase() + src.slice(1);
-                            val = `Now available on ${pName}`;
+                        const srcVal = (mediaData.source || "Jellyfin");
+                        let pText = "";
+                        let pLogo = null;
+
+                        if (srcVal === 'TMDB') {
+                            pText = "Now Trending on ";
+                            pLogo = "tmdblogo.png";
+                        } else if (srcVal === 'Trakt') {
+                            pText = "Now on my watchlist ";
+                            pLogo = "traktlogo.png";
+                        } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(srcVal)) {
+                            pText = "Soon available on ";
+                            pLogo = "jellyfinlogo.png";
                         } else {
-                            val = "Now available on Jellyfin";
+                            pText = "Now available on ";
+                            if (srcVal === 'Plex') pLogo = "plexlogo.png";
+                            else pLogo = "jellyfinlogo.png";
+                        }
+
+                        if (pLogo) {
+                            const p = new Promise(resolve => {
+                                const logoUrl = `/static/provider_logos/${pLogo}`;
+                                fabric.Image.fromURL(logoUrl, function (img, isError) {
+                                    if (isError || !img) {
+                                        // Fallback to text only
+                                        obj.set({ text: pText + srcVal, visible: true });
+                                        resolve();
+                                        return;
+                                    }
+
+                                    // Robust property preservation
+                                    let currentProps = {
+                                        fontFamily: obj.fontFamily || 'Roboto',
+                                        fontSize: obj.fontSize || 40,
+                                        fill: obj.fill || 'white',
+                                        shadow: obj.shadow || null,
+                                        stroke: obj.stroke || null,
+                                        strokeWidth: obj.strokeWidth || 0,
+                                        textAlign: obj.textAlign || 'left'
+                                    };
+
+                                    if (obj.type === 'group' && obj.getObjects) {
+                                        const t = obj.getObjects().find(o => o.type === 'i-text');
+                                        if (t) {
+                                            if (t.fontFamily) currentProps.fontFamily = t.fontFamily;
+                                            if (t.fontSize) currentProps.fontSize = t.fontSize;
+                                            if (t.fill) currentProps.fill = t.fill;
+                                            if (t.shadow) currentProps.shadow = t.shadow;
+                                            if (t.stroke) currentProps.stroke = t.stroke;
+                                            if (t.strokeWidth !== undefined) currentProps.strokeWidth = t.strokeWidth;
+                                            if (t.textAlign) currentProps.textAlign = t.textAlign;
+                                        }
+                                    }
+
+                                    // Create Text Component
+                                    const textObj = new fabric.IText(pText, {
+                                        fontFamily: currentProps.fontFamily,
+                                        fontSize: currentProps.fontSize,
+                                        fill: currentProps.fill,
+                                        shadow: currentProps.shadow,
+                                        stroke: currentProps.stroke,
+                                        strokeWidth: currentProps.strokeWidth,
+                                        textAlign: currentProps.textAlign,
+                                        originY: 'center',
+                                        originX: 'left',
+                                        left: 0, top: 0,
+                                        editable: false
+                                    });
+
+
+                                    // Scale Logo
+                                    const targetH = textObj.height * textObj.scaleY;
+                                    img.scaleToHeight(targetH * 1.2);
+                                    img.set({ originY: 'center', originX: 'left', left: textObj.getScaledWidth() + 15, top: 0 });
+
+                                    // Create Group
+                                    const group = new fabric.Group([textObj, img], {
+                                        left: obj.left, top: obj.top,
+                                        originX: obj.originX, originY: obj.originY,
+                                        scaleX: obj.scaleX, scaleY: obj.scaleY,
+                                        angle: obj.angle, opacity: obj.opacity,
+                                        fontFamily: currentProps.fontFamily, // Store font for next reload
+                                        dataTag: 'provider_source',
+                                        selectable: true // Editor allows selection
+                                    });
+
+                                    canvas.remove(obj);
+                                    canvas.add(group);
+                                    resolve();
+                                });
+                            });
+                            promises.push(p);
+                            val = undefined; // Signal that we handled it manually
+                        } else {
+                            val = pText + srcVal;
                         }
                         break;
                     case 'certification':
@@ -1384,7 +1502,7 @@ function addMetadataTag(type, placeholder) {
         fabric.Image.fromURL(proxiedUrl, function (img) {
             if (!img) return;
             img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_star_img' });
-            const text = new fabric.IText(placeholder, { ...props, left: img.getScaledWidth() + 10, top: 0, shadow: undefined, editable: false });
+            const text = new fabric.IText(placeholder, { ...props, left: img.getScaledWidth() + 10, top: 0, editable: false });
             const group = new fabric.Group([img, text], { left: props.left, top: props.top, dataTag: type });
             finalize(group);
         }, { crossOrigin: 'anonymous' });
@@ -1410,7 +1528,7 @@ function addMetadataTag(type, placeholder) {
             if (!img) return;
             img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_logo_img' });
             const textVal = placeholder.replace('IMDb: ', '');
-            const text = new fabric.IText(textVal, { ...props, left: img.getScaledWidth() + 10, top: 0, shadow: undefined, editable: false });
+            const text = new fabric.IText(textVal, { ...props, left: img.getScaledWidth() + 10, top: 0, editable: false });
             text.set('top', (img.getScaledHeight() - text.getScaledHeight()) / 2);
             const group = new fabric.Group([img, text], { left: props.left, top: props.top, dataTag: type });
             finalize(group);
@@ -1519,7 +1637,11 @@ function getCertificationImageUrl(rating) {
 function updateGenreLimit() {
     const val = document.getElementById('genreLimitSlider').value;
     document.getElementById('genreLimitVal').innerText = (val == 6) ? "Max" : val;
-    if (lastFetchedData) previewTemplate(lastFetchedData);
+
+    if (previewDebounceTimer) clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = setTimeout(() => {
+        if (lastFetchedData) previewTemplate(lastFetchedData);
+    }, 200);
 }
 
 function groupElementsByRow(elements, threshold = 30) {

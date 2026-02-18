@@ -113,10 +113,16 @@ if (fontsDir) {
                 if (fs.statSync(fullPath).size > 0) {
                     const families = getFontFamilies(file);
                     families.forEach(fam => {
-                        // console.log(`Registering font: ${file} as ${fam}`);
+                        console.log(`[DEBUG] Registering font: ${file} as ${fam}`);
                         canvasModule.registerFont(fullPath, { family: fam });
                         const noSpaces = fam.replace(/\s+/g, '');
                         if (noSpaces !== fam) canvasModule.registerFont(fullPath, { family: noSpaces });
+                        // Try to add spaces for CamelCase (e.g. ZillaSlabHighlight -> Zilla Slab Highlight)
+                        const withSpaces = fam.replace(/([a-z])([A-Z])/g, '$1 $2');
+                        if (withSpaces !== fam && withSpaces !== noSpaces) {
+                            canvasModule.registerFont(fullPath, { family: withSpaces });
+                            console.log(`[DEBUG] Registering alias: ${withSpaces}`);
+                        }
                     });
                 }
             } catch (fontErr) { console.error(`[ERROR] Failed to load font ${file}: ${fontErr.message}`); }
@@ -1024,7 +1030,7 @@ function getCertificationFilename(rating) {
         }
 
         const canvas = new fabric.StaticCanvas(null, { width: baseWidth, height: baseHeight });
-
+        let mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
         // Filter out ambilight_bg to avoid duplicates (will receive new one if needed)
         if (layoutJson.objects) {
             layoutJson.objects = layoutJson.objects.filter(o => o.dataTag !== 'ambilight_bg');
@@ -1128,7 +1134,100 @@ function getCertificationFilename(rating) {
                     if (rtCheck === '0min' || rtCheck === '0') val = null;
                     break;
                 case 'officialRating': val = data.officialRating; break;
-                case 'provider_source': val = `Now available on ${data.source || "Jellyfin"}`; break;
+                case 'provider_source':
+                    let providerText = "";
+                    let providerLogo = null;
+                    let source = data.source || "Jellyfin";
+
+                    // Logic based on provider
+                    if (source === 'TMDB') {
+                        providerText = "Now Trending on ";
+                        providerLogo = "tmdblogo.png";
+                    } else if (source === 'Trakt') {
+                        providerText = "Now on my watchlist ";
+                        providerLogo = "traktlogo.png";
+                    } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(source)) {
+                        providerText = "Soon available on ";
+                        providerLogo = "jellyfinlogo.png";
+                    } else {
+                        // Default fallback
+                        providerText = "Now available on ";
+                        if (source === 'Plex') providerLogo = "plexlogo.png";
+                        else providerLogo = "jellyfinlogo.png";
+                    }
+
+                    if (providerLogo) {
+                        const logoPath = path.join(__dirname, 'static', 'provider_logos', providerLogo);
+                        const pLogo = new Promise(resolve => {
+                            if (fs.existsSync(logoPath)) {
+                                const imgData = fs.readFileSync(logoPath);
+                                const ext = path.extname(logoPath).slice(1);
+                                const src = `data:image/${ext};base64,${imgData.toString('base64')}`;
+                                fabric.Image.fromURL(src, (img) => {
+                                    if (img) {
+                                        // Create Text
+                                        // Use the properties of the original object (obj)
+                                        let currentFont = obj.fontFamily || 'Roboto';
+                                        let currentSize = obj.fontSize || 40;
+                                        let currentFill = obj.fill || 'white';
+
+                                        if (obj.type === 'group' && obj.getObjects) {
+                                            const existingText = obj.getObjects().find(o => o.type === 'i-text' || o.type === 'text');
+                                            if (existingText) {
+                                                if (existingText.fontFamily) currentFont = existingText.fontFamily;
+                                                if (existingText.fontSize) currentSize = existingText.fontSize;
+                                                if (existingText.fill) currentFill = existingText.fill;
+                                            }
+                                        }
+
+                                        const textObj = new fabric.IText(providerText, {
+                                            fontFamily: currentFont,
+                                            fontSize: currentSize,
+                                            fill: currentFill,
+                                            originY: 'center',
+                                            originX: 'left',
+                                            left: 0,
+                                            top: 0
+                                        });
+
+                                        // Scale Logo to match Text Height + 20%
+                                        // We use the calculated height of the text object
+                                        const targetH = textObj.height * textObj.scaleY;
+                                        img.scaleToHeight(targetH * 1.2);
+                                        img.set({ originY: 'center', originX: 'left', left: textObj.getScaledWidth() + 15, top: 0 });
+
+                                        // Group
+                                        const group = new fabric.Group([textObj, img], {
+                                            left: obj.left,
+                                            top: obj.top,
+                                            originX: obj.originX,
+                                            originY: obj.originY,
+                                            dataTag: 'provider_source',
+                                            fontFamily: obj.fontFamily || 'Roboto', // Persist font in output
+                                            scaleX: obj.scaleX,
+                                            scaleY: obj.scaleY,
+                                            angle: obj.angle,
+                                            opacity: obj.opacity,
+                                            selectable: false // Render task objects usually static
+                                        });
+
+                                        canvas.remove(obj);
+                                        canvas.add(group);
+                                    }
+                                    resolve();
+                                });
+                            } else {
+                                // Fallback if logo file missing
+                                obj.set('text', providerText + source);
+                                resolve();
+                            }
+                        });
+                        imagePromises.push(pLogo);
+                        val = undefined; // Handled by promise
+                    } else {
+                        val = providerText + source;
+                    }
+                    break;
                 case 'certification':
                     const fname = getCertificationFilename(data.officialRating);
                     if (fname) {
@@ -1184,7 +1283,7 @@ function getCertificationFilename(rating) {
 
         // 5. IMAGES (Backdrop & Logo)
         // Background
-        let mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
+        mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
         if (data.backdrop_url) {
             // Save the state and target dimensions of the old background, if it exists
             let oldState = null;
