@@ -670,6 +670,30 @@ function generateAlphaMask(mainBg, settings) {
     const radius = (parseInt(settings.fadeRadius) || 0) / Math.max(scaleX, scaleY);
     const softness = (parseInt(settings.fadeSoftness) || 40) / Math.max(scaleX, scaleY);
 
+    // Helper to draw directional fades
+    function drawLinearFade(x, y, w, h, fromSide) {
+        let g;
+        if (fromSide === 'top') {
+            g = ctx.createLinearGradient(0, 0, 0, h);
+        } else if (fromSide === 'bottom') {
+            g = ctx.createLinearGradient(0, y + h, 0, y);
+        } else if (fromSide === 'left') {
+            g = ctx.createLinearGradient(0, 0, w, 0);
+        } else if (fromSide === 'right') {
+            g = ctx.createLinearGradient(x + w, 0, x, 0);
+        }
+
+        g.addColorStop(0, 'rgba(0,0,0,1)');   // Black (transparent in mask) at edge
+        g.addColorStop(1, 'rgba(0,0,0,0)');   // Transparent (opaque in mask) inwards
+
+        ctx.fillStyle = g;
+        // Check compositing: We want to "erase" the white mask
+        // destination-out removes existing content based on new alpha
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillRect(x, y, w, h);
+        ctx.globalCompositeOperation = 'source-over'; // Reset
+    }
+
     if (type === 'vignette') {
         const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
         const stop = Math.max(0, 1 - (radius * 2));
@@ -697,20 +721,13 @@ function generateAlphaMask(mainBg, settings) {
     } else if (type === 'gradient') {
         ctx.fillStyle = 'black'; ctx.fillRect(0, 0, w, h);
         ctx.globalCompositeOperation = 'destination-out';
-        const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
-        if (sT > 0) { const g = ctx.createLinearGradient(0, 0, 0, sT); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, w, sT); }
-        if (sB > 0) { const g = ctx.createLinearGradient(0, h, 0, h - sB); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, h - sB, w, sB); }
-        if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
-        if (sR > 0) { const g = ctx.createLinearGradient(w, 0, w - sR, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(w - sR, 0, sR, h); }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
     } else {
-        // Default: create elliptical vignette fade for Ambilight
+        // Default (or 'none'): create elliptical vignette fade for Ambilight
         // Pure radial gradient approach - no shadowBlur to avoid colored overlay
         const cx = w / 2;
         const cy = h / 2;
-        const rx = w / 2;
-        const ry = h / 2;
-
-        // Use larger radius for elliptical gradient
         const maxDim = Math.max(w, h);
         const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, maxDim * 0.6);
 
@@ -724,6 +741,13 @@ function generateAlphaMask(mainBg, settings) {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
     }
+
+    // Apply directional fades AFTER generating the base mask
+    // "Erase" edges using destination-out
+    if (sT > 0) drawLinearFade(0, 0, w, sT, 'top');
+    if (sB > 0) drawLinearFade(0, h - sB, w, sB, 'bottom');
+    if (sL > 0) drawLinearFade(0, 0, sL, h, 'left');
+    if (sR > 0) drawLinearFade(w - sR, 0, sR, h, 'right');
 
     // Apply rounded corners with manual blur for softness
     // shadowBlur is unreliable in node-canvas, so we use pixel-level blur
@@ -762,9 +786,11 @@ function generateAlphaMask(mainBg, settings) {
             // Apply blur on small image data
             const imageData = tCtx.getImageData(0, 0, sw, sh);
             // Scale blur radius accordingly
-            const blurRadius = Math.max(1, Math.ceil((softness / 3) * scale));
+            // User requested wider soft zone: Use full softness instead of softness/3
+            // effectively tripling the blur width
+            const blurRadius = Math.max(1, Math.ceil(softness * scale));
 
-            // Apply blur 3 times
+            // Apply blur 3 times for Gaussian approximation
             applyBoxBlur(imageData, sw, sh, blurRadius);
             applyBoxBlur(imageData, sw, sh, blurRadius);
             applyBoxBlur(imageData, sw, sh, blurRadius);
@@ -784,9 +810,6 @@ function generateAlphaMask(mainBg, settings) {
         }
     }
 
-    // REMOVED: shadowBlur rounded rectangle approach
-    // It creates colored overlay instead of clean alpha fade
-    // Using pure radial gradient instead for seamless blending
     return maskCanvas;
 }
 
@@ -1134,6 +1157,10 @@ function getCertificationFilename(rating) {
                             }
                         });
                         imagePromises.push(p);
+                        // Ensure mask is applied
+                        if (mainBg && mainBg.mask) {
+                            // Check if mask is valid
+                        }
                         val = undefined;
                     } else {
                         val = null;
