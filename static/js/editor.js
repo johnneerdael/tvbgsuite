@@ -37,7 +37,7 @@ function openTab(evt, tabName) {
 // Helper: Extracts all font families directly from the JSON data structure
 function extractFontsFromJSON(data) {
     const fonts = new Set();
-    
+
     const traverse = (objects) => {
         if (!objects) return;
         objects.forEach(obj => {
@@ -54,10 +54,10 @@ function extractFontsFromJSON(data) {
     if (data.objects) traverse(data.objects);
     return Array.from(fonts);
 }
-(function() {
+(function () {
     const originalSetter = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'textBaseline').set;
     Object.defineProperty(CanvasRenderingContext2D.prototype, 'textBaseline', {
-        set: function(value) {
+        set: function (value) {
             if (value === 'alphabetical') value = 'alphabetic';
             return originalSetter.call(this, value);
         },
@@ -65,7 +65,7 @@ function extractFontsFromJSON(data) {
     });
 
     // Patch Textbox to render background covering padding
-    fabric.Textbox.prototype._renderBackground = function(ctx) {
+    fabric.Textbox.prototype._renderBackground = function (ctx) {
         if (!this.backgroundColor) return;
         var dim = this._getNonTransformedDimensions();
         ctx.fillStyle = this.backgroundColor;
@@ -80,7 +80,7 @@ function extractFontsFromJSON(data) {
     };
 
     // Patch IText to render background with same buffer
-    fabric.IText.prototype._renderBackground = function(ctx) {
+    fabric.IText.prototype._renderBackground = function (ctx) {
         if (!this.backgroundColor) return;
         var dim = this._getNonTransformedDimensions();
         ctx.fillStyle = this.backgroundColor;
@@ -95,7 +95,7 @@ function extractFontsFromJSON(data) {
     };
 
     // Patch Image to render background covering padding
-    fabric.Image.prototype._renderBackground = function(ctx) {
+    fabric.Image.prototype._renderBackground = function (ctx) {
         if (!this.backgroundColor) return;
         var dim = this._getNonTransformedDimensions();
         ctx.fillStyle = this.backgroundColor;
@@ -174,7 +174,7 @@ function toggleGroup(id) {
     if (!group) return;
     const content = group.querySelector('.group-content');
     const arrow = group.querySelector('.group-arrow');
-    
+
     content.classList.toggle('collapsed');
     if (arrow) arrow.classList.toggle('collapsed');
 
@@ -188,7 +188,7 @@ function expandGroup(id) {
     const arrow = group.querySelector('.group-arrow');
     content.classList.remove('collapsed');
     if (arrow) arrow.classList.remove('collapsed');
-    
+
     saveSidebarState(id, false);
 }
 
@@ -229,7 +229,7 @@ function updateSelectionUI(e) {
     const alignControl = document.getElementById('textAlignControl');
     const bgControl = document.getElementById('textBackgroundControl');
     const genreControl = document.getElementById('genreLimitControl');
-    
+
     // Hide all initially
     if (textPanel) textPanel.style.display = 'none';
     if (iconPanel) iconPanel.style.display = 'none';
@@ -294,19 +294,19 @@ function updateSelectionUI(e) {
             logoSettings.style.display = 'block';
             const autoFix = document.getElementById('logoAutoFixToggle');
             if (autoFix) autoFix.checked = activeObj.logoAutoFix !== false;
-            
+
             const bright = document.getElementById('logoBrightnessInput');
             if (bright) {
                 const f = (activeObj.filters || []).find(x => x.type === 'Brightness');
                 bright.value = f ? (f.brightness * 100) : 0;
                 const valDisplay = document.getElementById('logoBrightnessVal');
-                if(valDisplay) valDisplay.innerText = bright.value + "%";
+                if (valDisplay) valDisplay.innerText = bright.value + "%";
             }
-            
+
             const col = document.getElementById('logoColorInput');
             const blend = (activeObj.filters || []).find(x => x.type === 'BlendColor');
             if (col) col.value = blend ? blend.color : (activeObj.tint || "#ffffff");
-            
+
             // Hide "Use Text Title" if this is not the title tag
             const useTextBtn = document.querySelector('button[data-i18n="use_text_title"]');
             if (useTextBtn) {
@@ -318,20 +318,20 @@ function updateSelectionUI(e) {
             textPanel.style.display = 'block';
             expandGroup('group-text');
         }
-        
+
         let textObj = activeObj;
         if (activeObj.type === 'group') textObj = activeObj.getObjects().find(o => o.type === 'i-text');
-        
+
         // Show "Use Logo" button only if it is a title and we have a logo url
         const useLogoBtn = document.getElementById('btn-use-logo');
         if (useLogoBtn) {
             useLogoBtn.style.display = (activeObj.dataTag === 'title' && lastFetchedData && lastFetchedData.logo_url) ? 'block' : 'none';
         }
-        
+
         if (textObj) {
             document.getElementById('fontSizeInput').value = textObj.fontSize;
             document.getElementById('fontFamilySelect').value = textObj.fontFamily;
-            
+
             // Populate Stroke
             document.getElementById('textStrokeColor').value = textObj.stroke || "#000000";
             document.getElementById('textStrokeWidth').value = textObj.strokeWidth || 0;
@@ -348,12 +348,12 @@ function updateSelectionUI(e) {
                 document.getElementById('shadowOffsetX').value = 0;
                 document.getElementById('shadowOffsetY').value = 0;
             }
-            
+
             // Check fill type (Pattern vs Color)
             const isPattern = (textObj.fill && typeof textObj.fill === 'object' && textObj.fill.source);
             document.getElementById('fillTypeTexture').checked = isPattern;
             document.getElementById('fillTypeColor').checked = !isPattern;
-            
+
             document.getElementById('fillColorContainer').style.display = isPattern ? 'none' : 'block';
             document.getElementById('fillTextureContainer').style.display = isPattern ? 'block' : 'none';
 
@@ -385,7 +385,7 @@ function updateSelectionUI(e) {
                 }
             }
         }
-        
+
         if (activeObj.type === 'textbox') {
             alignControl.style.display = 'block';
         } else {
@@ -398,14 +398,14 @@ function updateSelectionUI(e) {
                 const hasBg = !!activeObj.backgroundColor;
                 document.getElementById('textBgEnable').checked = hasBg;
                 document.getElementById('textBgSettings').style.display = hasBg ? 'block' : 'none';
-                
+
                 if (hasBg) {
                     const c = new fabric.Color(activeObj.backgroundColor);
                     const source = c.getSource();
                     const isAuto = activeObj.autoBackgroundColor || false;
                     document.getElementById('textBgAuto').checked = isAuto;
                     document.getElementById('textBgColor').disabled = isAuto;
-                    
+
                     if (source) {
                         const hex = "#" + ((1 << 24) + (source[0] << 16) + (source[1] << 8) + source[2]).toString(16).slice(1);
                         document.getElementById('textBgColor').value = hex;
@@ -427,12 +427,12 @@ function updateSelectionUI(e) {
 
 function updateSelectedFontSize() {
     const activeObj = canvas.getActiveObject();
-    if (activeObj) { 
+    if (activeObj) {
         const newSize = parseInt(document.getElementById('fontSizeInput').value);
         let textObj = (activeObj.type === 'group') ? activeObj.getObjects().find(o => o.type === 'i-text') : activeObj;
-        if (textObj) { 
-            textObj.set("fontSize", newSize); 
-            if(activeObj.type==='group') {
+        if (textObj) {
+            textObj.set("fontSize", newSize);
+            if (activeObj.type === 'group') {
                 if (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating') {
                     const imgObj = activeObj.getObjects().find(o => o.type === 'image');
                     if (imgObj) {
@@ -441,7 +441,7 @@ function updateSelectedFontSize() {
                         textObj.set('top', imgObj.top + (imgObj.getScaledHeight() - textObj.getScaledHeight()) / 2);
                     }
                 }
-                activeObj.addWithUpdate(); 
+                activeObj.addWithUpdate();
             }
             else activeObj.setCoords();
             updateVerticalLayout();
@@ -465,14 +465,14 @@ function updateIconSize() {
 
 function updateSelectedFontFamily() {
     const activeObj = canvas.getActiveObject();
-    if (activeObj) { 
-        let textObj = (activeObj.type === 'group') ? activeObj.getObjects().find(o => o.type === 'i-text') : activeObj; 
-        if(textObj) { 
+    if (activeObj) {
+        let textObj = (activeObj.type === 'group') ? activeObj.getObjects().find(o => o.type === 'i-text') : activeObj;
+        if (textObj) {
             const fontName = document.getElementById('fontFamilySelect').value;
             document.fonts.load(`10px "${fontName}"`).then(() => {
-                textObj.set("fontFamily", fontName); 
+                textObj.set("fontFamily", fontName);
                 if (textObj.type === 'i-text') textObj.set("text", textObj.text);
-                if(activeObj.type==='group') {
+                if (activeObj.type === 'group') {
                     if (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating') {
                         canvas.renderAll(); // Force dimension update for text
                         const imgObj = activeObj.getObjects().find(o => o.type === 'image');
@@ -480,7 +480,7 @@ function updateSelectedFontFamily() {
                             textObj.set('top', imgObj.top + (imgObj.getScaledHeight() - textObj.getScaledHeight()) / 2);
                         }
                     }
-                    activeObj.addWithUpdate(); 
+                    activeObj.addWithUpdate();
                 }
                 else activeObj.setCoords();
                 canvas.renderAll(); // Force dimension update before layout
@@ -488,7 +488,7 @@ function updateSelectedFontFamily() {
                 canvas.requestRenderAll();
                 saveToLocalStorage();
             });
-        } 
+        }
     }
 }
 
@@ -529,10 +529,10 @@ function applyFontSizeToAll() {
         if (obj.dataTag === 'overview' || obj.dataTag === 'title') return;
 
         let textObj = (obj.type === 'group') ? obj.getObjects().find(o => o.type === 'i-text') : obj;
-        
+
         if (textObj && (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'group')) {
             textObj.set("fontSize", newSize);
-            
+
             if (obj.type === 'group') {
                 if (obj.dataTag === 'rating_star' || obj.dataTag === 'rating') {
                     const imgObj = obj.getObjects().find(o => o.type === 'image');
@@ -582,9 +582,9 @@ function toggleMatchHeight() {
     if (activeObj && activeObj.type === 'image') {
         activeObj.matchHeight = document.getElementById('matchHeightToggle').checked;
         document.getElementById('iconSizeInput').disabled = activeObj.matchHeight;
-        if(document.getElementById('ribbonIconSize')) document.getElementById('ribbonIconSize').disabled = activeObj.matchHeight;
-        if(document.getElementById('floatIconSize')) document.getElementById('floatIconSize').disabled = activeObj.matchHeight;
-        
+        if (document.getElementById('ribbonIconSize')) document.getElementById('ribbonIconSize').disabled = activeObj.matchHeight;
+        if (document.getElementById('floatIconSize')) document.getElementById('floatIconSize').disabled = activeObj.matchHeight;
+
         updateVerticalLayout();
         canvas.requestRenderAll();
         saveToLocalStorage();
@@ -597,9 +597,9 @@ function toggleObjectSnapping(type) {
         let checkbox;
         if (type === 'text') checkbox = document.getElementById('snapToggleText');
         else if (type === 'icon') checkbox = document.getElementById('snapToggleIcon');
-        
+
         if (checkbox) activeObj.snapToObjects = checkbox.checked;
-        
+
         // Force layout update if snapping is re-enabled to snap tag back to grid
         if (activeObj.snapToObjects) {
             updateVerticalLayout();
@@ -625,10 +625,10 @@ function resetSnap(type) {
 function moveLayer(direction) {
     const activeObj = canvas.getActiveObject();
     if (!activeObj) return;
-    
+
     if (direction === 'up') canvas.bringForward(activeObj);
     else canvas.sendBackwards(activeObj);
-    
+
     enforceLayering();
     canvas.requestRenderAll();
     saveToLocalStorage();
@@ -641,7 +641,7 @@ function updateTextStroke() {
         if (textObj && (textObj.type === 'i-text' || textObj.type === 'textbox')) {
             textObj.set('stroke', document.getElementById('textStrokeColor').value);
             textObj.set('strokeWidth', parseFloat(document.getElementById('textStrokeWidth').value));
-            if(activeObj.type === 'group') activeObj.addWithUpdate();
+            if (activeObj.type === 'group') activeObj.addWithUpdate();
             canvas.requestRenderAll();
             saveToLocalStorage();
         }
@@ -657,13 +657,13 @@ function updateTextShadow() {
             const blur = parseInt(document.getElementById('shadowBlur').value);
             const offsetX = parseInt(document.getElementById('shadowOffsetX').value);
             const offsetY = parseInt(document.getElementById('shadowOffsetY').value);
-            
+
             if (blur === 0 && offsetX === 0 && offsetY === 0) {
                 textObj.set('shadow', null);
             } else {
                 textObj.set('shadow', new fabric.Shadow({ color, blur, offsetX, offsetY }));
             }
-            if(activeObj.type === 'group') activeObj.addWithUpdate();
+            if (activeObj.type === 'group') activeObj.addWithUpdate();
             canvas.requestRenderAll();
             saveToLocalStorage();
         }
@@ -704,13 +704,13 @@ function toggleTextBackground() {
 function updateTextBackgroundSettings() {
     const activeObj = canvas.getActiveObject();
     if (!activeObj || (activeObj.type !== 'textbox' && activeObj.type !== 'image' && activeObj.type !== 'i-text')) return;
-    
+
     const isAuto = document.getElementById('textBgAuto').checked;
     const opacity = parseInt(document.getElementById('textBgOpacity').value) / 100;
     document.getElementById('textBgOpacityVal').innerText = Math.round(opacity * 100) + "%";
     document.getElementById('textBgColor').disabled = isAuto;
     activeObj.autoBackgroundColor = isAuto;
-    
+
     let r, g, b;
     if (isAuto) {
         const rgb = new fabric.Color(document.getElementById('bgColor').value).getSource();
@@ -727,38 +727,38 @@ function updateTextBackgroundSettings() {
 
 function updateSelectedColor() {
     const activeObj = canvas.getActiveObject();
-    if (activeObj) { 
-        let textObj = (activeObj.type === 'group') ? activeObj.getObjects().find(o => o.type === 'i-text') : activeObj; 
-        if(textObj) { 
-            textObj.set("fill", document.getElementById('fontColorInput').value); 
-            if(activeObj.type==='group') activeObj.addWithUpdate(); 
-            canvas.renderAll(); 
-        } 
+    if (activeObj) {
+        let textObj = (activeObj.type === 'group') ? activeObj.getObjects().find(o => o.type === 'i-text') : activeObj;
+        if (textObj) {
+            textObj.set("fill", document.getElementById('fontColorInput').value);
+            if (activeObj.type === 'group') activeObj.addWithUpdate();
+            canvas.renderAll();
+        }
     }
 }
 
 function fitTextToContainer(textbox) {
     if (!canvas || !textbox) return;
     const textSource = textbox.fullMediaText || textbox.text || "";
-    
+
     // Performance: Disable auto-render during calculation
     const oldState = canvas.renderOnAddRemove;
     canvas.renderOnAddRemove = false;
 
     // 1. Maximize Space: Tight line height
     textbox.set('lineHeight', 1.1);
-    
+
     // 2. Reset to full text to measure
     textbox.set('text', textSource);
     textbox.initDimensions();
-    
+
     // 3. Calculate limit (Safety padding 5px)
     const limit = (textbox.fixedHeight || textbox.height) - 5;
-    
+
     // 4. Aggressive Fitting (Truncation)
     if (textbox.height > limit) {
         let words = textSource.split(' ');
-        
+
         // Optimization: Jump start if way too big
         if (textbox.height > limit * 1.5) {
             const ratio = limit / textbox.height;
@@ -775,7 +775,7 @@ function fitTextToContainer(textbox) {
 
 function extractMetadata(item) {
     if (!item) return {};
-    
+
     let actionUrl = null;
     if (item.source === 'Jellyfin' && item.id) {
         actionUrl = "jellyfin://items/" + item.id;
@@ -800,16 +800,16 @@ function extractMetadata(item) {
 async function searchMedia() {
     const query = document.getElementById('mediaSearchInput').value;
     if (!query) return;
-    
+
     const btn = document.querySelector('button[onclick="searchMedia()"]');
     const originalText = btn.innerText;
     btn.innerText = "⏳";
     btn.disabled = true;
-    
+
     try {
         const resp = await fetch(`/api/media/search?q=${encodeURIComponent(query)}`);
         const items = await resp.json();
-        
+
         if (items.length === 0) {
             alert("No results found.");
         } else if (items.length === 1) {
@@ -842,12 +842,12 @@ async function fetchRandomPreview() {
 async function fetchMediaData(itemId = null) {
     const btn = document.getElementById('btn-shuffle');
     const indicator = document.getElementById('source-indicator');
-    
+
     btn.disabled = true;
     const originalText = btn.innerText;
     if (!isBatchRunning) btn.innerText = "⏳ Loading...";
     if (!isBatchRunning) indicator.innerText = "Fetching...";
-    
+
     // Clear background and effects immediately to prevent persistence
     let bgState = null;
     if (canvas) {
@@ -877,7 +877,7 @@ async function fetchMediaData(itemId = null) {
         const effectObjects = canvas.getObjects().filter(o => o.dataTag === 'fade_effect' || o.dataTag === 'ambilight_bg');
         effectObjects.forEach(o => canvas.remove(o));
         if (ambilightBg) { canvas.remove(ambilightBg); ambilightBg = null; }
-        
+
         canvas.requestRenderAll();
     }
 
@@ -886,7 +886,7 @@ async function fetchMediaData(itemId = null) {
         const response = await fetch(url);
         const data = await response.json();
         lastFetchedData = data;
-        
+
         // 1. Assets vorladen (Preload) - noch nichts am Canvas ändern!
         const assetPromises = [];
         let newLogoImg = null;
@@ -927,9 +927,9 @@ async function fetchMediaData(itemId = null) {
             fadeObjects.forEach(o => canvas.remove(o));
 
             // Remove Ambilight if exists
-            if (ambilightBg) { 
-                canvas.remove(ambilightBg); 
-                ambilightBg = null; 
+            if (ambilightBg) {
+                canvas.remove(ambilightBg);
+                ambilightBg = null;
             }
             canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg').forEach(o => canvas.remove(o));
         }
@@ -938,16 +938,16 @@ async function fetchMediaData(itemId = null) {
         await previewTemplate(data, true, newLogoImg);
         saveToLocalStorage();
         canvas.renderAll(); // Force synchronous render to ensure image is ready
-        
+
         // Safety Net
         updateVerticalLayout();
-        setTimeout(() => { 
-            canvas.requestRenderAll(); 
-            updateVerticalLayout(); 
+        setTimeout(() => {
+            canvas.requestRenderAll();
+            updateVerticalLayout();
         }, 500);
-        
+
         const btnSaveGallery = document.getElementById('btn-save-gallery');
-        if(btnSaveGallery) btnSaveGallery.disabled = false;
+        if (btnSaveGallery) btnSaveGallery.disabled = false;
 
         if (!isBatchRunning) indicator.innerText = "Source: " + data.source;
     } catch (err) { console.error(err); indicator.innerText = "Error loading preview"; }
@@ -960,16 +960,16 @@ async function fetchMediaData(itemId = null) {
 function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
     return new Promise((resolve) => {
         if (!canvas || !mediaData) { resolve(); return; }
-        
+
         // Helper to calculate smart positioning for the new logo
         const getNewLogoLeft = (oldObj, newWidth, newScale) => {
             const align = document.getElementById('tagAlignSelect').value;
             const marginLeft = parseInt(document.getElementById('marginLeftInput').value) || 50;
             const marginRight = parseInt(document.getElementById('marginRightInput').value) || 50;
-            
+
             const cW = canvas.width;
             const oldW = oldObj.getScaledWidth();
-            
+
             let boundsL = oldObj.left;
             let boundsR = oldObj.left + oldW;
 
@@ -991,16 +991,16 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
         };
 
         let promises = [];
-        
+
         [...canvas.getObjects()].forEach(obj => {
             if (obj.dataTag) {
                 let val = undefined; // Changed from "" to undefined to prevent accidental hiding of unhandled tags
-                switch(obj.dataTag) {
+                switch (obj.dataTag) {
                     case 'title':
                         if (mediaData.logo_url && preloadedLogo) {
                             const autoFix = document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true;
                             // Benutze das vorgeladene Logo sofort (synchron)
-                            
+
                             // --- START: New aggressive Smart-Resize Logic ---
                             const baseMaxW = canvas.width * 0.55;
                             const baseMaxH = canvas.height * 0.35;
@@ -1015,7 +1015,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             }
 
                             let scale;
-                            
+
                             if (preferredLogoWidth) {
                                 // Try to match the preferred width (restore state)
                                 scale = preferredLogoWidth / preloadedLogo.width;
@@ -1023,7 +1023,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 if (preloadedLogo.height * scale > allowedHeight) {
                                     scale = allowedHeight / preloadedLogo.height;
                                     // Do NOT update preferredLogoWidth here, so we remember the wide preference
-                                } 
+                                }
                             } else {
                                 // No preference yet? Calculate default fit.
                                 scale = Math.min(baseMaxW / preloadedLogo.width, allowedHeight / preloadedLogo.height) * 0.9;
@@ -1032,7 +1032,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             }
 
                             // --- END ---
-                            
+
                             const newLeft = getNewLogoLeft(obj, preloadedLogo.width, scale);
 
                             preloadedLogo.set({ left: newLeft, top: obj.top, dataTag: 'title', logoAutoFix: autoFix });
@@ -1045,9 +1045,9 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 if (!autoFix) {
                                     proxiedLogo += "&raw=true";
                                 }
-                                fabric.Image.fromURL(proxiedLogo, function(img, isError) {
+                                fabric.Image.fromURL(proxiedLogo, function (img, isError) {
                                     if (isError || !img) { canvas.remove(obj); r(); return; }
-                                    
+
                                     // --- START: New aggressive Smart-Resize Logic ---
                                     const baseMaxW = canvas.width * 0.55;
                                     const baseMaxH = canvas.height * 0.35;
@@ -1062,7 +1062,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                     }
 
                                     let scale;
-                                    
+
                                     if (preferredLogoWidth) {
                                         // Try to match the preferred width (restore state)
                                         scale = preferredLogoWidth / img.width;
@@ -1078,30 +1078,58 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                         if (ratio >= 0.65) preferredLogoWidth = img.width * scale;
                                     }
                                     // --- END ---
-                                    
+
                                     const newLeft = getNewLogoLeft(obj, img.width, scale);
 
                                     img.set({ left: newLeft, top: obj.top, dataTag: 'title', logoAutoFix: autoFix });
                                     img.scale(scale);
-                                    canvas.remove(obj); canvas.add(img); 
+                                    canvas.remove(obj); canvas.add(img);
                                     r();
                                 }, { crossOrigin: 'anonymous' });
                             });
                             promises.push(p);
-                            return; 
-                        } else { 
+                            return;
+                        } else {
                             val = mediaData.title || mediaData.Name;
                             // Fix: If switching from Logo (Image) to Text, replace the object
                             if (obj.type === 'image') {
                                 const is4K = document.getElementById('resSelect').value === '2160';
                                 const titleSize = is4K ? 120 : 80;
-                                const newText = new fabric.IText(val, { 
-                                    left: obj.left, top: obj.top, 
-                                    fontFamily: 'Roboto', fontSize: titleSize, 
-                                    fill: 'white', shadow: '2px 2px 10px rgba(0,0,0,0.8)', 
-                                    dataTag: 'title', editable: false 
+                                // Fix: Read alignment from UI controls, not mediaData
+                                const uiAlign = document.getElementById('tagAlignSelect') ? document.getElementById('tagAlignSelect').value : 'left';
+                                const newText = new fabric.Textbox(val, {
+                                    left: obj.left, top: obj.top,
+                                    width: canvas.width * 0.5,
+                                    fontFamily: 'Roboto', fontSize: titleSize,
+                                    fill: 'white', shadow: '2px 2px 10px rgba(0,0,0,0.8)',
+                                    dataTag: 'title', editable: false,
+                                    textAlign: uiAlign,
+                                    splitByGrapheme: false
                                 });
-                                
+
+                                // Shrink width to fit actual text
+                                let maxLineW = 0;
+                                if (newText._textLines && newText._textLines.length > 0) {
+                                    for (let i = 0; i < newText._textLines.length; i++) {
+                                        const w = newText.getLineWidth(i);
+                                        if (w > maxLineW) maxLineW = w;
+                                    }
+                                    if (maxLineW > 0) {
+                                        newText.set({ width: maxLineW + 40 }); // buffer
+
+                                        // Recalculate Position based on alignment (mirrors render_task.js logic)
+                                        // We need to shift the box so it visual aligns correctly within the original placeholder area
+                                        // based on its NEW width.
+                                        if (uiAlign === 'right') {
+                                            newText.set({ left: (obj.left + obj.width) - newText.width });
+                                        } else if (uiAlign === 'center') {
+                                            newText.set({ left: (obj.left + (obj.width / 2)) - (newText.width / 2) });
+                                        }
+                                    } else {
+                                        newText.set({ width: canvas.width * 0.5 }); // fallback width
+                                    }
+                                }
+
                                 const newLeft = getNewLogoLeft(obj, newText.width, newText.scaleX);
                                 newText.set('left', newLeft);
 
@@ -1109,49 +1137,49 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             }
                         }
                         break;
-                    case 'year': 
+                    case 'year':
                         val = mediaData.year;
                         if (val === undefined || val === null) val = mediaData.ProductionYear;
                         if (val === undefined) val = null;
                         break;
-                    case 'rating': 
-                        let r = mediaData.rating || mediaData.CommunityRating; 
+                    case 'rating':
+                        let r = mediaData.rating || mediaData.CommunityRating;
                         if (r && r !== 'N/A' && !isNaN(parseFloat(r))) r = parseFloat(r).toFixed(1);
                         else r = null; // Invalid rating
-                        
+
                         if (obj.type === 'group') {
                             const t = obj.getObjects().find(o => o.type === 'i-text');
-                            if(t) { t.set({ text: r ? `${r}` : '' }); obj.addWithUpdate(); }
+                            if (t) { t.set({ text: r ? `${r}` : '' }); obj.addWithUpdate(); }
                             val = undefined;
                             obj.set('visible', !!r);
                         } else {
-                            val = r ? `IMDb: ${r}` : null; 
+                            val = r ? `IMDb: ${r}` : null;
                         }
                         break;
-                    case 'rating_val': 
-                        let rv = mediaData.rating || mediaData.CommunityRating; 
+                    case 'rating_val':
+                        let rv = mediaData.rating || mediaData.CommunityRating;
                         if (rv && rv !== 'N/A' && !isNaN(parseFloat(rv))) rv = parseFloat(rv).toFixed(1);
                         else rv = null;
-                        val = rv ? `${rv}` : null; 
+                        val = rv ? `${rv}` : null;
                         break;
-                    case 'rating_star': 
-                        let rs = mediaData.rating || mediaData.CommunityRating; 
+                    case 'rating_star':
+                        let rs = mediaData.rating || mediaData.CommunityRating;
                         if (rs && rs !== 'N/A' && !isNaN(parseFloat(rs))) rs = parseFloat(rs).toFixed(1);
                         else rs = null;
                         val = rs ? `${rs}` : null;
                         if (obj.type === 'group') {
                             const t = obj.getObjects().find(o => o.type === 'i-text');
-                            if(t) { t.set({ text: val || '' }); obj.addWithUpdate(); }
-                            val = undefined; 
+                            if (t) { t.set({ text: val || '' }); obj.addWithUpdate(); }
+                            val = undefined;
                             obj.set('visible', !!rs);
                         }
                         break;
-                    case 'overview': 
+                    case 'overview':
                         let ov = mediaData.overview || mediaData.Overview || "";
                         if (obj.type === 'textbox') { obj.fullMediaText = ov; } else { val = ov; }
                         break;
-                    case 'genres': 
-                        val = mediaData.genres || ""; 
+                    case 'genres':
+                        val = mediaData.genres || "";
                         const gLimit = parseInt(document.getElementById('genreLimitSlider').value);
                         if (gLimit < 6) {
                             val = val.split(',').slice(0, gLimit).join(',');
@@ -1179,23 +1207,23 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                     case 'certification':
                         let cert = mediaData.officialRating || mediaData.certification || mediaData.OfficialRating;
                         let certUrl = null;
-                        
+
                         // 1. Try Official Rating string
                         if (cert) {
                             certUrl = getCertificationImageUrl(cert);
                         }
-                        
+
                         // 2. Fallback: If no URL found (or no official rating), try Inherited Value (Numeric)
                         if (!certUrl && mediaData.inheritedParentalRatingValue !== undefined) {
                             certUrl = getCertificationImageUrl(String(mediaData.inheritedParentalRatingValue));
                         }
-                        
+
                         if (certUrl) {
                             const p = new Promise(r => {
                                 const urlToLoad = certUrl.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(certUrl)}` : certUrl;
-                                fabric.Image.fromURL(urlToLoad, function(img, isError) {
+                                fabric.Image.fromURL(urlToLoad, function (img, isError) {
                                     if (isError || !img) { obj.set('visible', false); r(); return; }
-                                    const targetHeight = obj.getScaledHeight(); 
+                                    const targetHeight = obj.getScaledHeight();
                                     img.scaleToHeight(targetHeight);
                                     img.set({ left: obj.left, top: obj.top, dataTag: 'certification' });
                                     if (obj.matchHeight) img.matchHeight = true;
@@ -1211,7 +1239,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         }
                         break;
                 }
-                
+
                 // Only update visibility for tags that actually produced a value (or explicit null)
                 if (val !== undefined && obj.dataTag !== 'overview' && obj.dataTag !== 'background' && obj.dataTag !== 'fade_effect' && obj.dataTag !== 'guide_overlay') {
                     if (val === null || val === "" || val === "N/A") {
@@ -1222,7 +1250,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                 }
             }
         });
-        
+
         Promise.all(promises).then(() => {
             document.fonts.ready.then(() => {
                 canvas.renderAll(); // Force dimension update before layout
@@ -1243,7 +1271,7 @@ let detectedBaseColor = null;
 
 function autoDetectBgColor(forceRecalc, skipRender = false) {
     if (!mainBg) return Promise.resolve();
-    
+
     if (forceRecalc || !detectedBaseColor) {
         const img = mainBg.getElement();
         const cvs = document.createElement('canvas');
@@ -1251,27 +1279,27 @@ function autoDetectBgColor(forceRecalc, skipRender = false) {
         cvs.height = img.naturalHeight || img.height;
         const ctx = cvs.getContext('2d');
         ctx.drawImage(img, 0, 0);
-        
-        const frame = 50; 
+
+        const frame = 50;
         const w = cvs.width, h = cvs.height;
-        let r=0, g=0, b=0, count=0;
-        
+        let r = 0, g = 0, b = 0, count = 0;
+
         try {
             const data = ctx.getImageData(0, 0, w, h).data;
-            const step = 20; 
-            for (let y=0; y<h; y+=step) {
-                for (let x=0; x<w; x+=step) {
-                    if (x < frame || x > w-frame || y < frame || y > h-frame) {
-                        const i = (y*w + x)*4;
-                        r += data[i]; g += data[i+1]; b += data[i+2];
+            const step = 20;
+            for (let y = 0; y < h; y += step) {
+                for (let x = 0; x < w; x += step) {
+                    if (x < frame || x > w - frame || y < frame || y > h - frame) {
+                        const i = (y * w + x) * 4;
+                        r += data[i]; g += data[i + 1]; b += data[i + 2];
                         count++;
                     }
                 }
             }
-        } catch(e) { console.error("Pixel access error", e); return; }
-        
+        } catch (e) { console.error("Pixel access error", e); return; }
+
         if (count > 0) {
-            detectedBaseColor = { r: Math.floor(r/count), g: Math.floor(g/count), b: Math.floor(b/count) };
+            detectedBaseColor = { r: Math.floor(r / count), g: Math.floor(g / count), b: Math.floor(b / count) };
         }
     }
     return applyBrightness(skipRender);
@@ -1301,7 +1329,7 @@ function addMetadataTag(type, placeholder) {
     const is4K = document.getElementById('resSelect').value === '2160';
     const baseSize = is4K ? 54 : 35;
     const titleSize = is4K ? 120 : 80;
-    
+
     // 1. Smart Positioning Strategy
     let targetLeft = 100;
     let targetTop = 100;
@@ -1317,7 +1345,7 @@ function addMetadataTag(type, placeholder) {
         if (elements.length > 0) {
             let maxBottom = 0;
             let alignLeft = 100;
-            
+
             // Try to align with the Title if available
             const title = elements.find(o => o.dataTag === 'title');
             if (title) alignLeft = title.left;
@@ -1326,20 +1354,20 @@ function addMetadataTag(type, placeholder) {
                 const bottom = el.top + el.getScaledHeight();
                 if (bottom > maxBottom) maxBottom = bottom;
             });
-            
+
             targetTop = maxBottom + 20;
             targetLeft = alignLeft;
         }
     }
 
-    const props = { 
-        left: targetLeft, 
-        top: targetTop, 
-        fontFamily: 'Roboto', 
-        fontSize: type === 'title' ? titleSize : baseSize, 
-        fill: 'white', 
-        shadow: '2px 2px 10px rgba(0,0,0,0.8)', 
-        dataTag: type 
+    const props = {
+        left: targetLeft,
+        top: targetTop,
+        fontFamily: 'Roboto',
+        fontSize: type === 'title' ? titleSize : baseSize,
+        fill: 'white',
+        shadow: '2px 2px 10px rgba(0,0,0,0.8)',
+        dataTag: type
     };
 
     // Helper to add object and trigger layout update
@@ -1349,13 +1377,13 @@ function addMetadataTag(type, placeholder) {
         updateVerticalLayout();
         saveToLocalStorage();
     };
-    
+
     if (type === 'rating_star') {
         const starUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Gold_Star.svg/1024px-Gold_Star.svg.png';
         const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(starUrl)}`;
-        fabric.Image.fromURL(proxiedUrl, function(img) {
-            if(!img) return;
-            img.scaleToHeight(props.fontSize).set({dataTag: 'rating_star_img'});
+        fabric.Image.fromURL(proxiedUrl, function (img) {
+            if (!img) return;
+            img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_star_img' });
             const text = new fabric.IText(placeholder, { ...props, left: img.getScaledWidth() + 10, top: 0, shadow: undefined, editable: false });
             const group = new fabric.Group([img, text], { left: props.left, top: props.top, dataTag: type });
             finalize(group);
@@ -1366,21 +1394,21 @@ function addMetadataTag(type, placeholder) {
     if (type === 'certification') {
         const defaultUrl = '/api/certification/FSK_16.svg';
         const urlToLoad = defaultUrl.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(defaultUrl)}` : defaultUrl;
-        fabric.Image.fromURL(urlToLoad, function(img, isError) {
-            if(isError || !img) { console.error("Failed to load certification image"); return; }
+        fabric.Image.fromURL(urlToLoad, function (img, isError) {
+            if (isError || !img) { console.error("Failed to load certification image"); return; }
             img.scaleToHeight(props.fontSize * 1.5);
             img.set({ left: props.left, top: props.top, dataTag: type });
             finalize(img);
         }, { crossOrigin: 'anonymous', dataTag: type });
         return;
     }
-    
+
     if (type === 'rating') {
         const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/IMDB_Logo_2016.svg/1200px-IMDB_Logo_2016.svg.png';
         const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(logoUrl)}`;
-        fabric.Image.fromURL(proxiedUrl, function(img) {
-            if(!img) return;
-            img.scaleToHeight(props.fontSize).set({dataTag: 'rating_logo_img'});
+        fabric.Image.fromURL(proxiedUrl, function (img) {
+            if (!img) return;
+            img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_logo_img' });
             const textVal = placeholder.replace('IMDb: ', '');
             const text = new fabric.IText(textVal, { ...props, left: img.getScaledWidth() + 10, top: 0, shadow: undefined, editable: false });
             text.set('top', (img.getScaledHeight() - text.getScaledHeight()) / 2);
@@ -1402,9 +1430,9 @@ function addMetadataTag(type, placeholder) {
 
 function addLogo(url) {
     const proxiedUrl = url.startsWith('/') ? url : `/api/proxy/image?url=${encodeURIComponent(url)}`;
-    fabric.Image.fromURL(proxiedUrl, function(img) {
-        if(!img) return;
-        
+    fabric.Image.fromURL(proxiedUrl, function (img) {
+        if (!img) return;
+
         // --- START: New aggressive Smart-Resize Logic ---
 
         // 1. Define base limits (Standard for wide logos)
@@ -1421,12 +1449,12 @@ function addLogo(url) {
             // CASE: Extremely Tall (like "November")
             // Allow only 50% of normal height, otherwise it looks huge.
             allowedHeight = baseMaxH * 0.50;
-        } 
+        }
         else if (ratio < 1.2) {
             // CASE: Square or compact
             // Allow 75% of normal height.
             allowedHeight = baseMaxH * 0.75;
-        } 
+        }
         else {
             // CASE: Normal Wide Logo
             // Can use full height.
@@ -1437,7 +1465,7 @@ function addLogo(url) {
         let scaleFactor = Math.min(baseMaxW / img.width, allowedHeight / img.height);
 
         // Safety padding (optional 90%)
-        scaleFactor *= 0.9; 
+        scaleFactor *= 0.9;
 
         img.scale(scaleFactor);
 
@@ -1477,7 +1505,7 @@ function getCertificationImageUrl(rating) {
     if (clean === 'PG13' || clean === 'USPG13') return 'https://upload.wikimedia.org/wikipedia/commons/c/c0/RATED_PG-13.svg';
     if (clean === 'R' || clean === 'USR') return 'https://upload.wikimedia.org/wikipedia/commons/7/7e/RATED_R.svg';
     if (clean === 'NC17' || clean === 'USNC17') return 'https://upload.wikimedia.org/wikipedia/commons/5/50/RATED_NC-17.svg';
-    
+
     // TV Ratings (US)
     if (clean === 'TVY' || clean === 'USTVY') return 'https://upload.wikimedia.org/wikipedia/commons/2/25/TV-Y_icon.svg';
     if (clean === 'TVY7' || clean === 'USTVY7') return 'https://upload.wikimedia.org/wikipedia/commons/5/5a/TV-Y7_icon.svg';
@@ -1496,12 +1524,12 @@ function updateGenreLimit() {
 
 function groupElementsByRow(elements, threshold = 30) {
     if (!elements.length) return [];
-    
+
     elements.sort((a, b) => a.top - b.top);
-    
+
     const rows = [];
     let currentRow = [elements[0]];
-    
+
     for (let i = 1; i < elements.length; i++) {
         if (Math.abs(elements[i].top - currentRow[0].top) < threshold) {
             currentRow.push(elements[i]);
@@ -1524,9 +1552,9 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
         const aHeight = area.height * scaleFactor;
 
         return (b.left < aLeft + aWidth &&
-                b.left + b.width > aLeft &&
-                b.top < aTop + aHeight &&
-                b.top + b.height > aTop);
+            b.left + b.width > aLeft &&
+            b.top < aTop + aHeight &&
+            b.top + b.height > aTop);
     });
 }
 
@@ -1534,7 +1562,7 @@ function updateVerticalLayout(skipRender = false) {
     if (!canvas) return;
 
     // 1. Check for unready images (width/height 0)
-    const unreadyImages = canvas.getObjects().some(o => 
+    const unreadyImages = canvas.getObjects().some(o =>
         o.type === 'image' && o.visible && (o.width === 0 || o.height === 0)
     );
 
@@ -1549,439 +1577,439 @@ function updateVerticalLayout(skipRender = false) {
         const tagPaddingInput = document.getElementById('tagPaddingInput');
         const hPadding = tagPaddingInput ? parseInt(tagPaddingInput.value) : 20;
         const rowThreshold = 30; // How close elements must be to be considered in the same row
-        
+
         const marginTop = parseInt(document.getElementById('marginTopInput').value) || 50;
         const marginBottom = parseInt(document.getElementById('marginBottomInput').value) || 50;
         const marginLeft = parseInt(document.getElementById('marginLeftInput').value) || 50;
         const marginRight = parseInt(document.getElementById('marginRightInput').value) || 50;
-        
+
         const currentRes = document.getElementById('resSelect') ? document.getElementById('resSelect').value : '1080';
         const scaleFactor = (currentRes === '2160') ? 2 : 1;
 
         canvas.renderAll(); // Ensure all dimensions (especially i-text) are calculated correctly
-        
+
         const anchor = canvas.getObjects().find(o => o.dataTag === 'title');
         if (!anchor) { canvas.requestRenderAll(); return; }
 
-    // Auto-switch alignment based on position (Left vs Right)
-    const alignSelect = document.getElementById('tagAlignSelect');
-    //if (alignSelect.value !== 'center') {
-    //    const centerX = anchor.left + (anchor.getScaledWidth() / 2);
-    //    alignSelect.value = (centerX > canvas.width / 2) ? 'right' : 'left';
-    //}
-    const alignment = alignSelect.value;
+        // Auto-switch alignment based on position (Left vs Right)
+        const alignSelect = document.getElementById('tagAlignSelect');
+        //if (alignSelect.value !== 'center') {
+        //    const centerX = anchor.left + (anchor.getScaledWidth() / 2);
+        //    alignSelect.value = (centerX > canvas.width / 2) ? 'right' : 'left';
+        //}
+        const alignment = alignSelect.value;
 
-    // Sync text alignment for overview and provider_source based on explicit text alignment setting
-    const textAlignment = document.getElementById('textContentAlignSelect').value;
-    canvas.getObjects().forEach(o => {
-        if ((o.dataTag === 'overview' || o.dataTag === 'provider_source') && (o.type === 'textbox' || o.type === 'i-text')) {
-            o.set('textAlign', textAlignment);
-            o.set('dirty', true);
+        // Sync text alignment for overview and provider_source based on explicit text alignment setting
+        const textAlignment = document.getElementById('textContentAlignSelect').value;
+        canvas.getObjects().forEach(o => {
+            if ((o.dataTag === 'overview' || o.dataTag === 'provider_source') && (o.type === 'textbox' || o.type === 'i-text')) {
+                o.set('textAlign', textAlignment);
+                o.set('dirty', true);
+            }
+        });
+
+        // Ensure anchor (Logo/Title) respects screen margin
+        if (anchor.left < marginLeft) anchor.set('left', marginLeft);
+        if (anchor.left + anchor.getScaledWidth() > canvas.width - marginRight) {
+            anchor.set('left', Math.max(marginLeft, canvas.width - marginRight - anchor.getScaledWidth()));
         }
-    });
 
-    // Ensure anchor (Logo/Title) respects screen margin
-    if (anchor.left < marginLeft) anchor.set('left', marginLeft);
-    if (anchor.left + anchor.getScaledWidth() > canvas.width - marginRight) {
-        anchor.set('left', Math.max(marginLeft, canvas.width - marginRight - anchor.getScaledWidth()));
-    }
-    
-    // Vertical constraint for anchor (Top & Bottom)
-    if (anchor.top < marginTop) anchor.set('top', marginTop);
-    if (anchor.top + anchor.getScaledHeight() > canvas.height - marginBottom) {
-        anchor.set('top', Math.max(marginTop, canvas.height - marginBottom - anchor.getScaledHeight()));
-    }
-    anchor.setCoords();
+        // Vertical constraint for anchor (Top & Bottom)
+        if (anchor.top < marginTop) anchor.set('top', marginTop);
+        if (anchor.top + anchor.getScaledHeight() > canvas.height - marginBottom) {
+            anchor.set('top', Math.max(marginTop, canvas.height - marginBottom - anchor.getScaledHeight()));
+        }
+        anchor.setCoords();
 
-    // 2.5. Auto-Scale Anchor to fit in vertical gaps between blocked areas
-    if (activeBlockedAreas.length > 0) {
-        const anchorCenterY = anchor.top + (anchor.getScaledHeight() / 2);
-        const anchorLeft = anchor.left;
-        const anchorRight = anchor.left + anchor.getScaledWidth();
-        
-        // Define vertical boundaries (obstacles) based on current X position
-        const obstacles = [];
-        
-        // Margins
-        obstacles.push({ top: -Infinity, bottom: marginTop });
-        obstacles.push({ top: canvas.height - marginBottom, bottom: Infinity });
-        
-        // Blocked Areas that intersect horizontally
-        activeBlockedAreas.forEach(area => {
-            const aLeft = area.left * scaleFactor;
-            const aWidth = area.width * scaleFactor;
-            const aRight = aLeft + aWidth;
-            
-            // Check horizontal intersection
-            if (aLeft < anchorRight && aRight > anchorLeft) {
+        // 2.5. Auto-Scale Anchor to fit in vertical gaps between blocked areas
+        if (activeBlockedAreas.length > 0) {
+            const anchorCenterY = anchor.top + (anchor.getScaledHeight() / 2);
+            const anchorLeft = anchor.left;
+            const anchorRight = anchor.left + anchor.getScaledWidth();
+
+            // Define vertical boundaries (obstacles) based on current X position
+            const obstacles = [];
+
+            // Margins
+            obstacles.push({ top: -Infinity, bottom: marginTop });
+            obstacles.push({ top: canvas.height - marginBottom, bottom: Infinity });
+
+            // Blocked Areas that intersect horizontally
+            activeBlockedAreas.forEach(area => {
+                const aLeft = area.left * scaleFactor;
+                const aWidth = area.width * scaleFactor;
+                const aRight = aLeft + aWidth;
+
+                // Check horizontal intersection
+                if (aLeft < anchorRight && aRight > anchorLeft) {
                     const aTop = area.top * scaleFactor;
                     const aHeight = area.height * scaleFactor;
                     obstacles.push({ top: aTop, bottom: aTop + aHeight });
+                }
+            });
+
+            // Sort and merge
+            obstacles.sort((a, b) => a.top - b.top);
+            const merged = [];
+            if (obstacles.length > 0) {
+                let curr = obstacles[0];
+                for (let i = 1; i < obstacles.length; i++) {
+                    if (obstacles[i].top < curr.bottom) {
+                        curr.bottom = Math.max(curr.bottom, obstacles[i].bottom);
+                    } else {
+                        merged.push(curr);
+                        curr = obstacles[i];
+                    }
+                }
+                merged.push(curr);
             }
-        });
-        
-        // Sort and merge
-        obstacles.sort((a, b) => a.top - b.top);
-        const merged = [];
-        if (obstacles.length > 0) {
-            let curr = obstacles[0];
-            for (let i = 1; i < obstacles.length; i++) {
-                if (obstacles[i].top < curr.bottom) {
-                    curr.bottom = Math.max(curr.bottom, obstacles[i].bottom);
-                } else {
-                    merged.push(curr);
-                    curr = obstacles[i];
+
+            // Find gaps
+            const gaps = [];
+            for (let i = 0; i < merged.length - 1; i++) {
+                const top = merged[i].bottom;
+                const bottom = merged[i + 1].top;
+                if (bottom > top) {
+                    gaps.push({ top, bottom, height: bottom - top });
                 }
             }
-            merged.push(curr);
-        }
-        
-        // Find gaps
-        const gaps = [];
-        for (let i = 0; i < merged.length - 1; i++) {
-            const top = merged[i].bottom;
-            const bottom = merged[i+1].top;
-            if (bottom > top) {
-                gaps.push({ top, bottom, height: bottom - top });
+
+            // Find relevant gap (closest to center)
+            let bestGap = gaps.find(g => anchorCenterY >= g.top && anchorCenterY <= g.bottom);
+
+            if (!bestGap && gaps.length > 0) {
+                bestGap = gaps.reduce((prev, curr) => {
+                    const prevDist = Math.min(Math.abs(anchorCenterY - prev.top), Math.abs(anchorCenterY - prev.bottom));
+                    const currDist = Math.min(Math.abs(anchorCenterY - curr.top), Math.abs(anchorCenterY - curr.bottom));
+                    return (currDist < prevDist) ? curr : prev;
+                });
+            }
+
+            if (bestGap) {
+                const currentH = anchor.getScaledHeight();
+                const maxH = Math.max(20, bestGap.height - 10); // Max available height in gap (with padding)
+
+                let targetH = currentH;
+
+                // Try to restore to preferred size if available
+                if (preferredLogoWidth && anchor.type === 'image') {
+                    const aspect = anchor.width / anchor.height;
+                    targetH = preferredLogoWidth / aspect;
+                }
+
+                // Constrain target height to available gap
+                const finalH = Math.min(targetH, maxH);
+
+                // Apply if different (with small tolerance to avoid jitter)
+                if (Math.abs(finalH - currentH) > 1) {
+                    const oldLeft = anchor.left;
+                    const oldWidth = anchor.getScaledWidth();
+                    const oldRight = oldLeft + oldWidth;
+                    const oldCenterX = oldLeft + (oldWidth / 2);
+
+                    anchor.scaleToHeight(finalH);
+                    const newWidth = anchor.getScaledWidth();
+
+                    if (alignment === 'right') {
+                        anchor.set('left', oldRight - newWidth);
+                    } else if (alignment === 'left') {
+                        anchor.set('left', oldLeft);
+                    } else {
+                        // Center
+                        anchor.set('left', oldCenterX - (newWidth / 2));
+                    }
+
+                    // Center in gap
+                    anchor.set('top', bestGap.top + (bestGap.height - finalH) / 2);
+                    anchor.setCoords();
+                }
             }
         }
-        
-        // Find relevant gap (closest to center)
-        let bestGap = gaps.find(g => anchorCenterY >= g.top && anchorCenterY <= g.bottom);
-        
-        if (!bestGap && gaps.length > 0) {
-            bestGap = gaps.reduce((prev, curr) => {
-                const prevDist = Math.min(Math.abs(anchorCenterY - prev.top), Math.abs(anchorCenterY - prev.bottom));
-                const currDist = Math.min(Math.abs(anchorCenterY - curr.top), Math.abs(anchorCenterY - curr.bottom));
-                return (currDist < prevDist) ? curr : prev;
+
+        // 3. Anchor Blocked Area Constraints (Push out of blocked areas)
+        let safety = 0;
+        while (checkCollision(anchor, activeBlockedAreas, scaleFactor) && safety < 10) {
+            const b = anchor.getBoundingRect();
+            const area = activeBlockedAreas.find(a => {
+                const aLeft = a.left * scaleFactor;
+                const aTop = a.top * scaleFactor;
+                const aWidth = a.width * scaleFactor;
+                const aHeight = a.height * scaleFactor;
+                return (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
+                    b.top < aTop + aHeight && b.top + b.height > aTop);
             });
-        }
-        
-        if (bestGap) {
-            const currentH = anchor.getScaledHeight();
-            const maxH = Math.max(20, bestGap.height - 10); // Max available height in gap (with padding)
-            
-            let targetH = currentH;
-            
-            // Try to restore to preferred size if available
-            if (preferredLogoWidth && anchor.type === 'image') {
-                const aspect = anchor.width / anchor.height;
-                targetH = preferredLogoWidth / aspect;
+
+            if (area) {
+                const aLeft = area.left * scaleFactor;
+                const aTop = area.top * scaleFactor;
+                const aWidth = area.width * scaleFactor;
+                const aHeight = area.height * scaleFactor;
+
+                // Calculate overlaps
+                const overL = (b.left + b.width) - aLeft;
+                const overR = (aLeft + aWidth) - b.left;
+                const overT = (b.top + b.height) - aTop;
+                const overB = (aTop + aHeight) - b.top;
+
+                // Find minimum push direction to exit the area
+                const min = Math.min(overL, overR, overT, overB);
+
+                if (min === overL) anchor.left -= overL;
+                else if (min === overR) anchor.left += overR;
+                else if (min === overT) anchor.top -= overT;
+                else if (min === overB) anchor.top += overB;
+
+                anchor.setCoords();
             }
-            
-            // Constrain target height to available gap
-            const finalH = Math.min(targetH, maxH);
-            
-            // Apply if different (with small tolerance to avoid jitter)
-            if (Math.abs(finalH - currentH) > 1) {
+            safety++;
+        }
+        anchor.setCoords();
+
+        let current_y = anchor.top + anchor.getScaledHeight() + padding;
+
+        const elements = canvas.getObjects().filter(o => {
+            if (o === mainBg) return false; // Explicitly exclude mainBg
+            if (o.dataTag === 'background') return false;
+            if (o.dataTag === 'title') return false;
+            if (o.dataTag === 'guide') return false;
+            if (o.dataTag === 'fade_effect') return false;
+            if (o.dataTag === 'grid_line') return false;
+            if (o.dataTag === 'guide_overlay') return false;
+            if (o.dataTag === 'ambilight_bg') return false;
+            if (!o.dataTag) return false;
+
+            // FIX: Ignore objects that have snapping disabled (Manual Mode)
+            if (o.snapToObjects === false) return false;
+
+            return true;
+        });
+        const rows = groupElementsByRow(elements, rowThreshold);
+
+        if (rows.length > 0) {
+            let maxRowWidth = 0;
+            rows.forEach(row => {
+                let w = 0;
+                const visibleEls = row.filter(e => e.visible);
+                visibleEls.forEach((el, i) => {
+                    const pad = el.padding || 0;
+                    w += el.getScaledWidth() + (pad * 2);
+                    if (i < visibleEls.length - 1) w += hPadding;
+                });
+                if (w > maxRowWidth) maxRowWidth = w;
+            });
+
+            const anchorW = anchor.getScaledWidth();
+            let shift = 0;
+
+            if (alignment === 'center') {
+                const idealStart = anchor.left + (anchorW - maxRowWidth) / 2;
+                if (idealStart < marginLeft) shift = marginLeft - idealStart;
+                else if (idealStart + maxRowWidth > canvas.width - marginRight) shift = (canvas.width - marginRight - maxRowWidth) - idealStart;
+            } else if (alignment === 'right') {
+                const idealStart = (anchor.left + anchorW) - maxRowWidth;
+                if (idealStart < marginLeft) shift = marginLeft - idealStart;
+            } else { // left
+                const idealStart = anchor.left;
+                if (idealStart + maxRowWidth > canvas.width - marginRight) shift = (canvas.width - marginRight - maxRowWidth) - idealStart;
+            }
+
+            if (shift !== 0) { anchor.set('left', anchor.left + shift); anchor.setCoords(); }
+        }
+
+        const anchorLeft = anchor.left;
+        const anchorWidth = anchor.getScaledWidth();
+
+        rows.forEach(row => {
+            // Auto-resize icons if enabled (Match Height)
+            const resizableIcons = row.filter(el => el.type === 'image' && el.matchHeight && el.visible);
+            if (resizableIcons.length > 0) {
+                const ref = row.find(el => (el.type === 'i-text' || el.type === 'textbox' || el.type === 'group') && !el.matchHeight && el.visible);
+                if (ref) {
+                    const targetH = ref.getScaledHeight();
+                    resizableIcons.forEach(icon => {
+                        if (Math.abs(icon.getScaledHeight() - targetH) > 0.5) {
+                            icon.scaleToHeight(targetH);
+                            icon.setCoords();
+                        }
+                    });
+                }
+            }
+
+            // Sort elements in this row by their X position (left to right)
+            row.sort((a, b) => a.left - b.left);
+
+            // Calculate total width of this row
+            let totalRowWidth = 0;
+            const visibleEls = row.filter(e => e.visible);
+            visibleEls.forEach((el, index) => {
+                el.setCoords(); // Ensure coords are fresh for width calc
+                const pad = el.padding || 0;
+                totalRowWidth += el.getScaledWidth() + (pad * 2);
+                if (index < visibleEls.length - 1) totalRowWidth += hPadding;
+            });
+
+            // Determine starting X: Center relative to logo (even if wider), else align left
+            let current_x;
+            if (alignment === 'center') {
+                current_x = anchorLeft + (anchorWidth - totalRowWidth) / 2;
+            } else if (alignment === 'right') {
+                current_x = (anchorLeft + anchorWidth) - totalRowWidth;
+                // FIX: Shift right to align CONTENT edge to anchor (ignore padding of last element)
+                const lastEl = visibleEls[visibleEls.length - 1];
+                if (lastEl) current_x += (lastEl.padding || 0);
+            } else {
+                current_x = anchorLeft;
+                // FIX: Shift left to align CONTENT edge to anchor (ignore padding of first element)
+                const firstEl = visibleEls[0];
+                if (firstEl) current_x -= (firstEl.padding || 0);
+            }
+
+            // Ensure tags don't go off-screen (apply margins)
+            if (current_x < marginLeft) current_x = marginLeft;
+            if (current_x + totalRowWidth > canvas.width - marginRight) {
+                current_x = Math.max(marginLeft, canvas.width - marginRight - totalRowWidth);
+            }
+
+            const maxRowHeight = Math.max(...row.map(el => el.visible ? el.getScaledHeight() + ((el.padding || 0) * 2) : 0));
+
+            // Stack elements horizontally starting from the calculated current_x
+            row.forEach(el => {
+                const pad = el.padding || 0;
+                el.set({ top: current_y + pad, left: current_x + pad });
+                el.setCoords(); // Update coordinates for accurate width calculation
+
+                // Collision Detection with Blocked Areas
+                // If collision, push right until clear OR until limit reached
+                const startX = current_x;
+                let isColliding = checkCollision(el, activeBlockedAreas, scaleFactor);
+
+                while (isColliding && current_x < canvas.width - marginRight) {
+                    current_x += 10;
+                    el.set({ left: current_x + pad });
+                    el.setCoords();
+                    isColliding = checkCollision(el, activeBlockedAreas, scaleFactor);
+                }
+                // If still colliding (e.g. full width bar), reset X to preserve alignment and let vertical shift handle it
+                if (isColliding) {
+                    current_x = startX;
+                    el.set({ left: current_x + pad });
+                    el.setCoords();
+                }
+
+                if (el.visible) {
+                    current_x += el.getScaledWidth() + (pad * 2) + hPadding;
+                } else {
+                    // Increment tiny amount to preserve order for next sort without visual gap
+                    current_x += 0.1;
+                }
+            });
+
+            // Check for right overflow and shift back if needed (prevent disappearing)
+            const lastEl = row[row.length - 1];
+            if (lastEl && lastEl.visible) {
+                const rightEdge = lastEl.left + lastEl.getScaledWidth();
+                const maxRight = canvas.width - marginRight;
+                if (rightEdge > maxRight) {
+                    const overflow = rightEdge - maxRight;
+                    row.forEach(el => {
+                        el.left -= overflow;
+                        el.setCoords();
+                    });
+                }
+            }
+
+            if (maxRowHeight > 0) {
+                current_y += maxRowHeight + padding;
+            }
+        });
+
+        // Check for bottom overflow and shift up if necessary
+        const contentBottom = current_y - padding;
+        const maxBottom = canvas.height - marginBottom;
+
+        // NEW: Check collision with blocked areas for all placed elements to trigger vertical shift
+        let maxBlockedShift = 0;
+        const allElements = [anchor];
+        rows.forEach(row => row.forEach(el => { if (el.visible) allElements.push(el); }));
+
+        allElements.forEach(el => {
+            const b = el.getBoundingRect();
+            activeBlockedAreas.forEach(area => {
+                const aLeft = area.left * scaleFactor;
+                const aTop = area.top * scaleFactor;
+                const aWidth = area.width * scaleFactor;
+                const aHeight = area.height * scaleFactor;
+
+                if (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
+                    b.top < aTop + aHeight && b.top + b.height > aTop) {
+                    const overlap = (b.top + b.height) - aTop;
+                    if (overlap > 0 && overlap > maxBlockedShift) maxBlockedShift = overlap;
+                }
+            });
+        });
+
+        const marginShift = Math.max(0, contentBottom - maxBottom);
+        const totalShift = Math.max(marginShift, maxBlockedShift);
+
+        if (totalShift > 0) {
+            // Calculate available space above considering margins AND blocked areas
+            let limitTop = marginTop;
+
+            const anchorLeft = anchor.left;
+            const anchorRight = anchor.left + anchor.getScaledWidth();
+
+            activeBlockedAreas.forEach(area => {
+                const aLeft = area.left * scaleFactor;
+                const aWidth = area.width * scaleFactor;
+                const aRight = aLeft + aWidth;
+                const aTop = area.top * scaleFactor;
+                const aHeight = area.height * scaleFactor;
+                const aBottom = aTop + aHeight;
+
+                // Check horizontal intersection with anchor
+                if (aLeft < anchorRight && aRight > anchorLeft) {
+                    // If this area is above the anchor (with slight tolerance)
+                    if (aBottom <= anchor.top + 5) {
+                        if (aBottom > limitTop) limitTop = aBottom;
+                    }
+                }
+            });
+
+            const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
+
+            if (totalShift > maxSafeShiftUp) {
+                // Need to shrink because we can't shift up enough
+                const deficit = totalShift - maxSafeShiftUp;
+                const currentHeight = anchor.getScaledHeight();
+                const newHeight = Math.max(20, currentHeight - deficit); // Min height 20px
+
+                // Capture old state for alignment preservation
                 const oldLeft = anchor.left;
                 const oldWidth = anchor.getScaledWidth();
                 const oldRight = oldLeft + oldWidth;
                 const oldCenterX = oldLeft + (oldWidth / 2);
 
-                anchor.scaleToHeight(finalH);
+                // Apply shrink and move to limit
+                anchor.scaleToHeight(newHeight);
                 const newWidth = anchor.getScaledWidth();
-                
+
+                // Restore horizontal alignment
                 if (alignment === 'right') {
                     anchor.set('left', oldRight - newWidth);
-                } else if (alignment === 'left') {
-                    anchor.set('left', oldLeft);
-                } else {
-                    // Center
+                } else if (alignment === 'center') {
                     anchor.set('left', oldCenterX - (newWidth / 2));
                 }
+                // 'left' is default (anchor.left stays oldLeft)
 
-                // Center in gap
-                anchor.set('top', bestGap.top + (bestGap.height - finalH) / 2);
-                anchor.setCoords();
-            }
-        }
-    }
-
-    // 3. Anchor Blocked Area Constraints (Push out of blocked areas)
-    let safety = 0;
-    while (checkCollision(anchor, activeBlockedAreas, scaleFactor) && safety < 10) {
-        const b = anchor.getBoundingRect();
-        const area = activeBlockedAreas.find(a => {
-            const aLeft = a.left * scaleFactor;
-            const aTop = a.top * scaleFactor;
-            const aWidth = a.width * scaleFactor;
-            const aHeight = a.height * scaleFactor;
-            return (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
-                    b.top < aTop + aHeight && b.top + b.height > aTop);
-        });
-
-        if (area) {
-            const aLeft = area.left * scaleFactor;
-            const aTop = area.top * scaleFactor;
-            const aWidth = area.width * scaleFactor;
-            const aHeight = area.height * scaleFactor;
-
-            // Calculate overlaps
-            const overL = (b.left + b.width) - aLeft;
-            const overR = (aLeft + aWidth) - b.left;
-            const overT = (b.top + b.height) - aTop;
-            const overB = (aTop + aHeight) - b.top;
-            
-            // Find minimum push direction to exit the area
-            const min = Math.min(overL, overR, overT, overB);
-            
-            if (min === overL) anchor.left -= overL;
-            else if (min === overR) anchor.left += overR;
-            else if (min === overT) anchor.top -= overT;
-            else if (min === overB) anchor.top += overB;
-            
-            anchor.setCoords();
-        }
-        safety++;
-    }
-    anchor.setCoords();
-
-    let current_y = anchor.top + anchor.getScaledHeight() + padding;
-    
-    const elements = canvas.getObjects().filter(o => {
-        if (o === mainBg) return false; // Explicitly exclude mainBg
-        if (o.dataTag === 'background') return false;
-        if (o.dataTag === 'title') return false;
-        if (o.dataTag === 'guide') return false;
-        if (o.dataTag === 'fade_effect') return false;
-        if (o.dataTag === 'grid_line') return false;
-        if (o.dataTag === 'guide_overlay') return false;
-        if (o.dataTag === 'ambilight_bg') return false;
-        if (!o.dataTag) return false;
-
-        // FIX: Ignore objects that have snapping disabled (Manual Mode)
-        if (o.snapToObjects === false) return false;
-
-        return true;
-    });
-    const rows = groupElementsByRow(elements, rowThreshold);
-
-    if (rows.length > 0) {
-        let maxRowWidth = 0;
-        rows.forEach(row => {
-            let w = 0;
-            const visibleEls = row.filter(e => e.visible);
-            visibleEls.forEach((el, i) => {
-                const pad = el.padding || 0;
-                w += el.getScaledWidth() + (pad * 2);
-                if (i < visibleEls.length - 1) w += hPadding;
-            });
-            if (w > maxRowWidth) maxRowWidth = w;
-        });
-
-        const anchorW = anchor.getScaledWidth();
-        let shift = 0;
-
-        if (alignment === 'center') {
-            const idealStart = anchor.left + (anchorW - maxRowWidth) / 2;
-            if (idealStart < marginLeft) shift = marginLeft - idealStart;
-            else if (idealStart + maxRowWidth > canvas.width - marginRight) shift = (canvas.width - marginRight - maxRowWidth) - idealStart;
-        } else if (alignment === 'right') {
-            const idealStart = (anchor.left + anchorW) - maxRowWidth;
-            if (idealStart < marginLeft) shift = marginLeft - idealStart;
-        } else { // left
-            const idealStart = anchor.left;
-            if (idealStart + maxRowWidth > canvas.width - marginRight) shift = (canvas.width - marginRight - maxRowWidth) - idealStart;
-        }
-
-        if (shift !== 0) { anchor.set('left', anchor.left + shift); anchor.setCoords(); }
-    }
-
-    const anchorLeft = anchor.left;
-    const anchorWidth = anchor.getScaledWidth();
-
-    rows.forEach(row => {
-        // Auto-resize icons if enabled (Match Height)
-        const resizableIcons = row.filter(el => el.type === 'image' && el.matchHeight && el.visible);
-        if (resizableIcons.length > 0) {
-            const ref = row.find(el => (el.type === 'i-text' || el.type === 'textbox' || el.type === 'group') && !el.matchHeight && el.visible);
-            if (ref) {
-                const targetH = ref.getScaledHeight();
-                resizableIcons.forEach(icon => {
-                    if (Math.abs(icon.getScaledHeight() - targetH) > 0.5) {
-                        icon.scaleToHeight(targetH);
-                        icon.setCoords();
-                    }
-                });
-            }
-        }
-
-        // Sort elements in this row by their X position (left to right)
-        row.sort((a, b) => a.left - b.left);
-        
-        // Calculate total width of this row
-        let totalRowWidth = 0;
-        const visibleEls = row.filter(e => e.visible);
-        visibleEls.forEach((el, index) => {
-            el.setCoords(); // Ensure coords are fresh for width calc
-            const pad = el.padding || 0;
-            totalRowWidth += el.getScaledWidth() + (pad * 2);
-            if (index < visibleEls.length - 1) totalRowWidth += hPadding;
-        });
-
-        // Determine starting X: Center relative to logo (even if wider), else align left
-        let current_x;
-        if (alignment === 'center') {
-            current_x = anchorLeft + (anchorWidth - totalRowWidth) / 2;
-        } else if (alignment === 'right') {
-            current_x = (anchorLeft + anchorWidth) - totalRowWidth;
-            // FIX: Shift right to align CONTENT edge to anchor (ignore padding of last element)
-            const lastEl = visibleEls[visibleEls.length - 1];
-            if (lastEl) current_x += (lastEl.padding || 0);
-        } else {
-            current_x = anchorLeft;
-            // FIX: Shift left to align CONTENT edge to anchor (ignore padding of first element)
-            const firstEl = visibleEls[0];
-            if (firstEl) current_x -= (firstEl.padding || 0);
-        }
-
-        // Ensure tags don't go off-screen (apply margins)
-        if (current_x < marginLeft) current_x = marginLeft;
-        if (current_x + totalRowWidth > canvas.width - marginRight) {
-            current_x = Math.max(marginLeft, canvas.width - marginRight - totalRowWidth);
-        }
-
-        const maxRowHeight = Math.max(...row.map(el => el.visible ? el.getScaledHeight() + ((el.padding||0)*2) : 0));
-        
-        // Stack elements horizontally starting from the calculated current_x
-        row.forEach(el => {
-            const pad = el.padding || 0;
-            el.set({ top: current_y + pad, left: current_x + pad });
-            el.setCoords(); // Update coordinates for accurate width calculation
-            
-            // Collision Detection with Blocked Areas
-            // If collision, push right until clear OR until limit reached
-            const startX = current_x;
-            let isColliding = checkCollision(el, activeBlockedAreas, scaleFactor);
-            
-            while (isColliding && current_x < canvas.width - marginRight) {
-                current_x += 10;
-                el.set({ left: current_x + pad });
-                el.setCoords();
-                isColliding = checkCollision(el, activeBlockedAreas, scaleFactor);
-            }
-            // If still colliding (e.g. full width bar), reset X to preserve alignment and let vertical shift handle it
-            if (isColliding) {
-                current_x = startX;
-                el.set({ left: current_x + pad });
-                el.setCoords();
-            }
-
-            if (el.visible) {
-                current_x += el.getScaledWidth() + (pad * 2) + hPadding;
+                anchor.set('top', limitTop);
+                // Move rows up by the full required amount to clear bottom obstacle
+                rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
             } else {
-                // Increment tiny amount to preserve order for next sort without visual gap
-                current_x += 0.1;
-            }
-        });
-
-        // Check for right overflow and shift back if needed (prevent disappearing)
-        const lastEl = row[row.length - 1];
-        if (lastEl && lastEl.visible) {
-            const rightEdge = lastEl.left + lastEl.getScaledWidth();
-            const maxRight = canvas.width - marginRight;
-            if (rightEdge > maxRight) {
-                const overflow = rightEdge - maxRight;
-                row.forEach(el => {
-                    el.left -= overflow;
-                    el.setCoords();
-                });
+                // Standard shift (enough space above)
+                anchor.set('top', anchor.top - totalShift);
+                rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
             }
         }
-        
-        if (maxRowHeight > 0) {
-            current_y += maxRowHeight + padding;
-        }
-    });
-
-    // Check for bottom overflow and shift up if necessary
-    const contentBottom = current_y - padding;
-    const maxBottom = canvas.height - marginBottom;
-
-    // NEW: Check collision with blocked areas for all placed elements to trigger vertical shift
-    let maxBlockedShift = 0;
-    const allElements = [anchor];
-    rows.forEach(row => row.forEach(el => { if(el.visible) allElements.push(el); }));
-
-    allElements.forEach(el => {
-        const b = el.getBoundingRect();
-        activeBlockedAreas.forEach(area => {
-            const aLeft = area.left * scaleFactor;
-            const aTop = area.top * scaleFactor;
-            const aWidth = area.width * scaleFactor;
-            const aHeight = area.height * scaleFactor;
-            
-            if (b.left < aLeft + aWidth && b.left + b.width > aLeft &&
-                b.top < aTop + aHeight && b.top + b.height > aTop) {
-                const overlap = (b.top + b.height) - aTop;
-                if (overlap > 0 && overlap > maxBlockedShift) maxBlockedShift = overlap;
-            }
-        });
-    });
-
-    const marginShift = Math.max(0, contentBottom - maxBottom);
-    const totalShift = Math.max(marginShift, maxBlockedShift);
-    
-    if (totalShift > 0) {
-        // Calculate available space above considering margins AND blocked areas
-        let limitTop = marginTop;
-        
-        const anchorLeft = anchor.left;
-        const anchorRight = anchor.left + anchor.getScaledWidth();
-
-        activeBlockedAreas.forEach(area => {
-            const aLeft = area.left * scaleFactor;
-            const aWidth = area.width * scaleFactor;
-            const aRight = aLeft + aWidth;
-            const aTop = area.top * scaleFactor;
-            const aHeight = area.height * scaleFactor;
-            const aBottom = aTop + aHeight;
-
-            // Check horizontal intersection with anchor
-            if (aLeft < anchorRight && aRight > anchorLeft) {
-                // If this area is above the anchor (with slight tolerance)
-                if (aBottom <= anchor.top + 5) { 
-                    if (aBottom > limitTop) limitTop = aBottom;
-                }
-            }
-        });
-
-        const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
-        
-        if (totalShift > maxSafeShiftUp) {
-            // Need to shrink because we can't shift up enough
-            const deficit = totalShift - maxSafeShiftUp;
-            const currentHeight = anchor.getScaledHeight();
-            const newHeight = Math.max(20, currentHeight - deficit); // Min height 20px
-
-            // Capture old state for alignment preservation
-            const oldLeft = anchor.left;
-            const oldWidth = anchor.getScaledWidth();
-            const oldRight = oldLeft + oldWidth;
-            const oldCenterX = oldLeft + (oldWidth / 2);
-            
-            // Apply shrink and move to limit
-            anchor.scaleToHeight(newHeight);
-            const newWidth = anchor.getScaledWidth();
-
-            // Restore horizontal alignment
-            if (alignment === 'right') {
-                anchor.set('left', oldRight - newWidth);
-            } else if (alignment === 'center') {
-                anchor.set('left', oldCenterX - (newWidth / 2));
-            }
-            // 'left' is default (anchor.left stays oldLeft)
-
-            anchor.set('top', limitTop);
-            // Move rows up by the full required amount to clear bottom obstacle
-            rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
-        } else {
-            // Standard shift (enough space above)
-            anchor.set('top', anchor.top - totalShift);
-            rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
-        }
-    }
 
         canvas.getObjects().forEach(o => o.setCoords());
         if (!skipRender) canvas.requestRenderAll();
@@ -2008,12 +2036,12 @@ function drawGrid() {
     removeGrid();
     const w = canvas.width, h = canvas.height;
     const opts = { stroke: '#555', strokeDashArray: [5, 5], selectable: false, evented: false, dataTag: 'grid_line' };
-    for (let i = 1; i < (w / gridSize); i++) canvas.add(new fabric.Line([ i * gridSize, 0, i * gridSize, h], opts));
-    for (let i = 1; i < (h / gridSize); i++) canvas.add(new fabric.Line([ 0, i * gridSize, w, i * gridSize], opts));
-    
+    for (let i = 1; i < (w / gridSize); i++) canvas.add(new fabric.Line([i * gridSize, 0, i * gridSize, h], opts));
+    for (let i = 1; i < (h / gridSize); i++) canvas.add(new fabric.Line([0, i * gridSize, w, i * gridSize], opts));
+
     const gridLines = canvas.getObjects().filter(o => o.dataTag === 'grid_line');
     const fadeObjs = canvas.getObjects().filter(o => o.dataTag === 'fade_effect');
-    
+
     gridLines.forEach(o => canvas.sendToBack(o));
     fadeObjs.forEach(o => canvas.sendToBack(o));
     if (mainBg) canvas.sendToBack(mainBg);
@@ -2034,7 +2062,7 @@ function removeGrid() {
 function init() {
     closePreviewPopup(); // Explicitly hide popup on load to prevent state issues
     restoreSidebarState();
-    
+
     // Restore active tab
     const savedTab = localStorage.getItem('active_tab');
     if (savedTab) {
@@ -2061,7 +2089,7 @@ function init() {
     canvas = new fabric.Canvas('mainCanvas', { width: initW, height: initH, backgroundColor: '#000000', preserveObjectStacking: true });
     canvas.renderOnAddRemove = false;
     fabric.Object.prototype.objectCaching = true;
-    
+
     // Optimize handles for touch devices
     if (window.innerWidth < 1024) {
         fabric.Object.prototype.cornerSize = 70;
@@ -2076,9 +2104,9 @@ function init() {
         if (t instanceof fabric.Textbox) {
             const res = document.getElementById('resSelect') ? document.getElementById('resSelect').value : '1080';
             const resScale = (res === '2160') ? 2 : 1;
-            
+
             t.set({ width: (t.width * t.scaleX) / resScale, fixedHeight: (t.height * t.scaleY) / resScale, scaleX: resScale, scaleY: resScale });
-            if (t.dataTag === 'overview') { 
+            if (t.dataTag === 'overview') {
                 if (resizeRaf) cancelAnimationFrame(resizeRaf);
                 resizeRaf = requestAnimationFrame(() => fitTextToContainer(t));
             }
@@ -2087,7 +2115,7 @@ function init() {
             preferredLogoWidth = t.getScaledWidth();
         }
         if (t === mainBg) updateFades();
-        
+
         if (layoutDebounceTimer) clearTimeout(layoutDebounceTimer);
         layoutDebounceTimer = setTimeout(() => updateVerticalLayout(), 50);
 
@@ -2098,7 +2126,7 @@ function init() {
         const active = e.target;
         if (!active || !active.selectable || active === mainBg) return;
         snapLines = { v: [], h: [] };
-        
+
         const snapToObjects = active.snapToObjects !== false;
 
         if (snapToObjects) {
@@ -2110,8 +2138,8 @@ function init() {
             });
         }
     });
-    
-    canvas.on('object:moving', (e) => { 
+
+    canvas.on('object:moving', (e) => {
         const active = e.target;
         if (active === mainBg) { updateFades(); return; }
 
@@ -2131,7 +2159,7 @@ function init() {
         if (snapToObjects) {
             const threshold = 10;
             const b = active.getBoundingRect();
-            const pts = { x: [b.left, b.left + b.width, b.left + b.width/2], y: [b.top, b.top + b.height, b.top + b.height/2] };
+            const pts = { x: [b.left, b.left + b.width, b.left + b.width / 2], y: [b.top, b.top + b.height, b.top + b.height / 2] };
 
             for (const line of snapLines.v) {
                 for (const pt of pts.x) {
@@ -2154,12 +2182,12 @@ function init() {
                 }
             }
         }
-        
+
         // Live layout update for dynamic resizing feedback while dragging
         if (layoutDebounceTimer) clearTimeout(layoutDebounceTimer);
         layoutDebounceTimer = setTimeout(() => updateVerticalLayout(), 10);
     });
-    
+
     canvas.on('mouse:up', () => {
         try {
             clearGuides();
@@ -2169,7 +2197,7 @@ function init() {
     canvas.on('selection:created', updateSelectionUI);
     canvas.on('selection:updated', updateSelectionUI);
     canvas.on('selection:cleared', updateSelectionUI);
-    
+
     canvas.on('object:modified', () => {
         updateVerticalLayout();
         saveToLocalStorage();
@@ -2177,7 +2205,7 @@ function init() {
     canvas.on('object:added', saveToLocalStorage);
     canvas.on('object:removed', saveToLocalStorage);
     canvas.on('text:changed', saveToLocalStorage);
-    
+
     window.addEventListener('keydown', (e) => {
         // CRITICAL FIX: Ignore nudging if user is typing in an input
         const tag = document.activeElement.tagName.toLowerCase();
@@ -2252,7 +2280,7 @@ function init() {
             if (diffY > 50) {
                 refreshIndicator.style.display = 'flex';
                 refreshIndicator.style.opacity = Math.min(diffY / threshold, 1);
-                
+
                 if (diffY > threshold) {
                     refreshIndicator.innerText = '🔄 Release to Refresh';
                     refreshIndicator.style.background = 'rgba(46, 125, 50, 0.9)'; // Green
@@ -2274,7 +2302,7 @@ function init() {
         const diffY = touchEndY - touchStartY;
         const diffX = touchEndX - touchStartX;
         const threshold = window.innerHeight / 2;
-        
+
         refreshIndicator.style.display = 'none';
 
         // Check conditions:
@@ -2289,7 +2317,7 @@ function init() {
     if (!loadFromLocalStorage()) {
         if (window.initialBackdropUrl) loadBackground(window.initialBackdropUrl);
     }
-    
+
     // Enable font previews in dropdown
     const fontSelect = document.getElementById('fontFamilySelect');
     if (fontSelect) {
@@ -2308,7 +2336,7 @@ function init() {
     updateFadeControls();
     loadCronJobs(); // Load jobs on init
     injectCronFilterUI(); // Inject filter UI for Cron Jobs
-    
+
     // Set initial mobile title
     const activeLink = document.querySelector('.tab-link.active');
     if (activeLink) {
@@ -2326,7 +2354,7 @@ function checkUpdate() {
     if (!versionEl) return;
 
     const installedVer = versionEl.getAttribute('data-installed') || "1.0.0";
-    
+
     fetch('https://api.github.com/repos/z9m/androidtvbackgroundWebGui/tags')
         .then(res => res.json())
         .then(data => {
@@ -2349,30 +2377,30 @@ function checkUpdate() {
 function jumpToHistory(index) {
     index = parseInt(index);
     if (isNaN(index) || index < 0 || index >= undoStack.length - 1) return;
-    
+
     isUndoRedoProcessing = true;
-    
+
     // Move states from undoStack to redoStack until we reach the target index
     while (undoStack.length - 1 > index) {
         const current = undoStack.pop();
         redoStack.push(current);
     }
-    
+
     const target = undoStack[undoStack.length - 1];
     restoreState(JSON.parse(target.data));
-    
+
     const sel = document.getElementById('historySelect');
-    if(sel) sel.value = "";
+    if (sel) sel.value = "";
 }
 
 function saveHistory(force = false) {
     if (isUndoRedoProcessing || !canvas) return;
-    
+
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
-    
+
     // Filter out fade effects and grid lines (same as saveToLocalStorage)
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg');
-    
+
     json.custom_effects = {
         bgColor: document.getElementById('bgColor').value,
         bgBrightness: document.getElementById('bgBrightness').value,
@@ -2398,7 +2426,7 @@ function saveHistory(force = false) {
         logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
         backgroundMode: backgroundMode
     };
-    
+
     // Save blocked areas to JSON so render_task.js can use them
     const overlayId = document.getElementById('overlaySelect').value;
     if (overlayId) {
@@ -2420,30 +2448,30 @@ function saveHistory(force = false) {
 
     if (undoStack.length > MAX_HISTORY) undoStack.shift();
     redoStack = [];
-    
+
     updateUndoRedoUI();
 }
 
 function undo() {
     if (undoStack.length <= 1) return;
-    
+
     isUndoRedoProcessing = true;
-    
+
     const current = undoStack.pop();
     redoStack.push(current);
-    
+
     const previous = undoStack[undoStack.length - 1];
     restoreState(JSON.parse(previous.data));
 }
 
 function redo() {
     if (redoStack.length === 0) return;
-    
+
     isUndoRedoProcessing = true;
-    
+
     const next = redoStack.pop();
     undoStack.push(next);
-    
+
     restoreState(JSON.parse(next.data));
 }
 
@@ -2451,7 +2479,7 @@ function restoreState(data) {
     canvas.loadFromJSON(data, () => {
         lastFetchedData = data.lastFetchedData || null;
         mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
-        
+
         // Fallback if not tagged
         if (!mainBg && canvas.getObjects().length > 0) {
             const firstObj = canvas.item(0);
@@ -2467,7 +2495,7 @@ function restoreState(data) {
         canvas.renderAll();
         updateVerticalLayout();
         saveToLocalStorage(); // This triggers saveHistory, but isUndoRedoProcessing blocks it
-        
+
         isUndoRedoProcessing = false;
         updateUndoRedoUI();
     }, (o, object) => {
@@ -2476,13 +2504,13 @@ function restoreState(data) {
             try {
                 if (object.dataTag === 'fade_effect') {
                     // 1. EXTRACT COLOR FROM JSON
-                    let loadedColor = "#000000"; 
+                    let loadedColor = "#000000";
                     let rawColor = object.fill.colorStops[0].color;
-                    
+
                     if (rawColor && rawColor.startsWith('rgb')) {
                         const rgb = rawColor.match(/\d+/g);
                         if (rgb && rgb.length >= 3) {
-                             loadedColor = "#" + 
+                            loadedColor = "#" +
                                 ("0" + parseInt(rgb[0], 10).toString(16)).slice(-2) +
                                 ("0" + parseInt(rgb[1], 10).toString(16)).slice(-2) +
                                 ("0" + parseInt(rgb[2], 10).toString(16)).slice(-2);
@@ -2515,7 +2543,7 @@ function updateUndoRedoUI() {
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
     const historySelect = document.getElementById('historySelect');
-    
+
     if (btnUndo) {
         btnUndo.disabled = undoStack.length <= 1;
         btnUndo.style.opacity = undoStack.length <= 1 ? '0.5' : '1';
@@ -2526,7 +2554,7 @@ function updateUndoRedoUI() {
         btnRedo.style.opacity = redoStack.length === 0 ? '0.5' : '1';
         btnRedo.style.cursor = redoStack.length === 0 ? 'default' : 'pointer';
     }
-    
+
     if (historySelect) {
         historySelect.innerHTML = '<option value="" disabled selected>🕒</option>';
         // Populate history (reverse order, excluding current tip)
@@ -2546,53 +2574,53 @@ function applyCustomEffects(eff) {
     if (eff.backgroundMode) {
         backgroundMode = eff.backgroundMode;
         const bgModeSel = document.getElementById('bgStyleSelect');
-        if(bgModeSel) bgModeSel.value = backgroundMode;
+        if (bgModeSel) bgModeSel.value = backgroundMode;
         populateFadeEffectOptions(backgroundMode);
     }
 
-    if(eff.bgColor) { 
-        document.getElementById('bgColor').value = eff.bgColor; 
-        canvas.setBackgroundColor(eff.bgColor, () => { updateFades(); }); 
+    if (eff.bgColor) {
+        document.getElementById('bgColor').value = eff.bgColor;
+        canvas.setBackgroundColor(eff.bgColor, () => { updateFades(); });
     }
-    if(eff.bgBrightness) document.getElementById('bgBrightness').value = eff.bgBrightness;
-    if(eff.fadeEffect) document.getElementById('fadeEffect').value = eff.fadeEffect;
-    if(eff.fadeRadius) document.getElementById('fadeRadius').value = eff.fadeRadius;
-    if(eff.fadeSoftness) {
+    if (eff.bgBrightness) document.getElementById('bgBrightness').value = eff.bgBrightness;
+    if (eff.fadeEffect) document.getElementById('fadeEffect').value = eff.fadeEffect;
+    if (eff.fadeRadius) document.getElementById('fadeRadius').value = eff.fadeRadius;
+    if (eff.fadeSoftness) {
         const el = document.getElementById('fadeSoftness');
-        if(el) {
+        if (el) {
             el.value = eff.fadeSoftness;
             document.getElementById('fadeSoftnessVal').innerText = eff.fadeSoftness;
         }
     }
-    if(eff.fadeLeft) document.getElementById('fadeLeft').value = eff.fadeLeft;
-    if(eff.fadeRight) document.getElementById('fadeRight').value = eff.fadeRight;
-    if(eff.fadeTop) document.getElementById('fadeTop').value = eff.fadeTop;
-    if(eff.fadeBottom) document.getElementById('fadeBottom').value = eff.fadeBottom;
-    if(eff.tagAlignment) document.getElementById('tagAlignSelect').value = eff.tagAlignment;
-    else if(eff.centerTags !== undefined) document.getElementById('tagAlignSelect').value = eff.centerTags ? 'center' : 'left';
-    if(eff.tagPadding) {
+    if (eff.fadeLeft) document.getElementById('fadeLeft').value = eff.fadeLeft;
+    if (eff.fadeRight) document.getElementById('fadeRight').value = eff.fadeRight;
+    if (eff.fadeTop) document.getElementById('fadeTop').value = eff.fadeTop;
+    if (eff.fadeBottom) document.getElementById('fadeBottom').value = eff.fadeBottom;
+    if (eff.tagAlignment) document.getElementById('tagAlignSelect').value = eff.tagAlignment;
+    else if (eff.centerTags !== undefined) document.getElementById('tagAlignSelect').value = eff.centerTags ? 'center' : 'left';
+    if (eff.tagPadding) {
         const el = document.getElementById('tagPaddingInput');
-        if(el) {
+        if (el) {
             el.value = eff.tagPadding;
             const valEl = document.getElementById('tagPaddingVal');
-            if(valEl) valEl.innerText = eff.tagPadding + "px";
+            if (valEl) valEl.innerText = eff.tagPadding + "px";
         }
     }
-    if(eff.lineSpacing) {
+    if (eff.lineSpacing) {
         const el = document.getElementById('lineSpacingInput');
-        if(el) {
+        if (el) {
             el.value = eff.lineSpacing;
             const valEl = document.getElementById('lineSpacingVal');
-            if(valEl) valEl.innerText = eff.lineSpacing + "px";
+            if (valEl) valEl.innerText = eff.lineSpacing + "px";
         }
     }
-    if(eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
-    if(eff.limitGenres !== undefined) {
+    if (eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
+    if (eff.limitGenres !== undefined) {
         const val = eff.limitGenres ? 2 : 6;
         document.getElementById('genreLimitSlider').value = val;
         document.getElementById('genreLimitVal').innerText = (val == 6) ? "Max" : val;
     }
-    if(eff.genreLimit !== undefined) {
+    if (eff.genreLimit !== undefined) {
         document.getElementById('genreLimitSlider').value = eff.genreLimit;
         document.getElementById('genreLimitVal').innerText = (eff.genreLimit == 6) ? "Max" : eff.genreLimit;
     }
@@ -2607,9 +2635,9 @@ function applyCustomEffects(eff) {
     }
     if (eff.logoAutoFix !== undefined) {
         const batchCheck = document.getElementById('batchLogoAutoFix');
-        if(batchCheck) batchCheck.checked = eff.logoAutoFix;
+        if (batchCheck) batchCheck.checked = eff.logoAutoFix;
     }
-    if(eff.margins) {
+    if (eff.margins) {
         document.getElementById('marginTopInput').value = eff.margins.top || 50;
         document.getElementById('marginBottomInput').value = eff.margins.bottom || 50;
         document.getElementById('marginLeftInput').value = eff.margins.left || 50;
@@ -2621,7 +2649,7 @@ function applyCustomEffects(eff) {
 function loadBackground(url, skipRender = false, restoredState = null) {
     return new Promise((resolve) => {
         const proxiedUrl = url.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(url)}` : url;
-        fabric.Image.fromURL(proxiedUrl, function(img, isError) {
+        fabric.Image.fromURL(proxiedUrl, function (img, isError) {
             if (isError || !img || img.width === 0 || img.height === 0) { console.warn("Failed to load background:", url); resolve(); return; }
 
             // --- FIX: Enforce Fixed Canvas Resolution ---
@@ -2645,13 +2673,13 @@ function loadBackground(url, skipRender = false, restoredState = null) {
 
             // Check for existing background to preserve state
             const oldBg = canvas.getObjects().find(o => o.dataTag === 'background');
-            
+
             if (restoredState) {
                 left = restoredState.left;
                 top = restoredState.top;
                 flipX = restoredState.flipX;
                 flipY = restoredState.flipY;
-                
+
                 if (restoredState.originX !== 'center') left += (restoredState.width * restoredState.scaleX) / 2;
                 if (restoredState.originY !== 'center') top += (restoredState.height * restoredState.scaleY) / 2;
 
@@ -2665,7 +2693,7 @@ function loadBackground(url, skipRender = false, restoredState = null) {
                 top = center.y;
                 flipX = oldBg.flipX;
                 flipY = oldBg.flipY;
-                
+
                 // Preserve visual size
                 if (img.width > 0) {
                     scale = oldBg.getScaledWidth() / img.width;
@@ -2704,7 +2732,7 @@ function loadBackground(url, skipRender = false, restoredState = null) {
             if (typeof updateVerticalLayout === 'function') {
                 updateVerticalLayout();
             }
-            
+
             updateFades(skipRender);
             canvas.requestRenderAll();
             resolve();
@@ -2715,13 +2743,13 @@ function loadBackground(url, skipRender = false, restoredState = null) {
 
 function updateFadeControls() {
     const type = document.getElementById('fadeEffect').value;
-    const show = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'block'; };
-    const hide = (id) => { const el = document.getElementById(id); if(el) el.style.display = 'none'; };
+    const show = (id) => { const el = document.getElementById(id); if (el) el.style.display = 'block'; };
+    const hide = (id) => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
     const radiusLabel = document.querySelector('label[for="fadeRadius"]');
 
     ['ctrl-fade-radius', 'ctrl-fade-left', 'ctrl-fade-right', 'ctrl-fade-top', 'ctrl-fade-bottom'].forEach(show);
     // Hide softness by default (only for specific ambilight modes)
-    hide('ctrl-fade-softness'); 
+    hide('ctrl-fade-softness');
 
     if (backgroundMode === 'solid') {
         if (type === 'custom') {
@@ -2752,7 +2780,7 @@ function populateFadeEffectOptions(mode) {
     if (!sel) return;
     const currentVal = sel.value;
     sel.innerHTML = '';
-    
+
     const options = FADE_OPTIONS[mode] || FADE_OPTIONS['solid'];
     options.forEach(opt => {
         const el = document.createElement('option');
@@ -2760,7 +2788,7 @@ function populateFadeEffectOptions(mode) {
         el.innerText = opt.text;
         sel.appendChild(el);
     });
-    
+
     // Try to preserve selection if valid, else default
     if (options.some(o => o.value === currentVal)) sel.value = currentVal;
     else sel.value = options[0].value;
@@ -2777,7 +2805,7 @@ function updateFades(skipRender = false) {
     // --- AMBILIGHT MODE LOGIC ---
     if (backgroundMode === 'ambilight') {
         updateAmbilightLayer();
-        
+
         // Generate Mask for mainBg
         const maskCanvas = generateAlphaMask(type);
         if (maskCanvas) {
@@ -2786,7 +2814,7 @@ function updateFades(skipRender = false) {
             maskImg.originX = 'center';
             maskImg.originY = 'center';
             // We don't set left/top because it's relative to the object
-            
+
             // Apply mask
             mainBg.clipPath = maskImg;
             mainBg.dirty = true; // Force redraw of cached object
@@ -2794,7 +2822,7 @@ function updateFades(skipRender = false) {
             mainBg.clipPath = null;
             mainBg.dirty = true;
         }
-        
+
         if (!skipRender) canvas.requestRenderAll();
         return; // Skip the Solid Color logic below
     }
@@ -2852,7 +2880,7 @@ function toggleBackgroundMode(mode) {
     // Update UI visibility if needed (e.g. hide color picker in Ambilight mode)
     const colorPicker = document.getElementById('bgColorContainer'); // Assuming ID
     if (colorPicker) colorPicker.style.display = (mode === 'solid') ? 'block' : 'none';
-    
+
     populateFadeEffectOptions(mode);
     updateFadeControls();
     updateFades();
@@ -2861,7 +2889,7 @@ function toggleBackgroundMode(mode) {
 
 function updateAmbilightLayer() {
     if (!mainBg) return;
-    
+
     // 1. Create blurred version if not exists or dirty
     // We use a temporary canvas to generate the blur efficiently
     const srcImg = mainBg.getElement();
@@ -2869,30 +2897,30 @@ function updateAmbilightLayer() {
 
     const tempCanvas = document.createElement('canvas');
     // Low res for performance and better blur effect
-    const w = canvas.width / 4; 
+    const w = canvas.width / 4;
     const h = canvas.height / 4;
     tempCanvas.width = w;
     tempCanvas.height = h;
     const ctx = tempCanvas.getContext('2d');
-    
+
     // Draw blurred
     // Map bgBrightness (0-100) to brightness filter (0.0 - 2.0)
     // Default 20 -> 0.6 brightness
     const bVal = parseInt(document.getElementById('bgBrightness').value) || 20;
-    const brightness = 0.4 + (bVal / 100); 
+    const brightness = 0.4 + (bVal / 100);
     ctx.filter = `blur(60px) brightness(${brightness})`;
     ctx.drawImage(srcImg, 0, 0, w, h);
-    
+
     // Create Fabric Image
     if (ambilightBg) canvas.remove(ambilightBg);
-    
+
     ambilightBg = new fabric.Image(tempCanvas, {
         left: 0, top: 0,
         scaleX: 4, scaleY: 4, // Scale back up
         selectable: false, evented: false,
         dataTag: 'ambilight_bg'
     });
-    
+
     canvas.add(ambilightBg);
     canvas.sendToBack(ambilightBg);
 }
@@ -2913,27 +2941,27 @@ function drawRoundedPath(ctx, x, y, w, h, r) {
 
 function generateAlphaMask(type) {
     if (!mainBg) return null;
-    
+
     // Dimensions of the mainBg object (unscaled)
     const w = mainBg.width;
     const h = mainBg.height;
-    
+
     const maskCanvas = document.createElement('canvas');
     maskCanvas.width = w;
     maskCanvas.height = h;
     const ctx = maskCanvas.getContext('2d');
-    
+
     // Get Fade Values (scaled to object dimensions)
     // The inputs are in screen pixels, we need to map them to the image's internal coordinate system
     const scaleX = mainBg.scaleX;
     const scaleY = mainBg.scaleY;
-    
+
     const sT = (parseInt(document.getElementById('fadeTop').value) || 0) / scaleY;
     const sB = (parseInt(document.getElementById('fadeBottom').value) || 0) / scaleY;
     const sL = (parseInt(document.getElementById('fadeLeft').value) || 0) / scaleX;
     const sR = (parseInt(document.getElementById('fadeRight').value) || 0) / scaleX;
     const radius = (parseInt(document.getElementById('fadeRadius').value) || 0) / Math.max(scaleX, scaleY);
-    
+
     // Softness for soft_round (default to 40 if input missing)
     const softEl = document.getElementById('fadeSoftness');
     const softness = ((softEl ? parseInt(softEl.value) : 40) || 40) / Math.max(scaleX, scaleY);
@@ -2942,18 +2970,18 @@ function generateAlphaMask(type) {
     ctx.fillStyle = 'black'; // In clipPath, black/opaque means VISIBLE? No, Fabric uses alpha channel.
     // Wait, Fabric clipPath: "The area of the object that is INSIDE the clipPath is visible."
     // So we need to draw the VISIBLE area.
-    
+
     // 1. Apply Base Technique
     if (type === 'vignette') {
         // Radial Gradient
-        const grad = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/2);
+        const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
         // Stop calculation based on radius slider or fixed
         // Map radius (0-500) to stop (1.0 - 0.0)
-        const stop = Math.max(0, 1 - (radius * 2)); 
+        const stop = Math.max(0, 1 - (radius * 2));
         grad.addColorStop(0, 'rgba(0,0,0,1)');
         grad.addColorStop(stop, 'rgba(0,0,0,1)');
         grad.addColorStop(1, 'rgba(0,0,0,0)');
-        
+
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, w, h);
 
@@ -2961,42 +2989,42 @@ function generateAlphaMask(type) {
         // Smooth Alpha Mask (Linear Gradients intersection)
         // 1. Clear Canvas
         ctx.clearRect(0, 0, w, h);
-        
+
         // 2. Vertical Gradient (Source Over)
         // Opaque in center, Transparent at top/bottom edges
         const gV = ctx.createLinearGradient(0, 0, 0, h);
         if (sT > 0) {
             gV.addColorStop(0, 'rgba(0,0,0,0)');
-            gV.addColorStop(Math.min(sT/h, 0.5), 'rgba(0,0,0,1)');
+            gV.addColorStop(Math.min(sT / h, 0.5), 'rgba(0,0,0,1)');
         } else {
             gV.addColorStop(0, 'rgba(0,0,0,1)');
         }
         if (sB > 0) {
-            gV.addColorStop(Math.max(1 - (sB/h), 0.5), 'rgba(0,0,0,1)');
+            gV.addColorStop(Math.max(1 - (sB / h), 0.5), 'rgba(0,0,0,1)');
             gV.addColorStop(1, 'rgba(0,0,0,0)');
         } else {
             gV.addColorStop(1, 'rgba(0,0,0,1)');
         }
-        
+
         ctx.fillStyle = gV;
         ctx.fillRect(0, 0, w, h);
-        
+
         // 3. Horizontal Gradient (Destination In - Intersection)
         ctx.globalCompositeOperation = 'destination-in';
         const gH = ctx.createLinearGradient(0, 0, w, 0);
         if (sL > 0) {
             gH.addColorStop(0, 'rgba(0,0,0,0)');
-            gH.addColorStop(Math.min(sL/w, 0.5), 'rgba(0,0,0,1)');
+            gH.addColorStop(Math.min(sL / w, 0.5), 'rgba(0,0,0,1)');
         } else {
             gH.addColorStop(0, 'rgba(0,0,0,1)');
         }
         if (sR > 0) {
-            gH.addColorStop(Math.max(1 - (sR/w), 0.5), 'rgba(0,0,0,1)');
+            gH.addColorStop(Math.max(1 - (sR / w), 0.5), 'rgba(0,0,0,1)');
             gH.addColorStop(1, 'rgba(0,0,0,0)');
         } else {
             gH.addColorStop(1, 'rgba(0,0,0,1)');
         }
-        
+
         ctx.fillStyle = gH;
         ctx.fillRect(0, 0, w, h);
 
@@ -3004,10 +3032,10 @@ function generateAlphaMask(type) {
         // Linear Erasers (Destination Out)
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, w, h);
-        
+
         ctx.globalCompositeOperation = 'destination-out';
         const addStops = (g) => { g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); };
-        
+
         if (sT > 0) { const g = ctx.createLinearGradient(0, 0, 0, sT); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, w, sT); }
         if (sB > 0) { const g = ctx.createLinearGradient(0, h, 0, h - sB); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, h - sB, w, sB); }
         if (sL > 0) { const g = ctx.createLinearGradient(0, 0, sL, 0); addStops(g); ctx.fillStyle = g; ctx.fillRect(0, 0, sL, h); }
@@ -3019,27 +3047,27 @@ function generateAlphaMask(type) {
         ctx.fillStyle = 'black';
         ctx.fillRect(0, 0, w, h);
     }
-    
+
     // 2. Apply Rounded Corners (Global for Ambilight)
     if (radius > 0) {
         ctx.globalCompositeOperation = 'destination-in';
-        
+
         if (softness > 0) {
             // Soft Rounding (Feathered)
             const temp = document.createElement('canvas');
             temp.width = w; temp.height = h;
             const tCtx = temp.getContext('2d');
-            
+
             tCtx.fillStyle = 'black';
-            tCtx.filter = `blur(${softness/2}px)`; // Match fade_demo
-            const inset = softness/2;
+            tCtx.filter = `blur(${softness / 2}px)`; // Match fade_demo
+            const inset = softness / 2;
             const rectW = Math.max(0, w - inset * 2);
             const rectH = Math.max(0, h - inset * 2);
             const maxR = Math.min(rectW, rectH) / 2;
             const safeR = Math.min(Math.max(0, radius - inset), maxR);
             drawRoundedPath(tCtx, inset, inset, rectW, rectH, safeR);
             tCtx.fill();
-            
+
             ctx.drawImage(temp, 0, 0);
         } else {
             // Hard Rounding
@@ -3049,7 +3077,7 @@ function generateAlphaMask(type) {
             ctx.fill();
         }
     }
-    
+
     return maskCanvas;
 }
 
@@ -3057,7 +3085,7 @@ function addCornerFade(pos) {
     const r = parseInt(document.getElementById('fadeRadius').value);
     if (r <= 0) return;
     const bgColor = document.getElementById('bgColor').value;
-    
+
     const w = mainBg.getScaledWidth();
     const h = mainBg.getScaledHeight();
     let bgLeft = mainBg.left;
@@ -3099,19 +3127,19 @@ function addVignette() {
     const padding = 10;
     const w = Math.ceil(mainBg.getScaledWidth()) + padding;
     const h = Math.ceil(mainBg.getScaledHeight()) + padding;
-    
+
     let bgLeft = mainBg.left;
     let bgTop = mainBg.top;
     if (mainBg.originX === 'center') bgLeft -= mainBg.getScaledWidth() / 2;
     if (mainBg.originY === 'center') bgTop -= mainBg.getScaledHeight() / 2;
-    
+
     const grad = new fabric.Gradient({
         type: 'radial',
-        coords: { r1: 0, r2: r, x1: w/2, y1: h/2, x2: w/2, y2: h/2 },
+        coords: { r1: 0, r2: r, x1: w / 2, y1: h / 2, x2: w / 2, y2: h / 2 },
         colorStops: [{ offset: 0, color: hexToRgba(bgColor, 0) }, { offset: 1, color: bgColor }]
     });
 
-    fades.corner = new fabric.Rect({ left: bgLeft - (padding/2), top: bgTop - (padding/2), width: w, height: h, fill: grad, selectable: false, evented: false, dataTag: 'fade_effect' });
+    fades.corner = new fabric.Rect({ left: bgLeft - (padding / 2), top: bgTop - (padding / 2), width: w, height: h, fill: grad, selectable: false, evented: false, dataTag: 'fade_effect' });
     canvas.add(fades.corner);
     fades.corner.moveTo(canvas.getObjects().indexOf(mainBg) + 1);
 }
@@ -3121,17 +3149,17 @@ function createFadeRect(type, size) {
     const b = 2;
     const wImg = mainBg.getScaledWidth();
     const hImg = mainBg.getScaledHeight();
-    
+
     let bgLeft = mainBg.left;
     let bgTop = mainBg.top;
     if (mainBg.originX === 'center') bgLeft -= wImg / 2;
     if (mainBg.originY === 'center') bgTop -= hImg / 2;
 
     let w, h, x, y, c;
-    if (type === 'left') { w = parseInt(size) + b; h = hImg + b*2; x = bgLeft - b; y = bgTop - b; c = { x1: 0, y1: 0, x2: 1, y2: 0 }; }
-    else if (type === 'right') { w = parseInt(size) + b; h = hImg + b*2; x = bgLeft + wImg - size; y = bgTop - b; c = { x1: 1, y1: 0, x2: 0, y2: 0 }; }
-    else if (type === 'top') { w = wImg + b*2; h = parseInt(size) + b; x = bgLeft - b; y = bgTop - b; c = { x1: 0, y1: 0, x2: 0, y2: 1 }; }
-    else if (type === 'bottom') { w = wImg + b*2; h = parseInt(size) + b; x = bgLeft - b; y = bgTop + hImg - size; c = { x1: 0, y1: 1, x2: 0, y2: 0 }; }
+    if (type === 'left') { w = parseInt(size) + b; h = hImg + b * 2; x = bgLeft - b; y = bgTop - b; c = { x1: 0, y1: 0, x2: 1, y2: 0 }; }
+    else if (type === 'right') { w = parseInt(size) + b; h = hImg + b * 2; x = bgLeft + wImg - size; y = bgTop - b; c = { x1: 1, y1: 0, x2: 0, y2: 0 }; }
+    else if (type === 'top') { w = wImg + b * 2; h = parseInt(size) + b; x = bgLeft - b; y = bgTop - b; c = { x1: 0, y1: 0, x2: 0, y2: 1 }; }
+    else if (type === 'bottom') { w = wImg + b * 2; h = parseInt(size) + b; x = bgLeft - b; y = bgTop + hImg - size; c = { x1: 0, y1: 1, x2: 0, y2: 0 }; }
     return new fabric.Rect({
         left: x, top: y, width: w, height: h, selectable: false, evented: false,
         fill: new fabric.Gradient({ type: 'linear', gradientUnits: 'percentage', coords: c, colorStops: [{ offset: 0, color: bgColor }, { offset: 1, color: hexToRgba(bgColor, 0) }] }),
@@ -3157,7 +3185,7 @@ async function loadOverlayProfiles() {
     try {
         const resp = await fetch('/api/overlays/list');
         overlayProfiles = await resp.json();
-        
+
         // Merge local margins (since backend might not store them yet)
         const localMargins = JSON.parse(localStorage.getItem('overlay_margins_map') || '{}');
         overlayProfiles.forEach(p => {
@@ -3171,7 +3199,7 @@ async function loadOverlayProfiles() {
                 }
             }
         });
-        
+
         // Populate Dropdown
         const sel = document.getElementById('overlaySelect');
         if (sel) {
@@ -3183,7 +3211,7 @@ async function loadOverlayProfiles() {
                 opt.innerText = p.name;
                 sel.appendChild(opt);
             });
-            
+
             if (window.restoredOverlayId) {
                 sel.value = window.restoredOverlayId;
                 updateOverlay();
@@ -3192,7 +3220,7 @@ async function loadOverlayProfiles() {
                 sel.value = current;
             }
         }
-        
+
         // Populate Manager List
         const list = document.getElementById('overlayList');
         if (list) {
@@ -3218,14 +3246,14 @@ async function addOverlay() {
     const name = document.getElementById('newOverlayName').value;
     const f1080 = document.getElementById('newOverlay1080').files[0];
     const f4k = document.getElementById('newOverlay4K').files[0];
-    
+
     if (!name) return alert("Name is required");
-    
+
     const formData = new FormData();
     formData.append('name', name);
     if (f1080) formData.append('file_1080', f1080);
     if (f4k) formData.append('file_4k', f4k);
-    
+
     const btn = document.querySelector('button[onclick="addOverlay()"]');
     const originalText = btn.innerText;
     btn.innerText = "Uploading...";
@@ -3246,7 +3274,7 @@ async function addOverlay() {
 }
 
 async function deleteOverlay(id) {
-    if(!confirm("Delete this overlay profile?")) return;
+    if (!confirm("Delete this overlay profile?")) return;
     await fetch(`/api/overlays/delete/${id}`, { method: 'POST' });
     loadOverlayProfiles();
     const sel = document.getElementById('overlaySelect');
@@ -3260,7 +3288,7 @@ function initOverlayCanvas() {
     if (overlayCanvasFabric) return;
     // Initialize with 1920x1080 logic
     overlayCanvasFabric = new fabric.Canvas('overlayCanvas', { width: 1920, height: 1080, backgroundColor: '#000000' });
-    
+
     // CSS scaling for the container
     const canvasEl = document.getElementById('overlayCanvas');
     canvasEl.style.width = '100%';
@@ -3270,7 +3298,7 @@ function initOverlayCanvas() {
 function openOverlayMarginEditor(id) {
     const profile = overlayProfiles.find(p => p.id === id);
     if (!profile) return;
-    
+
     currentEditingOverlayId = id;
     document.getElementById('overlayMarginEditor').style.display = 'block';
     initOverlayCanvas();
@@ -3339,7 +3367,7 @@ function closeOverlayMarginEditor() {
 
 async function saveOverlayMargins() {
     if (!currentEditingOverlayId || !overlayCanvasFabric) return;
-    
+
     const rects = overlayCanvasFabric.getObjects().filter(o => o.dataTag === 'blocked_area');
     const areas = rects.map(r => ({
         left: Math.round(r.left),
@@ -3347,24 +3375,24 @@ async function saveOverlayMargins() {
         width: Math.round(r.getScaledWidth()),
         height: Math.round(r.getScaledHeight())
     }));
-    
+
     // Save to LocalStorage (simulating backend persistence)
     const map = JSON.parse(localStorage.getItem('overlay_margins_map') || '{}');
     map[currentEditingOverlayId] = areas;
     localStorage.setItem('overlay_margins_map', JSON.stringify(map));
-    
+
     // Update in-memory profile
     const profile = overlayProfiles.find(p => p.id === currentEditingOverlayId);
     if (profile) profile.blocked_areas = areas;
-    
+
     // --- NEW: Save to Server (overlays.json) so Cron Job sees it globally ---
     try {
         await fetch('/api/overlays/update_margins', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: currentEditingOverlayId, blocked_areas: areas })
         });
-    } catch(e) { console.error("Failed to save margins to server", e); }
+    } catch (e) { console.error("Failed to save margins to server", e); }
     // -----------------------------------------------------------------------
 
     alert("Blocked areas saved!");
@@ -3377,7 +3405,7 @@ function enforceLayering() {
     const overlays = canvas.getObjects().filter(o => o.dataTag === 'guide_overlay');
     const fades = canvas.getObjects().filter(o => o.dataTag === 'fade_effect');
     const ambilight = canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg');
-    
+
     grids.forEach(o => canvas.sendToBack(o));
     fades.forEach(o => canvas.sendToBack(o));
     if (mainBg) canvas.sendToBack(mainBg);
@@ -3388,33 +3416,33 @@ function enforceLayering() {
 function updateOverlay() {
     const sel = document.getElementById('overlaySelect');
     const overlayId = sel ? sel.value : "";
-    
+
     const existing = canvas.getObjects().find(o => o.dataTag === 'guide_overlay');
     if (existing) canvas.remove(existing);
-    
+
     activeBlockedAreas = [];
 
-    if (!overlayId) { 
+    if (!overlayId) {
         // Reset margins to default
         document.getElementById('marginTopInput').value = 20;
         document.getElementById('marginBottomInput').value = 20;
         document.getElementById('marginLeftInput').value = 20;
         document.getElementById('marginRightInput').value = 20;
         updateVerticalLayout(); // Reset layout when overlay is removed
-        canvas.requestRenderAll(); 
-        return; 
+        canvas.requestRenderAll();
+        return;
     }
-    
+
     const profile = overlayProfiles.find(p => p.id === overlayId);
     if (!profile) return;
-    
+
     activeBlockedAreas = profile.blocked_areas || [];
     updateVerticalLayout();
-    
+
     const is4K = canvas.width > 2000;
     let file = is4K ? profile.file_4k : profile.file_1080;
     if (!file) file = is4K ? profile.file_1080 : profile.file_4k; // Fallback
-    
+
     if (file) {
         const url = `/api/overlays/image/${file}`;
         fabric.Image.fromURL(url, img => {
@@ -3428,7 +3456,7 @@ function updateOverlay() {
                 scaleY: canvas.height / img.height
             });
             canvas.add(img);
-            canvas.bringToFront(img); 
+            canvas.bringToFront(img);
             enforceLayering();
             canvas.requestRenderAll();
         });
@@ -3439,7 +3467,7 @@ async function loadTextureProfiles() {
     try {
         const resp = await fetch('/api/textures/list');
         textureProfiles = await resp.json();
-        
+
         const sel = document.getElementById('textureSelect');
         if (sel) {
             const current = sel.value;
@@ -3452,7 +3480,7 @@ async function loadTextureProfiles() {
             });
             sel.value = current;
         }
-        
+
         const list = document.getElementById('textureList');
         if (list) {
             let html = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px;">';
@@ -3474,9 +3502,9 @@ async function loadFonts() {
     try {
         const resp = await fetch('/api/fonts/list');
         const families = await resp.json(); // These are now just ["Inter", "Roboto", ...]
-        
+
         const sel = document.getElementById('fontFamilySelect');
-        
+
         // Add custom group to dropdown if not exists
         let customGroup = document.getElementById('customFontsGroup');
         if (!customGroup && sel) {
@@ -3490,14 +3518,14 @@ async function loadFonts() {
         // NOTE: For the Manager Tab (delete), it would be better to list files.
         // But for the dropdown we need families.
         // Workaround: We use families only for the dropdown.
-        
+
         if (customGroup) {
             families.forEach(family => {
                 const opt = document.createElement('option');
                 opt.value = family;
                 opt.innerText = family;
                 // We set the font-family style directly on the option so you can see a preview
-                opt.style.fontFamily = family; 
+                opt.style.fontFamily = family;
                 customGroup.appendChild(opt);
             });
         }
@@ -3509,15 +3537,15 @@ async function addFont() {
     const fileInput = document.getElementById('newFontFile');
     const file = fileInput.files[0];
     if (!file) return alert("Please select a font file");
-    
+
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const btn = document.querySelector('button[onclick="addFont()"]');
     const originalText = btn.innerText;
     btn.innerText = "Uploading...";
     btn.disabled = true;
-    
+
     const resp = await fetch('/api/fonts/add', { method: 'POST', body: formData });
     if (resp.ok) {
         alert("Font uploaded!");
@@ -3532,7 +3560,7 @@ async function addFont() {
 }
 
 async function deleteFont(filename) {
-    if(!confirm(`Delete font "${filename}"?`)) return;
+    if (!confirm(`Delete font "${filename}"?`)) return;
     await fetch(`/api/fonts/delete/${encodeURIComponent(filename)}`, { method: 'POST' });
     loadFonts();
 }
@@ -3541,7 +3569,7 @@ async function loadCustomIcons() {
     try {
         const resp = await fetch('/api/custom-icons/list');
         const icons = await resp.json();
-        
+
         // Populate Manager List
         const list = document.getElementById('customIconList');
         if (list) {
@@ -3576,10 +3604,10 @@ async function addCustomIcon() {
     const fileInput = document.getElementById('newIconFile');
     const file = fileInput.files[0];
     if (!file) return alert("Please select a file");
-    
+
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const resp = await fetch('/api/custom-icons/add', { method: 'POST', body: formData });
     if (resp.ok) {
         alert("Icon uploaded!");
@@ -3591,7 +3619,7 @@ async function addCustomIcon() {
 }
 
 async function deleteCustomIcon(filename) {
-    if(!confirm(`Delete icon "${filename}"?`)) return;
+    if (!confirm(`Delete icon "${filename}"?`)) return;
     await fetch(`/api/custom-icons/delete/${encodeURIComponent(filename)}`, { method: 'POST' });
     loadCustomIcons();
 }
@@ -3600,16 +3628,16 @@ async function addTexture() {
     const name = document.getElementById('newTextureName').value;
     const file = document.getElementById('newTextureFile').files[0];
     if (!name || !file) return alert("Name and file required");
-    
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('file', file);
-    
+
     const btn = document.querySelector('button[onclick="addTexture()"]');
     const originalText = btn.innerText;
     btn.innerText = "Uploading...";
     btn.disabled = true;
-    
+
     const resp = await fetch('/api/textures/add', { method: 'POST', body: formData });
     if (resp.ok) {
         alert("Texture saved!");
@@ -3624,7 +3652,7 @@ async function addTexture() {
 }
 
 async function deleteTexture(id) {
-    if(!confirm("Delete this texture?")) return;
+    if (!confirm("Delete this texture?")) return;
     await fetch(`/api/textures/delete/${id}`, { method: 'POST' });
     loadTextureProfiles();
 }
@@ -3661,7 +3689,7 @@ function toggleTextFillType() {
     const type = document.querySelector('input[name="fillType"]:checked').value;
     document.getElementById('fillColorContainer').style.display = (type === 'color') ? 'block' : 'none';
     document.getElementById('fillTextureContainer').style.display = (type === 'texture') ? 'block' : 'none';
-    
+
     if (type === 'color') {
         updateSelectedColor();
     } else {
@@ -3672,27 +3700,27 @@ function toggleTextFillType() {
 function applyTextureToSelection() {
     const activeObj = canvas.getActiveObject();
     if (!activeObj) return;
-    
+
     const textureId = document.getElementById('textureSelect').value;
     if (!textureId) return;
-    
+
     const scale = parseFloat(document.getElementById('textureScale').value) || 1;
     const rotation = parseInt(document.getElementById('textureRotation').value) || 0;
     const opacity = parseInt(document.getElementById('textureOpacity').value) / 100;
 
     const profile = textureProfiles.find(p => p.id === textureId);
     if (!profile) return;
-    
+
     const url = `/api/textures/image/${profile.filename}`;
-    
+
     const rad = rotation * Math.PI / 180;
     const c = Math.cos(rad);
     const s = Math.sin(rad);
     const matrix = [scale * c, scale * s, -scale * s, scale * c, 0, 0];
 
-    fabric.util.loadImage(url, function(img) {
+    fabric.util.loadImage(url, function (img) {
         if (!img) return;
-        
+
         let source = img;
         if (opacity < 1) {
             const c = document.createElement('canvas');
@@ -3704,12 +3732,12 @@ function applyTextureToSelection() {
             source = c;
         }
 
-        const pattern = new fabric.Pattern({ 
-            source: source, 
+        const pattern = new fabric.Pattern({
+            source: source,
             repeat: 'repeat',
             patternTransform: matrix
         });
-        
+
         const applyToObj = (obj) => {
             if (obj.type === 'i-text' || obj.type === 'textbox') {
                 obj.set('fill', pattern);
@@ -3728,16 +3756,16 @@ function applyTextureToSelection() {
                 }
             }
         };
-        
+
         applyToObj(activeObj);
         canvas.requestRenderAll();
         saveToLocalStorage();
     });
 }
 
-function updateBgColor(skipRender = false) { 
-    if(!canvas) return Promise.resolve(); 
-    
+function updateBgColor(skipRender = false) {
+    if (!canvas) return Promise.resolve();
+
     const bgColorHex = document.getElementById('bgColor').value;
     canvas.getObjects().forEach(obj => {
         if ((obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'image') && obj.autoBackgroundColor && obj.backgroundColor) {
@@ -3749,9 +3777,9 @@ function updateBgColor(skipRender = false) {
     });
 
     return new Promise(resolve => {
-        canvas.setBackgroundColor(bgColorHex, () => { 
-            updateFades(true); 
-            if (!skipRender) canvas.requestRenderAll(); 
+        canvas.setBackgroundColor(bgColorHex, () => {
+            updateFades(true);
+            if (!skipRender) canvas.requestRenderAll();
             resolve();
         });
     });
@@ -3767,14 +3795,14 @@ function setUIInteraction(enabled) {
             el.disabled = !enabled;
         }
     });
-    
+
     // Disable canvas interaction
     const canvasWrapper = document.getElementById('canvas-wrapper');
     if (canvasWrapper) {
         canvasWrapper.style.pointerEvents = enabled ? 'auto' : 'none';
         canvasWrapper.style.opacity = enabled ? '1' : '0.8';
     }
-    
+
     if (enabled) updateSelectionUI();
 }
 
@@ -3818,8 +3846,8 @@ async function saveSettings() {
             resolution: document.getElementById('resSelect').value
         }
     };
-    const resp = await fetch('/api/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) });
-    if(resp.ok) alert("Settings saved!");
+    const resp = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+    if (resp.ok) alert("Settings saved!");
 }
 function changeResolution() {
     if (gridEnabled) removeGrid();
@@ -3837,7 +3865,7 @@ function changeResolution() {
 async function saveLayout() {
     const name = document.getElementById('layoutName').value;
     if (!name) return alert("Please enter a layout name");
-    
+
     const btn = document.querySelector('button[onclick="saveLayout()"]');
     const originalText = btn.innerText;
     btn.disabled = true;
@@ -3845,7 +3873,7 @@ async function saveLayout() {
     setUIInteraction(false);
 
     const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
-    
+
     // Filter out fade effects and grid lines BEFORE saving
     layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg');
 
@@ -3910,15 +3938,17 @@ async function saveLayout() {
     const actionUrl = fullMetadata.action_url;
     const mediaTitle = fullMetadata.title;
 
-    const resp = await fetch('/api/layouts/save', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
-        name, 
-        layout, 
-        preview_image: previewData,
-        action_url: actionUrl,
-        media_title: mediaTitle,
-        metadata: fullMetadata
-    }) });
-    if(!resp.ok) {
+    const resp = await fetch('/api/layouts/save', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            name,
+            layout,
+            preview_image: previewData,
+            action_url: actionUrl,
+            media_title: mediaTitle,
+            metadata: fullMetadata
+        })
+    });
+    if (!resp.ok) {
         alert("Error saving layout");
         btn.innerText = originalText;
         btn.disabled = false;
@@ -3930,13 +3960,13 @@ async function saveLayout() {
     const generatedImages = [];
     isBatchRunning = true; // Suppress UI updates in fetchRandomPreview
     try {
-        for(let i=0; i<10; i++) {
-            btn.innerText = `Generating ${i+1}/10...`;
+        for (let i = 0; i < 10; i++) {
+            btn.innerText = `Generating ${i + 1}/10...`;
             await fetchRandomPreview();
             const res = await saveToGalleryInternal(name, null, 'layout_preview');
-            if(res && res.status === 'success') generatedImages.push(res.filename);
+            if (res && res.status === 'success') generatedImages.push(res.filename);
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
     finally {
         isBatchRunning = false;
         btn.innerText = originalText;
@@ -3953,7 +3983,7 @@ function showPreviewPopup(layoutName, images) {
     const grid = document.getElementById('preview-grid');
     grid.innerHTML = '';
     const layoutKey = `LayoutPreview: ${layoutName}`;
-    
+
     images.forEach(img => {
         const src = `/api/gallery/image/${encodeURIComponent(layoutKey)}/${encodeURIComponent(img)}`;
         grid.innerHTML += `
@@ -3972,8 +4002,8 @@ function closePreviewPopup() {
 
 async function loadLayout(name, silent = false) {
     const resp = await fetch(`/api/layouts/load/${name}`);
-    if(!resp.ok) {
-        if(!silent) alert("Error loading layout");
+    if (!resp.ok) {
+        if (!silent) alert("Error loading layout");
         return;
     }
     const data = await resp.json();
@@ -3982,7 +4012,7 @@ async function loadLayout(name, silent = false) {
     const currentRes = document.getElementById('resSelect').value;
     const targetW = (currentRes === '2160') ? 3840 : 1920;
     const scaleFactor = targetW / BASE_WIDTH;
-    
+
     if (scaleFactor !== 1) {
         data.objects.forEach(obj => {
             obj.left *= scaleFactor;
@@ -3991,15 +4021,15 @@ async function loadLayout(name, silent = false) {
             obj.scaleY *= scaleFactor;
         });
     }
-    
+
     return new Promise((resolve) => {
         if (data.metadata) lastFetchedData = data.metadata;
 
         // Hier nutzen wir den Callback (1. Funktion) UND den Reviver (2. Funktion für Gradienten)
         canvas.loadFromJSON(data, () => {
             // --- CALLBACK START (Wird ausgeführt, wenn alles geladen ist) ---
-            canvas.getObjects().forEach(o => { if(o.dataTag === 'overview') o.set('objectCaching', false); });
-            
+            canvas.getObjects().forEach(o => { if (o.dataTag === 'overview') o.set('objectCaching', false); });
+
             mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
             const title = canvas.getObjects().find(o => o.dataTag === 'title' && o.type === 'image');
             if (title) preferredLogoWidth = title.getScaledWidth();
@@ -4013,13 +4043,13 @@ async function loadLayout(name, silent = false) {
                 }
             }
             if (mainBg) mainBg.set({ selectable: true, evented: true });
-            
+
             // Remove ghosts
             const ghosts = canvas.getObjects().filter(o => o.dataTag === 'fade_effect' || o.dataTag === 'grid_line');
             ghosts.forEach(g => canvas.remove(g));
 
             document.getElementById('layoutName').value = name;
-            
+
             // UI Updates
             if (data.custom_effects) {
                 applyCustomEffects(data.custom_effects);
@@ -4030,16 +4060,16 @@ async function loadLayout(name, silent = false) {
             }
 
             const btnSaveGallery = document.getElementById('btn-save-gallery');
-            if(btnSaveGallery) btnSaveGallery.disabled = true;
-            
+            if (btnSaveGallery) btnSaveGallery.disabled = true;
+
             const btnShuffle = document.getElementById('btn-shuffle');
-            if(btnShuffle) btnShuffle.disabled = false;
-            
+            if (btnShuffle) btnShuffle.disabled = false;
+
             if (!silent) {
-                openTab({currentTarget: document.querySelector('.tab-link')}, 'editor-tab');
+                openTab({ currentTarget: document.querySelector('.tab-link') }, 'editor-tab');
                 // alert(`Layout "${name}" loaded!`); // Alert nervt oft, kann ausbleiben
             }
-            
+
             // --- HIER IST DER FIX: Warten auf Schriften statt setTimeout ---
             waitForUsedFonts(canvas).then(() => {
                 canvas.getObjects().forEach(o => o.setCoords()); // Koordinaten neu berechnen
@@ -4054,13 +4084,13 @@ async function loadLayout(name, silent = false) {
             if (object.fill && object.fill.type === 'linear' && object.fill.colorStops && object.fill.colorStops.length > 0) {
                 try {
                     if (object.dataTag === 'fade_effect') {
-                        let loadedColor = "#000000"; 
+                        let loadedColor = "#000000";
                         let rawColor = object.fill.colorStops[0].color;
-                        
+
                         if (rawColor && rawColor.startsWith('rgb')) {
                             const rgb = rawColor.match(/\d+/g);
                             if (rgb && rgb.length >= 3) {
-                                 loadedColor = "#" + 
+                                loadedColor = "#" +
                                     ("0" + parseInt(rgb[0], 10).toString(16)).slice(-2) +
                                     ("0" + parseInt(rgb[1], 10).toString(16)).slice(-2) +
                                     ("0" + parseInt(rgb[2], 10).toString(16)).slice(-2);
@@ -4106,7 +4136,7 @@ function resetLayout() {
     // 3. Reset UI Controls
     const resSelect = document.getElementById('resSelect');
     if (resSelect) resSelect.value = '1080';
-    
+
     if (document.getElementById('bgColor')) document.getElementById('bgColor').value = '#000000';
     if (document.getElementById('bgBrightness')) {
         document.getElementById('bgBrightness').value = 20;
@@ -4124,7 +4154,7 @@ function resetLayout() {
     undoStack = [];
     redoStack = [];
     updateUndoRedoUI();
-    
+
     canvas.clear();
     canvas.setDimensions({ width: 1920, height: 1080 });
     canvas.setBackgroundColor('#000000', canvas.renderAll.bind(canvas));
@@ -4150,7 +4180,7 @@ function saveToLocalStorage() {
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay');
     // Filter out ambilight background (it is auto-generated)
     json.objects = json.objects.filter(o => o.dataTag !== 'ambilight_bg');
-    
+
     // Normalize to 1080p base resolution
     const currentScale = canvas.width / BASE_WIDTH;
     if (currentScale !== 1) {
@@ -4161,7 +4191,7 @@ function saveToLocalStorage() {
             obj.scaleY /= currentScale;
         });
     }
-    
+
     json.custom_effects = {
         bgColor: document.getElementById('bgColor').value,
         bgBrightness: document.getElementById('bgBrightness').value,
@@ -4197,14 +4227,14 @@ function saveToLocalStorage() {
 function waitForUsedFonts(canvas) {
     const promises = [];
     const families = new Set();
-    
+
     const collectFonts = (obj) => {
         if ((obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') && obj.fontFamily) {
             // Load specific style (e.g. "bold 20px Roboto")
             const weight = obj.fontWeight || 'normal';
             const style = obj.fontStyle || 'normal';
             promises.push(document.fonts.load(`${style} ${weight} 20px "${obj.fontFamily}"`));
-            
+
             families.add(obj.fontFamily);
         }
         // Recursively check groups
@@ -4214,7 +4244,7 @@ function waitForUsedFonts(canvas) {
     };
 
     canvas.getObjects().forEach(collectFonts);
-    
+
     // Safety Net: ALWAYS load the standard version of the family.
     // Critical for fonts like "Bungee Spice" which only exist as Regular but might be used as Bold.
     families.forEach(family => {
@@ -4245,7 +4275,7 @@ async function loadFromLocalStorage() {
                     document.fonts.load(`bold 16px "${font}"`),
                     document.fonts.load(`italic 16px "${font}"`)
                 ]);
-                
+
                 // Wait here until fonts are ready!
                 await Promise.all(fontPromises);
             }
@@ -4255,7 +4285,7 @@ async function loadFromLocalStorage() {
             const currentRes = document.getElementById('resSelect').value;
             const targetW = (currentRes === '2160') ? 3840 : 1920;
             const scaleFactor = targetW / BASE_WIDTH;
-            
+
             if (scaleFactor !== 1) {
                 data.objects.forEach(obj => {
                     obj.left *= scaleFactor;
@@ -4269,22 +4299,22 @@ async function loadFromLocalStorage() {
 
             // Now it is safe to load the JSON, because fonts are in memory.
             canvas.loadFromJSON(data, () => {
-                canvas.getObjects().forEach(o => { if(o.dataTag === 'overview') o.set('objectCaching', false); });
-                
+                canvas.getObjects().forEach(o => { if (o.dataTag === 'overview') o.set('objectCaching', false); });
+
                 mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
                 const title = canvas.getObjects().find(o => o.dataTag === 'title' && o.type === 'image');
                 if (title) preferredLogoWidth = title.getScaledWidth();
-                
+
                 // Cleanup Ghosts
-                const ghosts = canvas.getObjects().filter(o => 
-                    o.dataTag === 'fade_effect' || 
-                    o.dataTag === 'grid_line' || 
+                const ghosts = canvas.getObjects().filter(o =>
+                    o.dataTag === 'fade_effect' ||
+                    o.dataTag === 'grid_line' ||
                     o.dataTag === 'guide_overlay' ||
                     (o.type === 'rect' && !o.selectable && !o.evented) ||
                     (o.type === 'line' && o.stroke === '#555' && !o.selectable)
                 );
                 ghosts.forEach(g => canvas.remove(g));
-                
+
                 // Fallback Background
                 if (!mainBg && canvas.getObjects().length > 0) {
                     const firstObj = canvas.item(0);
@@ -4294,7 +4324,7 @@ async function loadFromLocalStorage() {
                     }
                 }
                 if (mainBg) mainBg.set({ selectable: true, evented: true });
-                
+
                 if (data.custom_effects) applyCustomEffects(data.custom_effects);
 
                 updateFades();
@@ -4308,7 +4338,7 @@ async function loadFromLocalStorage() {
                     }
                     obj.setCoords();
                 });
-                
+
                 updateVerticalLayout();
                 canvas.requestRenderAll();
 
@@ -4317,12 +4347,12 @@ async function loadFromLocalStorage() {
                 if (object.fill && object.fill.type === 'linear' && object.fill.colorStops && object.fill.colorStops.length > 0) {
                     try {
                         if (object.dataTag === 'fade_effect') {
-                            let loadedColor = "#000000"; 
+                            let loadedColor = "#000000";
                             let rawColor = object.fill.colorStops[0].color;
                             if (rawColor && rawColor.startsWith('rgb')) {
                                 const rgb = rawColor.match(/\d+/g);
                                 if (rgb && rgb.length >= 3) {
-                                     loadedColor = "#" + 
+                                    loadedColor = "#" +
                                         ("0" + parseInt(rgb[0], 10).toString(16)).slice(-2) +
                                         ("0" + parseInt(rgb[1], 10).toString(16)).slice(-2) +
                                         ("0" + parseInt(rgb[2], 10).toString(16)).slice(-2);
@@ -4338,7 +4368,7 @@ async function loadFromLocalStorage() {
                 }
             });
             return true;
-        } catch(e) { console.error("Autosave load error", e); }
+        } catch (e) { console.error("Autosave load error", e); }
     }
     return false;
 }
@@ -4347,10 +4377,10 @@ function toggleLogoAutoFix() {
     const activeObj = canvas.getActiveObject();
     if (activeObj && activeObj.type === 'image') {
         activeObj.logoAutoFix = document.getElementById('logoAutoFixToggle').checked;
-        
+
         // Update global preference
         const batchCheck = document.getElementById('batchLogoAutoFix');
-        if(batchCheck) batchCheck.checked = activeObj.logoAutoFix;
+        if (batchCheck) batchCheck.checked = activeObj.logoAutoFix;
 
         const currentSrc = activeObj.getSrc();
         if (currentSrc.includes('/api/proxy/image')) {
@@ -4360,14 +4390,14 @@ function toggleLogoAutoFix() {
             } else {
                 urlObj.searchParams.set('raw', 'true');
             }
-            
-            activeObj.setSrc(urlObj.toString(), function() {
+
+            activeObj.setSrc(urlObj.toString(), function () {
                 if (activeObj.filters && activeObj.filters.length > 0) activeObj.applyFilters();
                 canvas.renderAll();
                 saveToLocalStorage();
             }, { crossOrigin: 'anonymous' });
         } else {
-             saveToLocalStorage();
+            saveToLocalStorage();
         }
     }
 }
@@ -4390,17 +4420,17 @@ function updateLogoColor() {
     const activeObj = canvas.getActiveObject();
     if (activeObj && activeObj.type === 'image') {
         const color = document.getElementById('logoColorInput').value;
-        
+
         // Clear legacy tint property if present
         if (activeObj.tint) activeObj.set('tint', null);
 
         if (!activeObj.filters) activeObj.filters = [];
         activeObj.filters = activeObj.filters.filter(f => f.type !== 'BlendColor');
-        
+
         if (color !== '#ffffff') {
             activeObj.filters.push(new fabric.Image.filters.BlendColor({ color: color, mode: 'tint' }));
         }
-        
+
         activeObj.applyFilters();
         canvas.requestRenderAll();
         saveToLocalStorage();
@@ -4411,14 +4441,14 @@ function resetLogoColor() {
     const activeObj = canvas.getActiveObject();
     if (activeObj && activeObj.type === 'image') {
         document.getElementById('logoColorInput').value = "#ffffff";
-        
+
         if (activeObj.tint) activeObj.set('tint', null);
-        
+
         if (activeObj.filters) {
             activeObj.filters = activeObj.filters.filter(f => f.type !== 'BlendColor');
             activeObj.applyFilters();
         }
-        
+
         canvas.requestRenderAll();
         saveToLocalStorage();
     }
@@ -4427,7 +4457,7 @@ function resetLogoColor() {
 function toggleTitleType() {
     const activeObj = canvas.getActiveObject();
     if (!activeObj || activeObj.dataTag !== 'title') return;
-    
+
     if (!lastFetchedData) {
         alert("No media data available.");
         return;
@@ -4438,7 +4468,7 @@ function toggleTitleType() {
         const align = document.getElementById('tagAlignSelect').value;
         const oldWidth = activeObj.getScaledWidth();
         const oldLeft = activeObj.left;
-        
+
         if (align === 'center') {
             return oldLeft + (oldWidth - newWidth) / 2;
         } else if (align === 'right') {
@@ -4452,19 +4482,19 @@ function toggleTitleType() {
         const title = lastFetchedData.title || "Title";
         const is4K = document.getElementById('resSelect').value === '2160';
         const titleSize = is4K ? 120 : 80;
-        
-        const newText = new fabric.IText(title, { 
-            left: activeObj.left, 
-            top: activeObj.top, 
-            fontFamily: 'Roboto', 
-            fontSize: titleSize, 
-            fill: 'white', 
-            shadow: '2px 2px 10px rgba(0,0,0,0.8)', 
-            dataTag: 'title', 
+
+        const newText = new fabric.IText(title, {
+            left: activeObj.left,
+            top: activeObj.top,
+            fontFamily: 'Roboto',
+            fontSize: titleSize,
+            fill: 'white',
+            shadow: '2px 2px 10px rgba(0,0,0,0.8)',
+            dataTag: 'title',
             editable: false,
             logoAutoFix: activeObj.logoAutoFix
         });
-        
+
         // Adjust position based on alignment
         newText.set('left', getNewLeft(newText.getScaledWidth()));
 
@@ -4480,7 +4510,7 @@ function toggleTitleType() {
             alert("No logo available.");
             return;
         }
-        
+
         // Determine Auto-Fix state (Default to true if undefined)
         const autoFixState = (activeObj.logoAutoFix !== undefined) ? activeObj.logoAutoFix : true;
 
@@ -4489,9 +4519,9 @@ function toggleTitleType() {
             proxiedLogo += "&raw=true";
         }
 
-        fabric.Image.fromURL(proxiedLogo, function(img, isError) {
+        fabric.Image.fromURL(proxiedLogo, function (img, isError) {
             if (isError || !img) return;
-            
+
             // Use standard sizing logic
             const baseMaxW = canvas.width * 0.55;
             const baseMaxH = canvas.height * 0.35;
@@ -4500,15 +4530,15 @@ function toggleTitleType() {
 
             if (ratio < 0.65) allowedHeight = baseMaxH * 0.50;
             else if (ratio < 1.2) allowedHeight = baseMaxH * 0.75;
-            
+
             let scale = Math.min(baseMaxW / img.width, allowedHeight / img.height) * 0.9;
-            
+
             img.scale(scale);
-            
+
             // Adjust position based on alignment
             const newLeft = getNewLeft(img.getScaledWidth());
             img.set({ left: newLeft, top: activeObj.top, dataTag: 'title', logoAutoFix: autoFixState });
-            
+
             canvas.remove(activeObj);
             canvas.add(img);
             canvas.setActiveObject(img);
@@ -4585,12 +4615,12 @@ function startLogPolling() {
         logDiv.style.overflowY = 'auto';
         logDiv.innerHTML = "Waiting for server logs...";
     }
-    
+
     logPollInterval = setInterval(async () => {
         try {
             const res = await fetch('/api/batch/logs');
             const logs = await res.json();
-            
+
             const selection = window.getSelection();
             const hasSelection = selection.toString().length > 0 && logDiv.contains(selection.anchorNode);
 
@@ -4599,7 +4629,7 @@ function startLogPolling() {
                 logDiv.innerHTML = logs.join('<br>');
                 if (isAtBottom) logDiv.scrollTop = logDiv.scrollHeight;
             }
-            
+
             // Poll for latest image
             try {
                 const imgRes = await fetch('/api/batch/preview/latest_image');
@@ -4613,8 +4643,8 @@ function startLogPolling() {
                         img.style.opacity = '1';
                     }
                 }
-            } catch(err) { /* ignore image fetch errors */ }
-        } catch(e) { console.error(e); }
+            } catch (err) { /* ignore image fetch errors */ }
+        } catch (e) { console.error(e); }
     }, 2000);
 }
 
@@ -4624,7 +4654,7 @@ async function addCronJob() {
     const freq = document.getElementById('cronJobFreq').value;
     const overwrite = document.getElementById('cronJobOverwrite').checked;
     const runNow = document.getElementById('cronJobRunNow').checked;
-    
+
     const layout = document.getElementById('cronJobLayout').value;
     const mode = document.getElementById('cronSourceMode') ? document.getElementById('cronSourceMode').value : 'library';
     const filterMode = document.getElementById('cronFilterMode') ? document.getElementById('cronFilterMode').value : 'all';
@@ -4632,7 +4662,7 @@ async function addCronJob() {
     const randomCount = document.getElementById('cronRandomCount') ? document.getElementById('cronRandomCount').value : 10;
     const logoAutoFix = document.getElementById('cronLogoAutoFix') ? document.getElementById('cronLogoAutoFix').checked : true;
     const dryRun = document.getElementById('cronDryRun') ? document.getElementById('cronDryRun').checked : false;
-    
+
     const newJob = {
         id: Date.now().toString(), // Simple ID
         name: name,
@@ -4656,17 +4686,17 @@ async function addCronJob() {
     // We need to fetch current config first to not overwrite other stuff
     // Since we don't have a GET /api/settings, we might rely on the server handling the merge or we need to add GET.
     // I will add a GET /api/settings endpoint to gui_editor.py to make this robust.
-    
+
     const r = await fetch('/api/settings_full'); // I will add this endpoint
     const config = await r.json();
-    
+
     if (!config.cron_jobs) config.cron_jobs = [];
     config.cron_jobs.push(newJob);
-    
-    await fetch('/api/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) });
-    
+
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+
     alert("Cron Job Saved!" + (runNow ? " (Running in background...)" : ""));
-    
+
     if (runNow) {
         startLogPolling();
     }
@@ -4674,30 +4704,30 @@ async function addCronJob() {
 }
 
 async function deleteCronJob(id) {
-    if(!confirm("Delete this job?")) return;
+    if (!confirm("Delete this job?")) return;
     const r = await fetch('/api/settings_full');
     const config = await r.json();
     config.cron_jobs = config.cron_jobs.filter(j => j.id !== id);
-    await fetch('/api/settings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(config) });
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
     renderCronJobs(config.cron_jobs);
 }
 
 async function stopCronJobs() {
-    if(!confirm("Stop all running cron jobs? This will terminate the background process.")) return;
+    if (!confirm("Stop all running cron jobs? This will terminate the background process.")) return;
     try {
         const r = await fetch('/api/cron/stop', { method: 'POST' });
         const res = await r.json();
         alert(res.message);
-    } catch(e) { 
+    } catch (e) {
         console.error(e);
-        alert("Failed to send stop signal"); 
+        alert("Failed to send stop signal");
     }
 }
 
 function renderCronJobs(jobs) {
     const list = document.getElementById('cronJobsList');
     list.innerHTML = '';
-    
+
     // Add Stop Button Area
     const controls = document.createElement('div');
     controls.style.cssText = "display:flex; justify-content:flex-end; margin-bottom:10px;";
@@ -4711,7 +4741,7 @@ function renderCronJobs(jobs) {
         list.appendChild(msg);
         return;
     }
-    
+
     jobs.forEach(job => {
         const item = document.createElement('div');
         item.style.cssText = "background:rgba(255,255,255,0.05); padding:8px; border-radius:4px; border:1px solid #444; display:flex; justify-content:space-between; align-items:center;";
@@ -4731,12 +4761,12 @@ function renderCronJobs(jobs) {
 async function loadCronJobs() {
     try {
         const r = await fetch('/api/settings_full');
-        if(r.ok) {
+        if (r.ok) {
             const config = await r.json();
             renderCronJobs(config.cron_jobs);
         }
         await loadCronLayoutOptions();
-    } catch(e) { console.log("Could not load cron jobs"); }
+    } catch (e) { console.log("Could not load cron jobs"); }
 }
 
 async function loadCronLayoutOptions() {
@@ -4754,13 +4784,13 @@ async function loadCronLayoutOptions() {
         });
         const current = document.getElementById('layoutName').value;
         if (layouts.includes(current)) select.value = current;
-    } catch(e) { console.error("Error loading cron layouts", e); }
+    } catch (e) { console.error("Error loading cron layouts", e); }
 }
 
 function injectCronFilterUI() {
     const layoutSelect = document.getElementById('cronJobLayout');
     if (!layoutSelect || document.getElementById('cronFilterContainer')) return;
-    
+
     const container = document.createElement('div');
     container.id = 'cronFilterContainer';
     container.style.marginTop = '10px';
@@ -4789,7 +4819,7 @@ function injectCronFilterUI() {
             <input type="number" id="cronRandomCount" value="10" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px; margin-bottom:10px;">
         </div>
     `;
-    
+
     layoutSelect.parentNode.insertBefore(container, layoutSelect.nextSibling);
 
     // Inject Checkboxes (Auto Fix, Dry Run) grouped with existing checkboxes
@@ -4811,7 +4841,7 @@ function injectCronFilterUI() {
     }
 
     const checkboxesDiv = document.createElement('div');
-    
+
     const createCb = (id, labelText, isChecked) => {
         const label = document.createElement('label');
         label.style.display = 'flex';
@@ -4826,14 +4856,14 @@ function injectCronFilterUI() {
         input.type = 'checkbox';
         input.id = id;
         input.checked = isChecked;
-        
+
         // Copy styles from reference checkbox (Run Immediately) to match size exactly
         if (runNowCb) {
             if (runNowCb.className) input.className = runNowCb.className;
             if (runNowCb.style.cssText) input.style.cssText = runNowCb.style.cssText;
         }
         input.style.marginRight = '5px'; // Ensure spacing
-        
+
         label.appendChild(input);
         label.appendChild(document.createTextNode(" " + labelText));
         return label;
@@ -4852,10 +4882,10 @@ function injectCronFilterUI() {
 function toggleCronInputs() {
     const mode = document.getElementById('cronSourceMode').value;
     const filter = document.getElementById('cronFilterMode').value;
-    
+
     document.getElementById('cronFilterSettings').style.display = (mode === 'library') ? 'block' : 'none';
     document.getElementById('cronRandomSettings').style.display = (mode === 'random') ? 'block' : 'none';
-    
+
     const valInput = document.getElementById('cronFilterValue');
     if (mode === 'library' && ['year', 'genre', 'rating'].includes(filter)) {
         valInput.style.display = 'block';

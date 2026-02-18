@@ -1263,8 +1263,30 @@ function getCertificationFilename(rating) {
                 await new Promise(resolve => {
                     fabric.Image.fromURL(loadUrl, (img) => {
                         if (img) {
-                            // Scale to original placeholder width
-                            let scale = oldState.width / img.width;
+                            // --- SMART LOGO RESIZING (Ported from editor.js) ---
+                            // 1. Define Scale Limits
+                            // Use placeholder width as target width, but constrain height to avoid massive vertical logos
+                            const baseMaxW = oldState.width;
+                            const baseMaxH = canvas.height * 0.35; // Default safe height limit from editor.js
+
+                            // 2. Check aspect ratio
+                            const ratio = img.width / img.height;
+                            let allowedHeight = baseMaxH;
+
+                            // 3. Apply Ratio Constraints
+                            if (ratio < 0.65) {
+                                // Extremely Tall (e.g. "November"): Limit to 50% of max height
+                                allowedHeight = baseMaxH * 0.50;
+                            } else if (ratio < 1.2) {
+                                // Square/Compact: Limit to 75% of max height
+                                allowedHeight = baseMaxH * 0.75;
+                            }
+                            // Else: Wide logos can use full height
+
+                            // 4. Calculate Scale
+                            // Must fit within BOTH the width slot AND the calculated allowed height
+                            let scale = Math.min(baseMaxW / img.width, allowedHeight / img.height);
+
                             // Alignment Correction
                             let newLeft = oldState.left;
                             const align = settings.tagAlignment || 'left';
@@ -1297,12 +1319,34 @@ function getCertificationFilename(rating) {
                 const text = new fabric.Textbox(data.title || "Title", {
                     left: titleObj.left, top: titleObj.top,
                     originX: titleObj.originX, originY: titleObj.originY,
-                    width: placeholderWidth,
+                    width: canvas.width * 0.5,
                     fontFamily: 'Roboto', fontSize: fontSize,
                     fill: 'white', dataTag: 'title',
                     textAlign: align,
                     splitByGrapheme: false
                 });
+
+                // Shrink width to fit actual text (improves alignment)
+                let maxLineW = 0;
+                if (text._textLines && text._textLines.length > 0) {
+                    for (let i = 0; i < text._textLines.length; i++) {
+                        const w = text.getLineWidth(i);
+                        if (w > maxLineW) maxLineW = w;
+                    }
+                    if (maxLineW > 0) {
+                        text.set({ width: maxLineW + 40 }); // buffer
+                    }
+                }
+
+                // Recalculate Position based on alignment (mirrors image logic)
+                // We need to shift the box so it visual aligns correctly within the original placeholder area
+                const textAlign = settings.tagAlignment || 'left';
+                if (textAlign === 'right') {
+                    text.set({ left: (titleObj.left + placeholderWidth) - text.width });
+                } else if (textAlign === 'center') {
+                    text.set({ left: (titleObj.left + (placeholderWidth / 2)) - (text.width / 2) });
+                }
+
                 canvas.add(text);
             }
         }
