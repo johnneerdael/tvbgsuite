@@ -905,6 +905,42 @@
                     </div>
                     <input type="range" id="lineSpacingInput" min="0" max="100" value="20" oninput="updateLineSpacing()"
                         style="margin-top:2px;">
+                    <label style="margin-top:10px; display:block; font-size:11px;" data-i18n="tag_separator">Tag Separator</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="tagSeparatorSelect" onchange="setSeparatorFromSelect(this.value)" style="flex:1; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
+                            <option value="">None</option>
+                            <option value="•">• Dot</option>
+                            <option value="|">| Pipe</option>
+                            <option value="-">- Minus</option>
+                            <option value="+">+ Plus</option>
+                            <option value="/">/ Slash</option>
+                            <option value="\"> \ Backslash</option>
+                            <option value="★">★ Star</option>
+                            <option value="➤">➤ Arrow</option>
+                            <option value="—">— Em Dash</option>
+                        </select>
+                        <input type="text" id="tagSeparatorInput" placeholder="Custom" oninput="updateVerticalLayout(); saveToLocalStorage()"
+                            style="width:50px; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; box-sizing:border-box; text-align:center;">
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_size">Separator Size</label>
+                        <span id="tagSeparatorSizeVal" style="font-size:11px;">30px</span>
+                    </div>
+                    <input type="range" id="tagSeparatorSizeInput" min="10" max="100" value="30" oninput="updateSeparatorSize()" style="margin-top:2px;">
+                    
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_color">Separator Color</label>
+                    </div>
+                    <div style="display:flex; gap:5px; align-items:center;">
+                        <input type="color" id="tagSeparatorColorInput" value="#ffffff" oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:25px; width:40px; border:none; padding:0; background:none; cursor:pointer;">
+                        <select id="tagSeparatorTextureSelect" onchange="updateSeparatorTexture()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:2px; font-size:11px;"></select>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_opacity">Separator Opacity</label>
+                        <span id="tagSeparatorOpacityVal" style="font-size:11px;">100%</span>
+                    </div>
+                    <input type="range" id="tagSeparatorOpacityInput" min="0" max="100" value="100" oninput="updateSeparatorOpacity()" style="margin-top:2px;">
+
                     <div id="layerControlContainer" style="display:none; gap:5px; margin-top:10px;">
                         <button onclick="moveLayer('up')" style="flex:1; font-size:11px; padding:4px;">⬆ Bring
                             Forward</button>

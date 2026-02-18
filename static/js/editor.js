@@ -121,6 +121,7 @@ let overlayCanvasFabric = null;
 let currentEditingOverlayId = null;
 let activeBlockedAreas = []; // Active blocked areas for layout
 let textureProfiles = [];
+let separatorTextureImg = null; // Global for separator texture
 let gridEnabled = false, movingObjects = [], snapLines = { v: [], h: [] }, guideLines = [], isBatchRunning = false;
 const gridSize = 50;
 const BASE_WIDTH = 1920;
@@ -1725,8 +1726,12 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
     });
 }
 
-function updateVerticalLayout(skipRender = false) {
+function updateVerticalLayout(skipRender = false, retry = false) {
     if (!canvas) return;
+
+    // Remove existing separators
+    const separators = canvas.getObjects().filter(o => o.dataTag === 'separator');
+    separators.forEach(o => canvas.remove(o));
 
     // 1. Check for unready images (width/height 0)
     const unreadyImages = canvas.getObjects().some(o =>
@@ -1734,7 +1739,7 @@ function updateVerticalLayout(skipRender = false) {
     );
 
     if (unreadyImages) {
-        setTimeout(() => updateVerticalLayout(skipRender), 100);
+        setTimeout(() => updateVerticalLayout(skipRender, retry), 100);
         return;
     }
 
@@ -1743,6 +1748,10 @@ function updateVerticalLayout(skipRender = false) {
         const padding = lineSpacingInput ? parseInt(lineSpacingInput.value) : 20;
         const tagPaddingInput = document.getElementById('tagPaddingInput');
         const hPadding = tagPaddingInput ? parseInt(tagPaddingInput.value) : 20;
+        const separatorChar = document.getElementById('tagSeparatorInput') ? document.getElementById('tagSeparatorInput').value : '';
+        const separatorSize = document.getElementById('tagSeparatorSizeInput') ? parseInt(document.getElementById('tagSeparatorSizeInput').value) : 30;
+        const separatorColor = document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff';
+        const separatorOpacity = document.getElementById('tagSeparatorOpacityInput') ? (parseInt(document.getElementById('tagSeparatorOpacityInput').value) / 100) : 1.0;
         const rowThreshold = 4; // How close elements must be to be considered in the same row
 
         const marginTop = parseInt(document.getElementById('marginTopInput').value) || 50;
@@ -1943,6 +1952,7 @@ function updateVerticalLayout(skipRender = false) {
             if (o.dataTag === 'grid_line') return false;
             if (o.dataTag === 'guide_overlay') return false;
             if (o.dataTag === 'ambilight_bg') return false;
+            if (o.dataTag === 'separator') return false;
             if (!o.dataTag) return false;
 
             // FIX: Ignore objects that have snapping disabled (Manual Mode)
@@ -1985,6 +1995,9 @@ function updateVerticalLayout(skipRender = false) {
 
         const anchorLeft = anchor.left;
         const anchorWidth = anchor.getScaledWidth();
+
+        // Track created separators to move them later if needed
+        const createdSeparators = [];
 
         rows.forEach(row => {
             // Auto-resize icons if enabled (Match Height)
@@ -2038,11 +2051,18 @@ function updateVerticalLayout(skipRender = false) {
             }
 
             const maxRowHeight = Math.max(...row.map(el => el.visible ? el.getScaledHeight() + ((el.padding || 0) * 2) : 0));
+            
+            // FIX: Calculate max padding in this row to align all elements to a common baseline
+            // This prevents elements with different padding (e.g. background box) from having different 'top' values,
+            // which would cause them to be split into different rows on the next reload.
+            const maxRowPadding = Math.max(...row.map(el => el.padding || 0));
 
             // Stack elements horizontally starting from the calculated current_x
             row.forEach(el => {
                 const pad = el.padding || 0;
-                el.set({ top: current_y + pad, left: current_x + pad });
+                // Align all elements to the same visual top line (current_y + maxRowPadding)
+                // Elements with less padding will be visually aligned with elements that have more padding.
+                el.set({ top: current_y + maxRowPadding, left: current_x + pad });
                 el.setCoords(); // Update coordinates for accurate width calculation
 
                 // Collision Detection with Blocked Areas
@@ -2064,7 +2084,38 @@ function updateVerticalLayout(skipRender = false) {
                 }
 
                 if (el.visible) {
-                    current_x += el.getScaledWidth() + (pad * 2) + hPadding;
+                    const elWidth = el.getScaledWidth() + (pad * 2);
+                    current_x += elWidth + hPadding;
+
+                    // Add Separator if configured and not the last visible element
+                    const visIdx = visibleEls.indexOf(el);
+                    if (separatorChar && visIdx > -1 && visIdx < visibleEls.length - 1) {
+                        let fillVal = separatorColor;
+                        if (separatorTextureImg) {
+                            fillVal = new fabric.Pattern({
+                                source: separatorTextureImg,
+                                repeat: 'repeat'
+                            });
+                        }
+
+                        const sep = new fabric.IText(separatorChar, {
+                            fontFamily: (el.type === 'i-text' || el.type === 'textbox') ? el.fontFamily : 'Roboto',
+                            fontSize: separatorSize,
+                            fill: fillVal,
+                            opacity: separatorOpacity,
+                            selectable: false,
+                            evented: false,
+                            dataTag: 'separator',
+                            originX: 'center',
+                            originY: 'center',
+                            shadow: (el.type === 'i-text' || el.type === 'textbox') ? el.shadow : null
+                        });
+                        // Position in the middle of the padding gap
+                        sep.left = current_x - (hPadding / 2);
+                        sep.top = el.top + (el.getScaledHeight() / 2);
+                        canvas.add(sep);
+                        createdSeparators.push(sep);
+                    }
                 } else {
                     // Increment tiny amount to preserve order for next sort without visual gap
                     current_x += 0.1;
@@ -2146,6 +2197,12 @@ function updateVerticalLayout(skipRender = false) {
 
             const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
 
+            // If we need to adjust, we apply the change to the anchor and RE-RUN the layout.
+            // This ensures horizontal alignment (centering) is recalculated for the new anchor width,
+            // and separators are generated in the correct positions.
+            // We use a 'retry' flag to prevent infinite loops in edge cases.
+            if (retry) return; 
+
             if (totalShift > maxSafeShiftUp) {
                 // Need to shrink because we can't shift up enough
                 const deficit = totalShift - maxSafeShiftUp;
@@ -2171,12 +2228,17 @@ function updateVerticalLayout(skipRender = false) {
                 // 'left' is default (anchor.left stays oldLeft)
 
                 anchor.set('top', limitTop);
-                // Move rows up by the full required amount to clear bottom obstacle
-                rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
+                
+                // RESTART LAYOUT with new anchor size/pos
+                updateVerticalLayout(skipRender, true);
+                return;
             } else {
                 // Standard shift (enough space above)
                 anchor.set('top', anchor.top - totalShift);
-                rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
+                
+                // RESTART LAYOUT with new anchor pos
+                updateVerticalLayout(skipRender, true);
+                return;
             }
         }
 
@@ -2568,7 +2630,7 @@ function saveHistory(force = false) {
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
 
     // Filter out fade effects and grid lines (same as saveToLocalStorage)
-    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg');
+    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator');
 
     json.custom_effects = {
         bgColor: document.getElementById('bgColor').value,
@@ -2583,6 +2645,11 @@ function saveHistory(force = false) {
         tagAlignment: document.getElementById('tagAlignSelect').value,
         tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
         lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+        tagSeparator: document.getElementById('tagSeparatorInput') ? document.getElementById('tagSeparatorInput').value : '',
+        tagSeparatorSize: document.getElementById('tagSeparatorSizeInput') ? document.getElementById('tagSeparatorSizeInput').value : 30,
+        tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
+        tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
+        tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -2781,6 +2848,35 @@ function applyCustomEffects(eff) {
             el.value = eff.lineSpacing;
             const valEl = document.getElementById('lineSpacingVal');
             if (valEl) valEl.innerText = eff.lineSpacing + "px";
+        }
+    }
+    if (eff.tagSeparator !== undefined) {
+        const el = document.getElementById('tagSeparatorInput');
+        if (el) el.value = eff.tagSeparator;
+    }
+    if (eff.tagSeparatorSize) {
+        const el = document.getElementById('tagSeparatorSizeInput');
+        if (el) {
+            el.value = eff.tagSeparatorSize;
+            document.getElementById('tagSeparatorSizeVal').innerText = eff.tagSeparatorSize + "px";
+        }
+    }
+    if (eff.tagSeparatorColor) {
+        const el = document.getElementById('tagSeparatorColorInput');
+        if (el) el.value = eff.tagSeparatorColor;
+    }
+    if (eff.tagSeparatorOpacity !== undefined) {
+        const el = document.getElementById('tagSeparatorOpacityInput');
+        if (el) {
+            el.value = eff.tagSeparatorOpacity;
+            document.getElementById('tagSeparatorOpacityVal').innerText = eff.tagSeparatorOpacity + "%";
+        }
+    }
+    if (eff.tagSeparatorTexture !== undefined) {
+        const el = document.getElementById('tagSeparatorTextureSelect');
+        if (el) {
+            el.value = eff.tagSeparatorTexture;
+            updateSeparatorTexture(); // Load the texture
         }
     }
     if (eff.textContentAlignment) document.getElementById('textContentAlignSelect').value = eff.textContentAlignment;
@@ -4044,7 +4140,7 @@ async function saveLayout() {
     const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
 
     // Filter out fade effects and grid lines BEFORE saving
-    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg');
+    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator');
 
     // Normalize to 1080p base resolution
     const currentScale = canvas.width / BASE_WIDTH;
@@ -4077,6 +4173,11 @@ async function saveLayout() {
         tagAlignment: document.getElementById('tagAlignSelect').value,
         tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
         lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+        tagSeparator: document.getElementById('tagSeparatorInput') ? document.getElementById('tagSeparatorInput').value : '',
+        tagSeparatorSize: document.getElementById('tagSeparatorSizeInput') ? document.getElementById('tagSeparatorSizeInput').value : 30,
+        tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
+        tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
+        tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -4346,7 +4447,7 @@ function saveToLocalStorage() {
     if (!canvas) return;
     const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
     // Filter out fade effects so they aren't saved as static objects
-    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay');
+    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'separator');
     // Filter out ambilight background (it is auto-generated)
     json.objects = json.objects.filter(o => o.dataTag !== 'ambilight_bg');
 
@@ -4374,6 +4475,11 @@ function saveToLocalStorage() {
         tagAlignment: document.getElementById('tagAlignSelect').value,
         tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
         lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+        tagSeparator: document.getElementById('tagSeparatorInput') ? document.getElementById('tagSeparatorInput').value : '',
+        tagSeparatorSize: document.getElementById('tagSeparatorSizeInput') ? document.getElementById('tagSeparatorSizeInput').value : 30,
+        tagSeparatorColor: document.getElementById('tagSeparatorColorInput') ? document.getElementById('tagSeparatorColorInput').value : '#ffffff',
+        tagSeparatorTexture: document.getElementById('tagSeparatorTextureSelect') ? document.getElementById('tagSeparatorTextureSelect').value : '',
+        tagSeparatorOpacity: document.getElementById('tagSeparatorOpacityInput') ? document.getElementById('tagSeparatorOpacityInput').value : 100,
         textContentAlignment: document.getElementById('textContentAlignSelect').value,
         genreLimit: document.getElementById('genreLimitSlider').value,
         overlayId: document.getElementById('overlaySelect').value,
@@ -4478,6 +4584,7 @@ async function loadFromLocalStorage() {
                 const ghosts = canvas.getObjects().filter(o =>
                     o.dataTag === 'fade_effect' ||
                     o.dataTag === 'grid_line' ||
+                    o.dataTag === 'separator' ||
                     o.dataTag === 'guide_overlay' ||
                     (o.type === 'rect' && !o.selectable && !o.evented) ||
                     (o.type === 'line' && o.stroke === '#555' && !o.selectable)
@@ -5134,3 +5241,64 @@ const propMaxItemsSlider = document.getElementById('prop-max-items');
 if (propMaxItemsSlider) {
     propMaxItemsSlider.addEventListener('input', updateMaxItems);
 }
+
+function setSeparatorFromSelect(val) {
+    const input = document.getElementById('tagSeparatorInput');
+    if (input) {
+        input.value = val;
+        updateVerticalLayout();
+        saveToLocalStorage();
+    }
+}
+
+function updateSeparatorSize() {
+    const val = document.getElementById('tagSeparatorSizeInput').value;
+    document.getElementById('tagSeparatorSizeVal').innerText = val + "px";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
+function updateSeparatorOpacity() {
+    const val = document.getElementById('tagSeparatorOpacityInput').value;
+    document.getElementById('tagSeparatorOpacityVal').innerText = val + "%";
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
+function updateSeparatorTexture() {
+    const textureId = document.getElementById('tagSeparatorTextureSelect').value;
+    if (!textureId) {
+        separatorTextureImg = null;
+        updateVerticalLayout();
+        saveToLocalStorage();
+        return;
+    }
+
+    const profile = textureProfiles.find(p => p.id === textureId);
+    if (!profile) return;
+
+    const url = `/api/textures/image/${profile.filename}`;
+    fabric.util.loadImage(url, function(img) {
+        separatorTextureImg = img;
+        updateVerticalLayout();
+        saveToLocalStorage();
+    });
+}
+
+// Update loadTextureProfiles to populate separator select
+const originalLoadTextureProfiles = loadTextureProfiles;
+loadTextureProfiles = async function() {
+    await originalLoadTextureProfiles();
+    const sel = document.getElementById('tagSeparatorTextureSelect');
+    if (sel) {
+        const current = sel.value;
+        sel.innerHTML = '<option value="">No Texture</option>';
+        textureProfiles.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.innerText = p.name;
+            sel.appendChild(opt);
+        });
+        sel.value = current;
+    }
+};

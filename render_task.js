@@ -212,15 +212,23 @@ function fitTextToContainer(canvas, textbox) {
 
 // ADAPTED from editor.js: updateVerticalLayout
 // Replaces DOM lookups with 'settings' object usage
-function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
+function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retry = false) {
     if (!canvas) return;
 
     const anchor = canvas.getObjects().find(o => o.dataTag === 'title');
     if (!anchor) return;
 
+    // Remove existing separators to prevent duplicates on re-render
+    const separators = canvas.getObjects().filter(o => o.dataTag === 'separator');
+    separators.forEach(o => canvas.remove(o));
+
     // Mapping settings
     const padding = parseInt(settings.lineSpacing) || 20;
     const hPadding = parseInt(settings.tagPadding) || 20;
+    const separatorChar = settings.tagSeparator || '';
+    const separatorSize = parseInt(settings.tagSeparatorSize) || 30;
+    const separatorColor = settings.tagSeparatorColor || '#ffffff';
+    const separatorOpacity = (settings.tagSeparatorOpacity !== undefined) ? (parseInt(settings.tagSeparatorOpacity) / 100) : 1.0;
     const rowThreshold = 4;
 
     const marginTop = parseInt(settings.margins?.top || 50);
@@ -370,6 +378,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
         if (o.dataTag === 'background') return false;
         if (o.dataTag === 'title') return false;
         if (o.dataTag === 'guide' || o.dataTag === 'fade_effect' || o.dataTag === 'grid_line' || o.dataTag === 'guide_overlay' || o.dataTag === 'ambilight_bg') return false;
+        if (o.dataTag === 'separator') return false;
         if (!o.dataTag) return false;
         if (o.snapToObjects === false) return false; // Manual mode check (preserved from original JSON)
         return true;
@@ -489,7 +498,34 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
             }
 
             if (el.visible) {
-                current_x += (el.width * el.scaleX) + (pad * 2) + hPadding;
+                const elWidth = (el.width * el.scaleX) + (pad * 2);
+                current_x += elWidth + hPadding;
+
+                // Add Separator
+                const visIdx = visibleEls.indexOf(el);
+                if (separatorChar && visIdx > -1 && visIdx < visibleEls.length - 1) {
+                    let fillVal = separatorColor;
+                    if (settings._separatorPattern) {
+                        fillVal = settings._separatorPattern;
+                    }
+
+                    const sep = new fabric.IText(separatorChar, {
+                        fontFamily: (el.type === 'i-text' || el.type === 'textbox') ? el.fontFamily : 'Roboto',
+                        fontSize: separatorSize,
+                        fill: fillVal,
+                        opacity: separatorOpacity,
+                        selectable: false,
+                        evented: false,
+                        dataTag: 'separator',
+                        originX: 'center',
+                        originY: 'center',
+                        shadow: (el.type === 'i-text' || el.type === 'textbox') ? el.shadow : null
+                    });
+                    
+                    sep.left = current_x - (hPadding / 2);
+                    sep.top = el.top + ((el.height * el.scaleY) / 2);
+                    canvas.add(sep);
+                }
             } else {
                 current_x += 0.1;
             }
@@ -558,6 +594,9 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
         });
 
         const maxSafeShiftUp = Math.max(0, anchor.top - limitTop);
+        
+        if (retry) return;
+
         if (totalShift > maxSafeShiftUp) {
             const deficit = totalShift - maxSafeShiftUp;
             const currentHeight = anchor.height * anchor.scaleY;
@@ -575,10 +614,12 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
             else if (alignment === 'center') anchor.set('left', oldCenterX - (newWidth / 2));
 
             anchor.set('top', limitTop);
-            rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
+            updateVerticalLayout(canvas, settings, activeBlockedAreas, true);
+            return;
         } else {
             anchor.set('top', anchor.top - totalShift);
-            rows.forEach(row => row.forEach(el => el.set('top', el.top - totalShift)));
+            updateVerticalLayout(canvas, settings, activeBlockedAreas, true);
+            return;
         }
     }
 }
@@ -1080,12 +1121,37 @@ function getCertificationFilename(rating) {
         const blockedAreas = settings.blocked_areas || [];
         // Merge with data-provided settings if any (not typical but possible)
 
+        // --- PRELOAD SEPARATOR TEXTURE IF NEEDED ---
+        if (settings.tagSeparatorTexture) {
+            try {
+                const texturesPath = path.join(__dirname, 'textures.json');
+                if (fs.existsSync(texturesPath)) {
+                    const textures = JSON.parse(fs.readFileSync(texturesPath, 'utf8'));
+                    const profile = textures.find(t => t.id === settings.tagSeparatorTexture);
+                    if (profile) {
+                        const texFile = path.join(__dirname, 'textures', profile.filename);
+                        if (fs.existsSync(texFile)) {
+                            const imgData = fs.readFileSync(texFile);
+                            const img = new canvasModule.Image();
+                            img.src = imgData;
+                            // Create pattern
+                            settings._separatorPattern = new fabric.Pattern({
+                                source: img,
+                                repeat: 'repeat'
+                            });
+                        }
+                    }
+                }
+            } catch (e) { console.error("Failed to load separator texture:", e); }
+        }
+
         // 4. POPULATE DATA
         const imagePromises = [];
         const certDir = path.join(__dirname, 'certification');
 
         // Remove existing fade effects (will be re-applied)
         canvas.getObjects().filter(o => o.dataTag === 'fade_effect').forEach(o => canvas.remove(o));
+        canvas.getObjects().filter(o => o.dataTag === 'separator').forEach(o => canvas.remove(o));
 
         canvas.getObjects().forEach(obj => {
             if (!obj.dataTag) return;
@@ -1657,7 +1723,7 @@ function getCertificationFilename(rating) {
         console.log("Generating JSON output...");
 
         let jsonOutput;
-        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin', 'clipPath', 'maxItems'];
+        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin', 'clipPath', 'maxItems', 'fullList'];
 
         // Apply Max Items Limit to Actors/Directors before JSON generation
         canvas.getObjects().forEach(obj => {
