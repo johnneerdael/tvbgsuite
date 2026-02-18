@@ -437,6 +437,11 @@ def generate_background_for_item(item, media_type, group_type='',
             duration = getattr(item, "duration", None)
             duration_text = f"{(duration // 3600000)}h {(duration // 60000) % 60}min" if duration else ""
             contentrating = getattr(item, "contentRating", "")
+            # Extract actors and directors
+            actors = [role.tag for role in getattr(item, 'roles', [])][:5]
+            directors = [d.tag for d in getattr(item, 'directors', [])][:3]
+            if not directors:
+                directors = [w.tag for w in getattr(item, 'writers', [])][:3]
             info_parts = [str(item.year), genres_text, duration_text, contentrating, rating_text]
         else:
             max_genres = 3
@@ -447,6 +452,11 @@ def generate_background_for_item(item, media_type, group_type='',
             seasons = getattr(item, "seasons", lambda: [])()
             seasons_count = len(seasons)
             seasons_text = f"{seasons_count} Season" if seasons_count == 1 else f"{seasons_count} Seasons" if seasons_count else ""
+            # Extract actors and directors
+            actors = [role.tag for role in getattr(item, 'roles', [])][:5]
+            directors = [d.tag for d in getattr(item, 'directors', [])][:3]
+            if not directors:
+                directors = [w.tag for w in getattr(item, 'writers', [])][:3]
             info_parts = [str(item.year), genres_text, seasons_text, getattr(item, "contentRating", ""), rating_text]
         
         info_text = "  •  ".join(filter(None, info_parts))

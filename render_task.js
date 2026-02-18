@@ -221,7 +221,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
     // Mapping settings
     const padding = parseInt(settings.lineSpacing) || 20;
     const hPadding = parseInt(settings.tagPadding) || 20;
-    const rowThreshold = 5;
+    const rowThreshold = 4;
 
     const marginTop = parseInt(settings.margins?.top || 50);
     const marginBottom = parseInt(settings.margins?.bottom || 50);
@@ -509,6 +509,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = []) {
         }
 
         if (maxRowHeight > 0) current_y += maxRowHeight + padding;
+        else current_y += 5;
     });
 
     const contentBottom = current_y - padding;
@@ -1133,6 +1134,22 @@ function getCertificationFilename(rating) {
                     const rtCheck = String(val || "").toLowerCase().replace(/\s/g, '');
                     if (rtCheck === '0min' || rtCheck === '0') val = null;
                     break;
+                case 'actors':
+                    if (data.actors && data.actors.length > 0) {
+                        const limit = obj.maxItems || data.actors.length;
+                        val = data.actors.slice(0, limit).join(', ');
+                    } else {
+                        val = null;
+                    }
+                    break;
+                case 'directors':
+                    if (data.directors && data.directors.length > 0) {
+                        const limit = obj.maxItems || data.directors.length;
+                        val = data.directors.slice(0, limit).join(', ');
+                    } else {
+                        val = null;
+                    }
+                    break;
                 case 'officialRating': val = data.officialRating; break;
                 case 'provider_source':
                     let providerText = "";
@@ -1640,7 +1657,25 @@ function getCertificationFilename(rating) {
         console.log("Generating JSON output...");
 
         let jsonOutput;
-        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin', 'clipPath'];
+        const propertiesToInclude = ['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'logoAutoFix', 'crossOrigin', 'clipPath', 'maxItems'];
+
+        // Apply Max Items Limit to Actors/Directors before JSON generation
+        canvas.getObjects().forEach(obj => {
+            if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.maxItems && obj.fullMediaText) {
+                // Re-slice based on maxItems
+                // Note: fullMediaText should contain the full list
+                let list = obj.fullMediaText;
+                // It might be a string or array. For safety, if string, assume comma separation
+                if (typeof list === 'string' && list.includes(',')) {
+                    list = list.split(',').map(s => s.trim());
+                }
+                if (Array.isArray(list)) {
+                    const sliced = list.slice(0, obj.maxItems);
+                    const prefix = obj.dataTag === 'directors' ? "Dir: " : "";
+                    obj.set('text', prefix + sliced.join(', '));
+                }
+            }
+        });
 
         // Fix Ambilight Object for JSON (Link to file instead of embedding Base64)
         // Matches client-side batch.js behavior and prevents huge JSON files

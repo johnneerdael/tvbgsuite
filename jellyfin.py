@@ -118,7 +118,7 @@ def download_latest_media(order_by, limit, media_type):
         'IncludeItemTypes': media_type,
         'Recursive': 'true',
         'SortOrder': 'Descending',
-        'Fields': 'Path,Overview,Genres,CommunityRating,PremiereDate,Tags',
+        'Fields': 'Path,Overview,Genres,CommunityRating,PremiereDate,Tags,People',
         'ExcludeItemTypes': 'BoxSet'
     }
     response = requests.get(f"{baseurl}/Users/{user_id}/Items", headers=headers, params=params)
@@ -174,6 +174,18 @@ def download_latest_media(order_by, limit, media_type):
                     # 3. Prepare and Draw Info Text
                     tags = []
                     
+                    # Fetch People for Directors
+                    people = item.get('People', [])
+                    directors = list(dict.fromkeys(
+                        p.get('Name') for p in people if p.get('Type') == 'Director'
+                    ))
+                    if not directors:
+                        directors = list(dict.fromkeys(
+                            p.get('Name') for p in people if p.get('Type') == 'Writer'
+                        ))
+                    if directors:
+                        tags.append(f"Dir: {', '.join(directors[:2])}")
+                        
                     # Year
                     tags.append(item.get('PremiereDate', 'N/A')[:4])
                     

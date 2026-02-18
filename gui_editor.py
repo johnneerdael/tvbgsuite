@@ -379,6 +379,19 @@ def format_jellyfin_item(item, clean_url, api_key):
     h, m = divmod(minutes, 60)
     runtime_str = f"{h}h {m}min" if h > 0 else f"{m}min"
 
+    # Extract Actors and Directors from People
+    people = item.get('People', [])
+    actors = [p.get('Name') for p in people if p.get('Type') == 'Actor']
+    
+    # Director extraction: Check Type='Director' first, fall back to Type='Writer'
+    directors = list(dict.fromkeys(
+        p.get('Name') for p in people if p.get('Type') == 'Director'
+    ))
+    if not directors:
+        directors = list(dict.fromkeys(
+            p.get('Name') for p in people if p.get('Type') == 'Writer'
+        ))
+
     return {
         "id": item.get('Id'),
         "title": item.get('Name'),
@@ -388,6 +401,8 @@ def format_jellyfin_item(item, clean_url, api_key):
         "overview": item.get('Overview', ''),
         "genres": ", ".join(item.get('Genres', [])),
         "tags": item.get('Tags', []),
+        "actors": actors,
+        "directors": directors,
         "studios": [s.get('Name') for s in item.get('Studios', [])],
         "provider_ids": item.get('ProviderIds', {}),
         "runtime": runtime_str,
@@ -422,7 +437,7 @@ def get_random_media():
             except Exception as e:
                 print(f"Error fetching libraries: {e}")
 
-        url = f"{clean_url}/Users/{jf['user_id']}/Items?Recursive=true&IncludeItemTypes=Movie,Series&ExcludeItemTypes=BoxSet&SortBy=Random&Limit=50&Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue"
+        url = f"{clean_url}/Users/{jf['user_id']}/Items?Recursive=true&IncludeItemTypes=Movie,Series&ExcludeItemTypes=BoxSet&SortBy=Random&Limit=50&Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue,People"
         
         try:
             r = requests.get(url, headers=headers, timeout=5)
@@ -461,6 +476,9 @@ def get_media_list():
     config = load_config()
     filter_mode = request.args.get('mode', 'all')
     filter_val = request.args.get('val', '')
+    item_types = request.args.get('types', 'Movie,Series')
+    limit_count = request.args.get('limit', '0')
+    
     jf = config.get('jellyfin', {})
     excluded_libs = jf.get('excluded_libraries', "")
     excluded_list = [x.strip() for x in excluded_libs.split(',') if x.strip()]
@@ -482,7 +500,11 @@ def get_media_list():
                 print(f"Error fetching libraries: {e}")
 
         # Fetch all items sorted by name
-        base_params = "Recursive=true&IncludeItemTypes=Movie,Series&ExcludeItemTypes=BoxSet&Fields=Name,Path,OfficialRating,InheritedParentalRatingValue&Limit=100000"
+        base_params = f"Recursive=true&IncludeItemTypes={item_types}&ExcludeItemTypes=BoxSet&Fields=Name,Path,OfficialRating,InheritedParentalRatingValue"
+        if limit_count and limit_count != '0':
+            base_params += f"&Limit={limit_count}"
+        else:
+            base_params += "&Limit=100000"
         sort_params = "&SortBy=SortName"
         
         if filter_mode == 'recent':
@@ -600,7 +622,7 @@ def get_media_item(item_id):
     if jf.get('url') and jf.get('api_key'):
         headers = {"X-Emby-Token": jf['api_key']}
         clean_url = jf['url'].rstrip('/')
-        url = f"{clean_url}/Users/{jf['user_id']}/Items/{item_id}?Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue"
+        url = f"{clean_url}/Users/{jf['user_id']}/Items/{item_id}?Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue,People"
         try:
             r = requests.get(url, headers=headers, timeout=5)
             r.raise_for_status()

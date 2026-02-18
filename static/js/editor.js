@@ -349,6 +349,26 @@ function updateSelectionUI(e) {
                 document.getElementById('shadowOffsetY').value = 0;
             }
 
+            // Max Items Slider Logic (Actors/Directors)
+            if (activeObj.dataTag === 'actors' || activeObj.dataTag === 'directors') {
+                document.getElementById('maxItemsGroup').style.display = 'flex';
+                const currentMax = activeObj.maxItems || (activeObj.dataTag === 'directors' ? 3 : 5);
+                document.getElementById('maxItemsSlider').value = currentMax;
+                document.getElementById('maxItemsVal').innerText = currentMax;
+
+                // Also update Floating Menu Slider
+                const propGroup = document.getElementById('prop-max-items-group');
+                if (propGroup) {
+                    propGroup.style.display = 'block';
+                    document.getElementById('prop-max-items').value = currentMax;
+                    document.getElementById('prop-max-items-val').innerText = currentMax;
+                }
+            } else {
+                document.getElementById('maxItemsGroup').style.display = 'none';
+                const propGroup = document.getElementById('prop-max-items-group');
+                if (propGroup) propGroup.style.display = 'none';
+            }
+
             // Check fill type (Pattern vs Color)
             const isPattern = (textObj.fill && typeof textObj.fill === 'object' && textObj.fill.source);
             document.getElementById('fillTypeTexture').checked = isPattern;
@@ -823,6 +843,8 @@ function extractMetadata(item) {
         action_url: actionUrl,
         provider_ids: item.provider_ids || item.ProviderIds,
         studios: item.studios || item.Studios,
+        actors: item.actors || (Array.isArray(item.People) ? item.People.filter(p => p.Type === 'Actor').map(p => p.Name) : []),
+        directors: item.directors || (Array.isArray(item.People) ? item.People.filter(p => p.Type === 'Director').map(p => p.Name) : []),
         tags: item.tags || item.Tags,
         source: item.source
     };
@@ -1356,6 +1378,29 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             obj.set('visible', false);
                         }
                         break;
+                    case 'actors':
+                        if (mediaData.actors && mediaData.actors.length > 0) {
+                            obj.fullList = mediaData.actors;
+                            const limit = obj.maxItems || mediaData.actors.length;
+                            val = mediaData.actors.slice(0, limit).join(', ');
+                        } else {
+                            val = null;
+                            obj.fullList = [];
+                        }
+                        break;
+                    case 'directors':
+                        if (mediaData.directors && mediaData.directors.length > 0) {
+                            obj.fullList = mediaData.directors;
+                            const limit = obj.maxItems || mediaData.directors.length;
+                            val = mediaData.directors.slice(0, limit).join(', ');
+                        } else {
+                            val = null;
+                            obj.fullList = [];
+                        }
+                        break;
+                    default:
+                        val = mediaData[obj.dataTag];
+                        break;
                 }
 
                 // Only update visibility for tags that actually produced a value (or explicit null)
@@ -1698,7 +1743,7 @@ function updateVerticalLayout(skipRender = false) {
         const padding = lineSpacingInput ? parseInt(lineSpacingInput.value) : 20;
         const tagPaddingInput = document.getElementById('tagPaddingInput');
         const hPadding = tagPaddingInput ? parseInt(tagPaddingInput.value) : 20;
-        const rowThreshold = 30; // How close elements must be to be considered in the same row
+        const rowThreshold = 4; // How close elements must be to be considered in the same row
 
         const marginTop = parseInt(document.getElementById('marginTopInput').value) || 50;
         const marginBottom = parseInt(document.getElementById('marginBottomInput').value) || 50;
@@ -2042,6 +2087,8 @@ function updateVerticalLayout(skipRender = false) {
 
             if (maxRowHeight > 0) {
                 current_y += maxRowHeight + padding;
+            } else {
+                current_y += 5; // Maintain small vertical separation for hidden rows to prevent merging
             }
         });
 
@@ -2518,7 +2565,7 @@ function jumpToHistory(index) {
 function saveHistory(force = false) {
     if (isUndoRedoProcessing || !canvas) return;
 
-    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
+    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
 
     // Filter out fade effects and grid lines (same as saveToLocalStorage)
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg');
@@ -3994,7 +4041,7 @@ async function saveLayout() {
     btn.innerText = "Saving Layout...";
     setUIInteraction(false);
 
-    const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
+    const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
 
     // Filter out fade effects and grid lines BEFORE saving
     layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg');
@@ -4297,7 +4344,7 @@ function mirrorBackground() {
 
 function saveToLocalStorage() {
     if (!canvas) return;
-    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix']);
+    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
     // Filter out fade effects so they aren't saved as static objects
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay');
     // Filter out ambilight background (it is auto-generated)
@@ -4800,7 +4847,8 @@ async function addCronJob() {
         random_count: randomCount,
         logo_auto_fix: logoAutoFix,
         dry_run: dryRun,
-        // Capture other filter settings if needed
+        item_types: document.getElementById('cronMediaType') ? document.getElementById('cronMediaType').value : 'Movie,Series',
+        limit: document.getElementById('cronMaxItems') ? document.getElementById('cronMaxItems').value : '0',
         created_at: new Date().toISOString()
     };
 
@@ -4924,6 +4972,21 @@ function injectCronFilterUI() {
         </select>
         
         <div id="cronFilterSettings">
+            <div style="display:flex; gap:10px; margin-bottom:10px;">
+                <div style="flex:1;">
+                    <label style="display:block; color:#aaa; font-size:12px; margin-bottom:5px;">Media Type</label>
+                    <select id="cronMediaType" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px;">
+                        <option value="Movie,Series" selected>All</option>
+                        <option value="Movie">Movies</option>
+                        <option value="Series">Series</option>
+                    </select>
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; color:#aaa; font-size:12px; margin-bottom:5px;">Limit (0=All)</label>
+                    <input type="number" id="cronMaxItems" value="0" min="0" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px;">
+                </div>
+            </div>
+
             <label style="display:block; color:#aaa; font-size:12px; margin-bottom:5px;">Filter</label>
             <select id="cronFilterMode" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px; margin-bottom:10px;" onchange="toggleCronInputs()">
                 <option value="all" selected>All Items</option>
@@ -5020,3 +5083,54 @@ function toggleCronInputs() {
 }
 
 window.onload = init;
+
+// Max Items Logic
+function updateMaxItems() {
+    const activeObj = canvas.getActiveObject();
+    if (!activeObj || (activeObj.dataTag !== 'actors' && activeObj.dataTag !== 'directors')) return;
+
+    // Get value from either slider (Ribbon or Floating)
+    // We'll use the one that triggered the event, or default to the ribbon one if called programmatically without event
+    const ribbonSlider = document.getElementById('maxItemsSlider');
+    const propSlider = document.getElementById('prop-max-items');
+
+    // Sync values
+    let newVal = ribbonSlider.value;
+    if (event && event.target === propSlider) {
+        newVal = propSlider.value;
+        ribbonSlider.value = newVal;
+    } else {
+        if (propSlider) propSlider.value = newVal;
+    }
+
+    // Update UI labels
+    document.getElementById('maxItemsVal').innerText = newVal;
+    if (document.getElementById('prop-max-items-val')) {
+        document.getElementById('prop-max-items-val').innerText = newVal;
+    }
+
+    // Update Object
+    activeObj.set('maxItems', parseInt(newVal));
+
+    // Refetch/Update Text content based on new limit
+    // We rely on the full list stored in 'fullList' if available, or just re-request preview
+    if (activeObj.fullList) {
+        let listToUse = activeObj.fullList;
+        // Check if listToUse is a string (comma separated) or array
+        if (typeof listToUse === 'string') {
+            listToUse = listToUse.split(',').map(s => s.trim());
+        }
+
+        const sliced = listToUse.slice(0, newVal);
+        const prefix = activeObj.dataTag === 'directors' ? "Dir: " : "";
+        activeObj.set('text', prefix + sliced.join(', '));
+    }
+
+    canvas.requestRenderAll();
+}
+
+// Add event listener for floating menu slider if it exists
+const propMaxItemsSlider = document.getElementById('prop-max-items');
+if (propMaxItemsSlider) {
+    propMaxItemsSlider.addEventListener('input', updateMaxItems);
+}

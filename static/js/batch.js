@@ -3,17 +3,17 @@ let batchTimer = null;
 function toggleBatchInputs() {
     const mode = document.getElementById('batchMode').value;
     const filterMode = document.getElementById('batchFilterMode').value;
-    
+
     document.getElementById('batchRandomSettings').style.display = (mode === 'random') ? 'block' : 'none';
     document.getElementById('batchFilterSettings').style.display = (mode === 'library') ? 'block' : 'none';
-    
+
     // Filter Inputs
     document.getElementById('filterInputYear').style.display = (mode === 'library' && filterMode === 'year') ? 'block' : 'none';
     document.getElementById('filterInputGenre').style.display = (mode === 'library' && filterMode === 'genre') ? 'block' : 'none';
     document.getElementById('filterInputRating').style.display = (mode === 'library' && (filterMode === 'rating' || filterMode === 'imdb')) ? 'block' : 'none';
     document.getElementById('filterInputOfficialRating').style.display = (mode === 'library' && filterMode === 'official_rating') ? 'block' : 'none';
     document.getElementById('filterInputCustom').style.display = (mode === 'library' && filterMode === 'custom') ? 'block' : 'none';
-    
+
     // Update label for count based on context
     const countLabel = document.querySelector('label[for="batchCount"]');
     if (mode === 'library') countLabel.innerText = "Limit (Max Images)";
@@ -42,14 +42,14 @@ async function loadBatchLayouts() {
 function logBatch(msg) {
     const log = document.getElementById('batchLog');
     const time = new Date().toLocaleTimeString();
-    
+
     // Smart Auto-Scroll: Only scroll if user is near bottom (50px tolerance)
     const isAtBottom = log.scrollHeight - log.scrollTop <= log.clientHeight + 50;
 
     const line = document.createElement('div');
     line.innerText = `[${time}] ${msg}`;
     log.appendChild(line);
-    
+
     if (isAtBottom) log.scrollTop = log.scrollHeight;
 }
 
@@ -66,7 +66,7 @@ async function startBatchProcess() {
     if (isBatchRunning) return;
     if (batchTimer) clearTimeout(batchTimer);
     isBatchRunning = true;
-    
+
     const layoutName = document.getElementById('batchLayoutSelect').value;
     const mode = document.getElementById('batchMode').value;
     const filterMode = document.getElementById('batchFilterMode').value;
@@ -75,30 +75,33 @@ async function startBatchProcess() {
     const overwrite = document.getElementById('batchOverwrite').checked;
     const sortGenre = false;
     const dryRun = document.getElementById('batchDryRun').checked;
-    
+
     document.getElementById('btn-start-batch').style.display = 'none';
     document.getElementById('btn-stop-batch').style.display = 'block';
-    
+
     const logDiv = document.getElementById('batchLog');
     if (logDiv) {
         logDiv.innerText = "";
         logDiv.style.overflowY = 'auto';
     }
-    
+
     if (typeof setUIInteraction === 'function') {
         setUIInteraction(false);
         document.getElementById('btn-stop-batch').disabled = false;
     }
-    
+
     logBatch(`Starting batch for layout: "${layoutName}"`);
-    
+
     if (dryRun) {
         logBatch(`[DRY RUN] Mode active. No images will be generated.`);
     }
 
     let itemsToProcess = [];
     if (mode === 'library') {
-        let qs = `?mode=${filterMode}`;
+        let mediaType = document.getElementById('batchMediaType').value || 'Movie,Series';
+        let limitVal = document.getElementById('batchMaxItems').value || '0';
+
+        let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}`;
         if (filterMode === 'year') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterYear').value)}`;
         if (filterMode === 'genre') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterGenre').value)}`;
         if (filterMode === 'rating') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterRating').value)}`;
@@ -114,10 +117,10 @@ async function startBatchProcess() {
         const resp = await fetch('/api/media/list' + qs);
         const list = await resp.json();
         if (list.error) { logBatch("Error: " + list.error); stopBatchProcess(); return; }
-        
-        itemsToProcess = list.map(i => ({id: i.Id, name: i.Name}));
+
+        itemsToProcess = list.map(i => ({ id: i.Id, name: i.Name }));
         logBatch(`Found ${itemsToProcess.length} matching items.`);
-        
+
         if (itemsToProcess.length === 0) {
             logBatch("No items found. Stopping.");
             stopBatchProcess();
@@ -147,22 +150,22 @@ async function startBatchProcess() {
     const total = itemsToProcess.length;
     for (let i = 0; i < total; i++) {
         if (!isBatchRunning) break;
-        
+
         const progress = Math.round(((i) / total) * 100);
         document.getElementById('batchProgressBar').style.width = `${progress}%`;
         document.getElementById('batchProgressBar').innerText = `${progress}%`;
 
         const item = itemsToProcess[i];
-        const label = item ? item.name : `Random #${i+1}`;
-        
+        const label = item ? item.name : `Random #${i + 1}`;
+
         if (dryRun) {
-             logBatch(`[Dry Run] Would process: ${label}`);
-             await new Promise(r => setTimeout(r, 50)); // Tiny delay for visual effect
-             continue;
+            logBatch(`[Dry Run] Would process: ${label}`);
+            await new Promise(r => setTimeout(r, 50)); // Tiny delay for visual effect
+            continue;
         }
 
-        logBatch(`Processing (${i+1}/${total}): ${label}`);
-        
+        logBatch(`Processing (${i + 1}/${total}): ${label}`);
+
         // --- FIX: Restore initial layout state ---
         // Resets object positions (e.g. Overview) to prevent layout shifts from persisting
         if (!dryRun && initialState) {
@@ -179,16 +182,16 @@ async function startBatchProcess() {
             const ambilightObjs = canvas.getObjects().filter(o => o.dataTag === 'ambilight_bg');
             ambilightObjs.forEach(o => canvas.remove(o));
         }
-        
+
         // 1. Load data and update canvas text
         // (fetchMediaData comes from editor.js and handles the data fetching)
-        await fetchMediaData(item ? item.id : null); 
-        
+        await fetchMediaData(item ? item.id : null);
+
         // --- FIX: Correct Layout (Fixes overflow issues) ---
         // Since the text content has changed, widths have changed.
         // We must manually trigger a layout recalculation before saving.
         if (typeof canvas !== 'undefined') {
-            
+
             // A. Recalculate Textboxes (e.g. Overview) to fit container
             canvas.getObjects().forEach(obj => {
                 if (obj.dataTag === 'overview' && obj.type === 'textbox') {
@@ -197,7 +200,7 @@ async function startBatchProcess() {
                     }
                 }
                 // Invalidate cache to prevent artifacts
-                obj.setCoords(); 
+                obj.setCoords();
                 obj.dirty = true;
             });
 
@@ -206,7 +209,7 @@ async function startBatchProcess() {
             if (typeof updateVerticalLayout === 'function') {
                 updateVerticalLayout();
             }
-            
+
             // C. Force a clean redraw
             canvas.renderAll();
         }
@@ -215,112 +218,112 @@ async function startBatchProcess() {
         // 2. Hide overlay for screenshot
         const overlay = canvas.getObjects().find(o => o.dataTag === 'guide_overlay');
         const wasVisible = overlay ? overlay.visible : false;
-                if (overlay) overlay.visible = false;
-        
-                const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.95 });
-                if (overlay) overlay.visible = wasVisible;
-        
-                // --- New: Separate Ambilight Data ---
-                let ambilightDataURL = null;
-                const ambilightObj = canvas.getObjects().find(o => o.dataTag === 'ambilight_bg');
-                
-                if (ambilightObj) {
-                    await new Promise(resolve => {
-                        const timer = setTimeout(() => {
-                            logBatch("Warning: Ambilight clone operation timed out.");
-                            resolve();
-                        }, 3000);
-        
-                        const tempCanvas = new fabric.StaticCanvas(null, {
-                            width: ambilightObj.getScaledWidth(),
-                            height: ambilightObj.getScaledHeight()
-                        });
-        
-                        ambilightObj.clone(function(cloned) {
-                            clearTimeout(timer);
-                            if (!cloned) {
-                                logBatch("Warning: Failed to clone ambilight object.");
-                                tempCanvas.dispose();
-                                return resolve();
-                            }
-                            cloned.set({
-                                left: tempCanvas.width / 2,
-                                top: tempCanvas.height / 2,
-                                originX: 'center',
-                                originY: 'center'
-                            });
-                            tempCanvas.add(cloned);
-                            tempCanvas.renderAll();
-                            ambilightDataURL = tempCanvas.toDataURL({ format: 'jpeg', quality: 0.8 });
-                            
-                            tempCanvas.dispose();
-                            resolve();
-                        });
-                    });
-                    canvas.remove(ambilightObj);
-                }
-                // --- End New ---
-        
-                const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity']);
-                
-                // Inject custom_effects so the saved JSON contains overlay info & blocked areas
-                json.custom_effects = {
-                    bgColor: document.getElementById('bgColor').value,
-                    bgBrightness: document.getElementById('bgBrightness').value,
-                    fadeEffect: document.getElementById('fadeEffect').value,
-                    fadeRadius: document.getElementById('fadeRadius').value,
-                    fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
-                    fadeLeft: document.getElementById('fadeLeft').value,
-                    fadeRight: document.getElementById('fadeRight').value,
-                    fadeTop: document.getElementById('fadeTop').value,
-                    fadeBottom: document.getElementById('fadeBottom').value,
-                    tagAlignment: document.getElementById('tagAlignSelect').value,
-                    tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
-                    lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
-                    textContentAlignment: document.getElementById('textContentAlignSelect').value,
-                    genreLimit: document.getElementById('genreLimitSlider').value,
-                    overlayId: document.getElementById('overlaySelect').value,
-                    margins: {
-                        top: document.getElementById('marginTopInput').value,
-                        bottom: document.getElementById('marginBottomInput').value,
-                        left: document.getElementById('marginLeftInput').value,
-                        right: document.getElementById('marginRightInput').value
-                    },
-                    logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
-                    backgroundMode: backgroundMode
-                };
-        
-                if (json.custom_effects.overlayId && typeof overlayProfiles !== 'undefined') {
-                    const profile = overlayProfiles.find(p => p.id === json.custom_effects.overlayId);
-                    if (profile && profile.blocked_areas) {
-                        json.custom_effects.blocked_areas = profile.blocked_areas;
-                    }
-                }
-                
-                let metadata = {};
-                if (typeof extractMetadata === 'function' && lastFetchedData) {
-                    metadata = extractMetadata(lastFetchedData);
-                }
-        
-                const payload = { 
-                    image: dataURL, 
-                    layout_name: layoutName, 
-                    canvas_json: json, 
-                    overwrite_filename: null, 
-                    target_type: 'gallery',
-                    organize_by_genre: sortGenre,
-                    metadata: metadata,
-                    ambilight_image_data: ambilightDataURL // Add to payload
-                };
+        if (overlay) overlay.visible = false;
 
-        
+        const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.95 });
+        if (overlay) overlay.visible = wasVisible;
+
+        // --- New: Separate Ambilight Data ---
+        let ambilightDataURL = null;
+        const ambilightObj = canvas.getObjects().find(o => o.dataTag === 'ambilight_bg');
+
+        if (ambilightObj) {
+            await new Promise(resolve => {
+                const timer = setTimeout(() => {
+                    logBatch("Warning: Ambilight clone operation timed out.");
+                    resolve();
+                }, 3000);
+
+                const tempCanvas = new fabric.StaticCanvas(null, {
+                    width: ambilightObj.getScaledWidth(),
+                    height: ambilightObj.getScaledHeight()
+                });
+
+                ambilightObj.clone(function (cloned) {
+                    clearTimeout(timer);
+                    if (!cloned) {
+                        logBatch("Warning: Failed to clone ambilight object.");
+                        tempCanvas.dispose();
+                        return resolve();
+                    }
+                    cloned.set({
+                        left: tempCanvas.width / 2,
+                        top: tempCanvas.height / 2,
+                        originX: 'center',
+                        originY: 'center'
+                    });
+                    tempCanvas.add(cloned);
+                    tempCanvas.renderAll();
+                    ambilightDataURL = tempCanvas.toDataURL({ format: 'jpeg', quality: 0.8 });
+
+                    tempCanvas.dispose();
+                    resolve();
+                });
+            });
+            canvas.remove(ambilightObj);
+        }
+        // --- End New ---
+
+        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity']);
+
+        // Inject custom_effects so the saved JSON contains overlay info & blocked areas
+        json.custom_effects = {
+            bgColor: document.getElementById('bgColor').value,
+            bgBrightness: document.getElementById('bgBrightness').value,
+            fadeEffect: document.getElementById('fadeEffect').value,
+            fadeRadius: document.getElementById('fadeRadius').value,
+            fadeSoftness: document.getElementById('fadeSoftness') ? document.getElementById('fadeSoftness').value : 40,
+            fadeLeft: document.getElementById('fadeLeft').value,
+            fadeRight: document.getElementById('fadeRight').value,
+            fadeTop: document.getElementById('fadeTop').value,
+            fadeBottom: document.getElementById('fadeBottom').value,
+            tagAlignment: document.getElementById('tagAlignSelect').value,
+            tagPadding: document.getElementById('tagPaddingInput') ? document.getElementById('tagPaddingInput').value : 20,
+            lineSpacing: document.getElementById('lineSpacingInput') ? document.getElementById('lineSpacingInput').value : 20,
+            textContentAlignment: document.getElementById('textContentAlignSelect').value,
+            genreLimit: document.getElementById('genreLimitSlider').value,
+            overlayId: document.getElementById('overlaySelect').value,
+            margins: {
+                top: document.getElementById('marginTopInput').value,
+                bottom: document.getElementById('marginBottomInput').value,
+                left: document.getElementById('marginLeftInput').value,
+                right: document.getElementById('marginRightInput').value
+            },
+            logoAutoFix: document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true,
+            backgroundMode: backgroundMode
+        };
+
+        if (json.custom_effects.overlayId && typeof overlayProfiles !== 'undefined') {
+            const profile = overlayProfiles.find(p => p.id === json.custom_effects.overlayId);
+            if (profile && profile.blocked_areas) {
+                json.custom_effects.blocked_areas = profile.blocked_areas;
+            }
+        }
+
+        let metadata = {};
+        if (typeof extractMetadata === 'function' && lastFetchedData) {
+            metadata = extractMetadata(lastFetchedData);
+        }
+
+        const payload = {
+            image: dataURL,
+            layout_name: layoutName,
+            canvas_json: json,
+            overwrite_filename: null,
+            target_type: 'gallery',
+            organize_by_genre: sortGenre,
+            metadata: metadata,
+            ambilight_image_data: ambilightDataURL // Add to payload
+        };
+
+
 
         await fetch('/api/save_image', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         // Update preview image in batch tab
         document.getElementById('batchPreviewImg').src = dataURL;
 
@@ -330,7 +333,7 @@ async function startBatchProcess() {
     document.getElementById('batchProgressBar').style.width = `100%`;
     document.getElementById('batchProgressBar').innerText = `100%`;
     logBatch("Batch processing finished!");
-    
+
     loadGallery();
 
     // Auto-Run Logic

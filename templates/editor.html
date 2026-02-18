@@ -957,6 +957,8 @@
                         <button onclick="addMetadataTag('provider_source', 'Now available on...')">Provider
                             Info</button>
                         <button onclick="addMetadataTag('certification', 'FSK 16')">Age Rating (Image)</button>
+                        <button onclick="addMetadataTag('actors', 'Actor 1, Actor 2...')">Actors</button>
+                        <button onclick="addMetadataTag('directors', 'Director Name')">Directors</button>
                     </div>
                 </div>
             </div>
@@ -1197,6 +1199,14 @@
                             title="Apply Size to all tags">Apply Size</button>
                     </div>
 
+                    <!-- NEW: Max Items Slider (Ribbon) -->
+                    <div class="ribbon-group" id="maxItemsGroup" data-for="text" style="display:none;">
+                        <span class="ribbon-label">Max Items</span>
+                        <input type="range" id="maxItemsSlider" class="ribbon-input" min="1" max="20" value="5"
+                            oninput="updateMaxItems()" style="width:80px;">
+                        <span id="maxItemsVal" style="font-size:11px; margin-left:5px;">5</span>
+                    </div>
+
                     <div class="ribbon-group" data-for="text" id="ribbonTextSwitchGroup" style="display:none;">
                         <span class="ribbon-label" data-i18n="type">Type</span>
                         <button class="panel-btn" id="ribbonTextSwitch" onclick="toggleTitleType()"
@@ -1333,6 +1343,9 @@
             <input type="range" id="genreLimitSlider" oninput="updateGenreLimit()">
             <span id="genreLimitVal"></span>
         </div>
+
+        <!-- NEW: Max Items Slider (Ribbon) -->
+
     </div>
 
     <div id="batch-tab" class="tab-content">
@@ -1357,6 +1370,20 @@
 
                             <div id="batchFilterSettings"
                                 style="display:none; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+                                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                                    <div style="flex:1;">
+                                        <label for="batchMediaType">Media Type</label>
+                                        <select id="batchMediaType">
+                                            <option value="Movie,Series">All</option>
+                                            <option value="Movie">Movies</option>
+                                            <option value="Series">Series</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex:1;">
+                                        <label for="batchMaxItems">Limit (0=All)</label>
+                                        <input type="number" id="batchMaxItems" value="0" min="0" max="10000">
+                                    </div>
+                                </div>
                                 <label for="batchFilterMode" data-i18n="filter_strategy">Filter Strategy</label>
                                 <select id="batchFilterMode" onchange="toggleBatchInputs()">
                                     <option value="all">None (All Items A-Z)</option>
@@ -2355,6 +2382,15 @@
                         </div>
                         <div class="panel-row" id="floatTextSwitchRow" style="display:none; margin-top:5px;">
                             <button class="panel-btn" onclick="toggleTitleType()" style="width:100%; background:#444;" data-i18n="switch_to_logo">Switch to Logo</button>
+                        </div>
+                    </div>
+
+                    <!-- Max Items Group (Floating) -->
+                    <div class="panel-group" id="prop-max-items-group" style="display:none;">
+                         <div class="panel-row">
+                            <label>Max Items</label>
+                            <input type="range" id="prop-max-items" min="1" max="20" style="flex:1" oninput="updateMaxItems()">
+                            <span id="prop-max-items-val" style="font-size:10px; width:20px; text-align:right;">5</span>
                         </div>
                     </div>
                 </div>

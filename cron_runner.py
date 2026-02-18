@@ -39,6 +39,8 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         "runtime": metadata.get('runtime'),
         "rating": metadata.get('rating'),
         "officialRating": metadata.get('officialRating'),
+        "actors": metadata.get('actors', []),
+        "directors": metadata.get('directors', []),
         "source": "Jellyfin",
         "backdrop_url": metadata.get('backdrop_url'),
         "logo_url": metadata.get('logo_url')
@@ -141,12 +143,14 @@ def fetch_items_and_process(job=None):
     source_mode = job.get('source_mode', 'library')
     filter_mode = job.get('filter_mode', 'all')
     filter_val = job.get('filter_value', '')
+    item_types = job.get('item_types', 'Movie,Series')
+    limit_count = job.get('limit', '0')
     
     params = [
-        "IncludeItemTypes=Movie,Series",
+        f"IncludeItemTypes={item_types}",
         "Recursive=true",
         "ExcludeItemTypes=BoxSet",
-        "Fields=Overview,Genres,OfficialRating,CommunityRating,ProviderIds,ProductionYear,RunTimeTicks,OriginalTitle,Tags,Studios,InheritedParentalRatingValue,ImageTags,ParentId"
+        "Fields=Overview,Genres,OfficialRating,CommunityRating,ProviderIds,ProductionYear,RunTimeTicks,OriginalTitle,Tags,Studios,InheritedParentalRatingValue,ImageTags,ParentId,People"
     ]
     
     if source_mode == 'random':
@@ -154,7 +158,11 @@ def fetch_items_and_process(job=None):
         params.append("SortBy=Random")
         params.append(f"Limit={limit}")
     else:
-        params.append("Limit=100000")
+        if limit_count and limit_count != '0':
+            params.append(f"Limit={limit_count}")
+        else:
+            params.append("Limit=100000")
+            
         if filter_mode == 'recent':
             params.append("SortBy=DateCreated")
             params.append("SortOrder=Descending")
@@ -235,7 +243,12 @@ def fetch_items_and_process(job=None):
             "backdrop_url": f"{base_url}/Items/{item['Id']}/Images/Backdrop?api_key={jf['api_key']}",
             "logo_url": None if is_in_boxset else (f"{base_url}/Items/{item['Id']}/Images/Logo?api_key={jf['api_key']}" if 'Logo' in item.get('ImageTags', {}) else None),
             "action_url": f"jellyfin://items/{item['Id']}",
-            "provider_ids": item.get('ProviderIds', {})
+            "provider_ids": item.get('ProviderIds', {}),
+            "actors": [p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Actor'],
+            "directors": (
+                list(dict.fromkeys(p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Director'))
+                or list(dict.fromkeys(p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Writer'))
+            )
         }
 
         log(f"Rendering: {meta['title']}")
