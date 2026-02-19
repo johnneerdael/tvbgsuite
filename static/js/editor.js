@@ -29,6 +29,12 @@ function openTab(evt, tabName) {
         navContainer.classList.remove('open');
     }
 
+    // Close floating property panel if open
+    const propPanel = document.getElementById('propertyPanel');
+    if (propPanel) {
+        propPanel.style.display = 'none';
+    }
+
     localStorage.setItem('active_tab', tabName);
 }
 
@@ -316,7 +322,7 @@ function updateSelectionUI(e) {
                 useTextBtn.style.display = (activeObj.dataTag === 'title') ? 'block' : 'none';
             }
         }
-    } else if (activeObj.type === 'i-text' || activeObj.type === 'textbox' || (activeObj.type === 'group' && (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating' || activeObj.dataTag === 'provider_source')) || activeObj.dataTag === 'title') {
+    } else if (activeObj.type === 'i-text' || activeObj.type === 'textbox' || (activeObj.type === 'group' && (activeObj.dataTag === 'rating_star' || activeObj.dataTag === 'rating' || activeObj.dataTag === 'provider_source' || activeObj.dataTag === 'omdb_rotten_tomatoes' || activeObj.dataTag === 'omdb_metacritic')) || activeObj.dataTag === 'title') {
         if (textPanel) {
             textPanel.style.display = 'block';
             expandGroup('group-text');
@@ -329,6 +335,12 @@ function updateSelectionUI(e) {
         const useLogoBtn = document.getElementById('btn-use-logo');
         if (useLogoBtn) {
             useLogoBtn.style.display = (activeObj.dataTag === 'title' && lastFetchedData && lastFetchedData.logo_url) ? 'block' : 'none';
+        }
+
+        // Show "Switch Logo" button for RT tags
+        const switchLogoBtn = document.getElementById('btn-switch-logo');
+        if (switchLogoBtn) {
+            switchLogoBtn.style.display = (activeObj.dataTag === 'omdb_rotten_tomatoes') ? 'block' : 'none';
         }
 
         if (textObj) {
@@ -479,6 +491,15 @@ function updateSelectedFontSize() {
                         // Reposition Logo
                         imgObj.set({ left: textObj.getScaledWidth() + 15 });
                     }
+                } else if (activeObj.dataTag === 'omdb_rotten_tomatoes' || activeObj.dataTag === 'omdb_metacritic') {
+                    const imgObj = activeObj.getObjects().find(o => o.type === 'image');
+                    if (imgObj) {
+                        textObj.setCoords();
+                        const currentTextHeight = textObj.getScaledHeight();
+                        imgObj.scaleToHeight(currentTextHeight * 1.0);
+                        imgObj.set({ left: 0, top: 0 });
+                        textObj.set({ left: imgObj.getScaledWidth() + 15, top: 0 });
+                    }
                 }
                 activeObj.addWithUpdate();
             }
@@ -563,6 +584,18 @@ function applyFontToAll() {
                 if (textObj) {
                     textObj.set("fontFamily", fontName);
                     textObj.set("fill", fontColor);
+
+                    if (obj.dataTag === 'omdb_rotten_tomatoes' || obj.dataTag === 'omdb_metacritic') {
+                        const imgObj = obj.getObjects().find(o => o.type === 'image');
+                        if (imgObj) {
+                            textObj.setCoords();
+                            const currentTextHeight = textObj.getScaledHeight();
+                            imgObj.scaleToHeight(currentTextHeight * 1.0);
+                            imgObj.set({ left: 0, top: 0 });
+                            textObj.set({ left: imgObj.getScaledWidth() + 15, top: 0 });
+                        }
+                    }
+
                     obj.addWithUpdate();
                 }
             }
@@ -594,6 +627,15 @@ function applyFontSizeToAll() {
                         imgObj.scaleToHeight(newSize);
                         textObj.set('left', imgObj.left + imgObj.getScaledWidth() + 10);
                         textObj.set('top', imgObj.top + (imgObj.getScaledHeight() - textObj.getScaledHeight()) / 2);
+                    }
+                } else if (obj.dataTag === 'omdb_rotten_tomatoes' || obj.dataTag === 'omdb_metacritic') {
+                    const imgObj = obj.getObjects().find(o => o.type === 'image');
+                    if (imgObj) {
+                        textObj.setCoords();
+                        const currentTextHeight = textObj.getScaledHeight();
+                        imgObj.scaleToHeight(currentTextHeight * 1.0);
+                        imgObj.set({ left: 0, top: 0 });
+                        textObj.set({ left: imgObj.getScaledWidth() + 15, top: 0 });
                     }
                 }
                 obj.addWithUpdate();
@@ -961,6 +1003,29 @@ async function fetchMediaData(itemId = null) {
         const url = itemId ? `/api/media/item/${itemId}` : '/api/media/random';
         const response = await fetch(url);
         const data = await response.json();
+
+        // --- OMDb Integration ---
+        if (data.imdb_id) {
+            try {
+                // Determine if we have a key in settings before trying
+                // We can't easily check settings inputs here if not on settings tab, 
+                // but fetchOmdbData handles checking the DOM input.
+                // Issue: If user is on "Batch" tab, the Settings input might be empty if it wasn't populated?
+                // The input values are in the DOM even if hidden.
+                // But better to rely on config.omdb.api_key if DOM is empty? 
+                // fetchOmdbData uses DOM element 'set-omdb-key'.
+
+                const omdb = await fetchOmdbData(data.imdb_id);
+                if (omdb) {
+                    const omdbTags = mapOmdbToTags(omdb);
+                    for (const [key, val] of Object.entries(omdbTags)) {
+                        data['omdb_' + key] = val;
+                    }
+                }
+            } catch (e) { console.warn("OMDb fetch failed:", e); }
+        }
+        // ------------------------
+
         lastFetchedData = data;
 
         // 1. Assets vorladen (Preload) - noch nichts am Canvas ändern!
@@ -1070,48 +1135,33 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
 
         [...canvas.getObjects()].forEach(obj => {
             if (obj.dataTag) {
+
+                // ----------------------------------
+
                 let val = undefined; // Changed from "" to undefined to prevent accidental hiding of unhandled tags
                 switch (obj.dataTag) {
                     case 'title':
                         if (mediaData.logo_url && preloadedLogo) {
                             const autoFix = document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true;
                             // Benutze das vorgeladene Logo sofort (synchron)
+                            
+                            // Use slot dimensions if available (from layout), otherwise current dimensions
+                            const slotW = obj.slotWidth || obj.getScaledWidth();
+                            const slotH = obj.slotHeight || obj.getScaledHeight();
 
-                            // --- START: New aggressive Smart-Resize Logic ---
-                            const baseMaxW = canvas.width * 0.55;
-                            const baseMaxH = canvas.height * 0.35;
-                            const ratio = preloadedLogo.width / preloadedLogo.height;
-                            let allowedHeight = baseMaxH;
-
-                            if (ratio < 0.65) {
-                                allowedHeight = baseMaxH * 0.50;
-                            } else if (ratio < 1.2) {
-                                allowedHeight = baseMaxH * 0.75;
-                            } else {
-                            }
-
-                            let scale;
-
-                            if (preferredLogoWidth) {
-                                // Try to match the preferred width (restore state)
-                                scale = preferredLogoWidth / preloadedLogo.width;
-                                // Check if this width violates the height constraint (e.g. November case)
-                                if (preloadedLogo.height * scale > allowedHeight) {
-                                    scale = allowedHeight / preloadedLogo.height;
-                                    // Do NOT update preferredLogoWidth here, so we remember the wide preference
-                                }
-                            } else {
-                                // No preference yet? Calculate default fit.
-                                scale = Math.min(baseMaxW / preloadedLogo.width, allowedHeight / preloadedLogo.height) * 0.9;
-                                // If this is a normal logo, save this as the preference
-                                if (ratio >= 0.65) preferredLogoWidth = preloadedLogo.width * scale;
-                            }
-
-                            // --- END ---
+                            // Scale to fit within the slot while maintaining aspect ratio
+                            const scale = Math.min(slotW / preloadedLogo.width, slotH / preloadedLogo.height);
 
                             const newLeft = getNewLogoLeft(obj, preloadedLogo.width, scale);
 
-                            preloadedLogo.set({ left: newLeft, top: obj.top, dataTag: 'title', logoAutoFix: autoFix });
+                            preloadedLogo.set({ 
+                                left: newLeft, 
+                                top: obj.top, 
+                                dataTag: 'title', 
+                                logoAutoFix: autoFix,
+                                slotWidth: slotW,
+                                slotHeight: slotH
+                            });
                             preloadedLogo.scale(scale);
                             canvas.remove(obj); canvas.add(preloadedLogo);
                         } else if (mediaData.logo_url) {
@@ -1124,41 +1174,29 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 fabric.Image.fromURL(proxiedLogo, function (img, isError) {
                                     if (isError || !img) { canvas.remove(obj); r(); return; }
 
-                                    // --- START: New aggressive Smart-Resize Logic ---
-                                    const baseMaxW = canvas.width * 0.55;
-                                    const baseMaxH = canvas.height * 0.35;
-                                    const ratio = img.width / img.height;
-                                    let allowedHeight = baseMaxH;
+                                    // --- STRICT FIXED HEIGHT LOGIC ---
+                                    const targetHeight = obj.slotHeight || obj.getScaledHeight();
+                                    img.scaleToHeight(targetHeight);
 
-                                    if (ratio < 0.65) {
-                                        allowedHeight = baseMaxH * 0.50;
-                                    } else if (ratio < 1.2) {
-                                        allowedHeight = baseMaxH * 0.75;
-                                    } else {
+                                    // Check width constraints
+                                    const marginLeft = parseInt(document.getElementById('marginLeftInput').value) || 50;
+                                    const marginRight = parseInt(document.getElementById('marginRightInput').value) || 50;
+                                    const maxW = canvas.width - marginLeft - marginRight;
+
+                                    if (img.getScaledWidth() > maxW) {
+                                        img.scaleToWidth(maxW);
                                     }
 
-                                    let scale;
+                                    const newLeft = getNewLogoLeft(obj, img.width, img.scaleX);
 
-                                    if (preferredLogoWidth) {
-                                        // Try to match the preferred width (restore state)
-                                        scale = preferredLogoWidth / img.width;
-                                        // Check if this width violates the height constraint
-                                        if (img.height * scale > allowedHeight) {
-                                            scale = allowedHeight / img.height;
-                                            // Do NOT update preferredLogoWidth here
-                                        }
-                                    } else {
-                                        // No preference yet? Calculate default fit.
-                                        scale = Math.min(baseMaxW / img.width, allowedHeight / img.height) * 0.9;
-                                        // If this is a normal logo, save this as the preference
-                                        if (ratio >= 0.65) preferredLogoWidth = img.width * scale;
-                                    }
-                                    // --- END ---
-
-                                    const newLeft = getNewLogoLeft(obj, img.width, scale);
-
-                                    img.set({ left: newLeft, top: obj.top, dataTag: 'title', logoAutoFix: autoFix });
-                                    img.scale(scale);
+                                    img.set({ 
+                                        left: newLeft, 
+                                        top: obj.top, 
+                                        dataTag: 'title', 
+                                        logoAutoFix: autoFix,
+                                        slotWidth: img.getScaledWidth(),
+                                        slotHeight: img.getScaledHeight()
+                                    });
                                     canvas.remove(obj); canvas.add(img);
                                     r();
                                 }, { crossOrigin: 'anonymous' });
@@ -1173,40 +1211,42 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 const titleSize = is4K ? 120 : 80;
                                 // Fix: Read alignment from UI controls, not mediaData
                                 const uiAlign = document.getElementById('tagAlignSelect') ? document.getElementById('tagAlignSelect').value : 'left';
+                                
+                                // Use slot width for text box width if available
+                                const slotW = obj.slotWidth || (canvas.width * 0.5);
+                                const slotH = obj.slotHeight || obj.getScaledHeight();
+
+                                // Calculate max width based on tags
+                                const tagsW = getTagsMaxWidth();
+                                let finalW = tagsW > 0 ? tagsW : slotW;
+
+                                // Ensure we don't exceed canvas margins
+                                const marginLeft = parseInt(document.getElementById('marginLeftInput').value) || 50;
+                                const marginRight = parseInt(document.getElementById('marginRightInput').value) || 50;
+                                const maxCanvasW = canvas.width - marginLeft - marginRight;
+                                if (finalW > maxCanvasW) finalW = maxCanvasW;
+
                                 const newText = new fabric.Textbox(val, {
                                     left: obj.left, top: obj.top,
-                                    width: canvas.width * 0.5,
+                                    width: finalW,
                                     fontFamily: 'Roboto', fontSize: titleSize,
                                     fill: 'white', shadow: '2px 2px 10px rgba(0,0,0,0.8)',
                                     dataTag: 'title', editable: false,
                                     textAlign: uiAlign,
-                                    splitByGrapheme: false
+                                    splitByGrapheme: false,
+                                    slotWidth: finalW,
+                                    slotHeight: slotH
                                 });
 
-                                // Shrink width to fit actual text
-                                let maxLineW = 0;
-                                if (newText._textLines && newText._textLines.length > 0) {
-                                    for (let i = 0; i < newText._textLines.length; i++) {
-                                        const w = newText.getLineWidth(i);
-                                        if (w > maxLineW) maxLineW = w;
-                                    }
-                                    if (maxLineW > 0) {
-                                        newText.set({ width: maxLineW + 40 }); // buffer
+                                // 1. Shrink width to fit actual text content (longest line)
+                                shrinkTextboxToContent(newText, finalW);
 
-                                        // Recalculate Position based on alignment (mirrors render_task.js logic)
-                                        // We need to shift the box so it visual aligns correctly within the original placeholder area
-                                        // based on its NEW width.
-                                        if (uiAlign === 'right') {
-                                            newText.set({ left: (obj.left + obj.width) - newText.width });
-                                        } else if (uiAlign === 'center') {
-                                            newText.set({ left: (obj.left + (obj.width / 2)) - (newText.width / 2) });
-                                        }
-                                    } else {
-                                        newText.set({ width: canvas.width * 0.5 }); // fallback width
-                                    }
-                                }
+                                // 2. Scale to fit within the slot
+                                // This handles both wrapping (if text is long) and scaling (if text is short/tall)
+                                const scale = Math.min(finalW / newText.width, slotH / newText.height);
+                                newText.scale(scale);
 
-                                const newLeft = getNewLogoLeft(obj, newText.width, newText.scaleX);
+                                const newLeft = getNewLogoLeft(obj, newText.getScaledWidth(), 1);
                                 newText.set('left', newLeft);
 
                                 canvas.remove(obj); canvas.add(newText);
@@ -1419,6 +1459,184 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         } else {
                             val = null;
                             obj.fullList = [];
+                        }
+                        break;
+                    case 'omdb_rotten_tomatoes':
+                        val = mediaData.rotten_tomatoes;
+
+                        // Ensure consistent origin for layout sorting
+                        obj.set({ originX: 'left', originY: 'top' });
+                        obj.setCoords();
+
+                        // Restore snapping for OMDb tags (fix previous state)
+                        obj.snapToObjects = true;
+
+                        // Async fetch if missing
+                        if (!val && obj.dataTag) {
+                            const imdbId = mediaData.imdb_id || (mediaData.external_ids ? mediaData.external_ids.imdb_id : null) || (mediaData.ProviderIds ? mediaData.ProviderIds.Imdb : null) || mediaData.ImdbId || mediaData.imdbId;
+                            if (imdbId) {
+                                // Don't show stale data, but keep space reserved (opacity 0)
+                                obj.set('opacity', 0);
+                                obj.set('visible', true); // Ensure layout sees it
+
+                                promises.push(fetchOmdbData(imdbId).then(data => {
+                                    if (data) {
+                                        const tags = mapOmdbToTags(data);
+                                        const newVal = tags.rotten_tomatoes;
+                                        if (newVal) {
+                                            if (obj.type === 'group') {
+                                                const t = obj.getObjects().find(o => o.type === 'i-text');
+                                                const img = obj.getObjects().find(o => o.type === 'image');
+                                                if (t) {
+                                                    t.set({ text: newVal + '%' });
+                                                    if (img) {
+                                                        t.setCoords();
+                                                        const th = t.getScaledHeight();
+                                                        img.scaleToHeight(th * 1.0);
+                                                        img.set({ top: 0, left: 0 });
+                                                        t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                                    }
+                                                    const preservedTop = obj.top;
+                                                    const preservedLeft = obj.left;
+                                                    obj.addWithUpdate();
+                                                    obj.set('top', preservedTop);
+                                                    obj.set('left', preservedLeft);
+                                                    obj.setCoords();
+                                                }
+                                                // Data ready: Show tag
+                                                obj.set('opacity', 1);
+                                                obj.set('visible', true);
+                                                canvas.requestRenderAll();
+                                                setTimeout(() => updateVerticalLayout(), 50); // Recalculate layout with new width
+                                            }
+                                        } else {
+                                            // Valid data fetched but no RT score -> Hide fully
+                                            obj.set('visible', false);
+                                            canvas.requestRenderAll();
+                                            setTimeout(() => updateVerticalLayout(), 50);
+                                        }
+                                    }
+                                }));
+                                val = undefined; // Signal async handling
+                            } else {
+                                // No ID -> Hide fully
+                                obj.set('visible', false);
+                                setTimeout(() => updateVerticalLayout(), 50);
+                                val = undefined;
+                            }
+                        }
+
+                        if (obj.type === 'group' && val !== undefined) {
+                            const t = obj.getObjects().find(o => o.type === 'i-text');
+                            const img = obj.getObjects().find(o => o.type === 'image');
+                            if (t) {
+                                t.set({ text: val ? val + '%' : '' });
+                                if (img) {
+                                    t.setCoords(); // Update dim
+                                    const th = t.getScaledHeight();
+                                    img.scaleToHeight(th * 1.0);
+                                    img.set({ top: 0, left: 0 });
+                                    t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                }
+                                const preservedTop = obj.top;
+                                const preservedLeft = obj.left;
+                                obj.addWithUpdate();
+                                obj.set('top', preservedTop);
+                                obj.set('left', preservedLeft);
+                                obj.setCoords();
+                            }
+                            // Force visibility if it has a value OR if it's a placeholder (handled above by async block setting val=undefined)
+                            // If val is NOT undefined here, it means it was present in mediaData.
+                            obj.set('visible', !!val);
+                            val = undefined; // handled
+                        }
+                        break;
+                    case 'omdb_metacritic':
+                        val = mediaData.metacritic;
+
+                        // Ensure consistent origin for layout sorting
+                        obj.set({ originX: 'left', originY: 'top' });
+                        obj.setCoords();
+
+                        // Restore snapping for OMDb tags (fix previous state)
+                        obj.snapToObjects = true;
+
+                        // Async fetch if missing
+                        if (!val && obj.dataTag) {
+                            const imdbId = mediaData.imdb_id || (mediaData.external_ids ? mediaData.external_ids.imdb_id : null) || (mediaData.ProviderIds ? mediaData.ProviderIds.Imdb : null) || mediaData.ImdbId || mediaData.imdbId;
+                            if (imdbId) {
+                                // Don't show stale data, but keep space reserved (opacity 0)
+                                obj.set('opacity', 0);
+                                obj.set('visible', true); // Ensure layout sees it
+
+                                promises.push(fetchOmdbData(imdbId).then(data => {
+                                    if (data) {
+                                        const tags = mapOmdbToTags(data);
+                                        const newVal = tags.metacritic;
+                                        if (newVal) {
+                                            if (obj.type === 'group') {
+                                                const t = obj.getObjects().find(o => o.type === 'i-text');
+                                                const img = obj.getObjects().find(o => o.type === 'image');
+                                                if (t) {
+                                                    t.set({ text: newVal || '' });
+                                                    if (img) {
+                                                        t.setCoords();
+                                                        const th = t.getScaledHeight();
+                                                        img.scaleToHeight(th * 1.0);
+                                                        img.set({ top: 0, left: 0 });
+                                                        t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                                    }
+                                                    const preservedTop = obj.top;
+                                                    const preservedLeft = obj.left;
+                                                    obj.addWithUpdate();
+                                                    obj.set('top', preservedTop);
+                                                    obj.set('left', preservedLeft);
+                                                    obj.setCoords();
+                                                }
+                                                // Data ready: Show tag
+                                                obj.set('opacity', 1);
+                                                obj.set('visible', true);
+                                                canvas.requestRenderAll();
+                                                setTimeout(() => updateVerticalLayout(), 50); // Recalculate layout with new width
+                                            }
+                                        } else {
+                                            // Valid data fetched but no Metacritic score -> Hide fully
+                                            obj.set('visible', false);
+                                            canvas.requestRenderAll();
+                                            setTimeout(() => updateVerticalLayout(), 50);
+                                        }
+                                    }
+                                }));
+                                val = undefined; // Signal async handling
+                            } else {
+                                // No ID -> Hide fully
+                                obj.set('visible', false);
+                                setTimeout(() => updateVerticalLayout(), 50);
+                                val = undefined;
+                            }
+                        }
+
+                        if (obj.type === 'group' && val !== undefined) {
+                            const t = obj.getObjects().find(o => o.type === 'i-text');
+                            const img = obj.getObjects().find(o => o.type === 'image');
+                            if (t) {
+                                t.set({ text: val || '' });
+                                if (img) {
+                                    t.setCoords();
+                                    const th = t.getScaledHeight();
+                                    img.scaleToHeight(th * 1.0);
+                                    img.set({ top: 0, left: 0 });
+                                    t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                }
+                                const preservedTop = obj.top;
+                                const preservedLeft = obj.left;
+                                obj.addWithUpdate();
+                                obj.set('top', preservedTop);
+                                obj.set('left', preservedLeft);
+                                obj.setCoords();
+                            }
+                            obj.set('visible', !!val);
+                            val = undefined;
                         }
                         break;
                     default:
@@ -1771,6 +1989,29 @@ function checkCollision(obj, blockedAreas, scaleFactor = 1) {
     });
 }
 
+function getTagsMaxWidth() {
+    const elements = canvas.getObjects().filter(o => {
+        if (['background', 'title', 'guide', 'fade_effect', 'grid_line', 'guide_overlay', 'ambilight_bg', 'separator', 'row_separator'].includes(o.dataTag)) return false;
+        if (!o.dataTag) return false;
+        if (o.visible === false) return false;
+        return true;
+    });
+
+    const hPadding = parseInt(document.getElementById('tagPaddingInput').value) || 20;
+    const rows = groupElementsByRow(elements, 4);
+    let maxRowWidth = 0;
+    rows.forEach(row => {
+        let w = 0;
+        row.forEach((el, i) => {
+            const pad = el.padding || 0;
+            w += (el.getScaledWidth()) + (pad * 2);
+            if (i < row.length - 1) w += hPadding;
+        });
+        if (w > maxRowWidth) maxRowWidth = w;
+    });
+    return maxRowWidth;
+}
+
 function updateVerticalLayout(skipRender = false, retryCount = 0) {
     if (!canvas) return Promise.resolve();
 
@@ -1825,8 +2066,14 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
         if (!anchor) { canvas.requestRenderAll(); return; }
 
         // Restore preferred size at start of fresh layout calculation (Grow back logic)
-        if (retryCount === 0 && anchor.type === 'image' && typeof preferredLogoWidth !== 'undefined' && preferredLogoWidth) {
-            anchor.scale(preferredLogoWidth / anchor.width);
+        if (retryCount === 0 && anchor.type === 'image' && typeof preferredLogoWidth !== 'undefined' && preferredLogoWidth && anchor.dataTag !== 'title') {
+            // NEW: Respect both width and height slots to prevent square logos from exploding
+            const slotW = anchor.slotWidth || preferredLogoWidth;
+            const slotH = anchor.slotHeight || (canvas.height * 0.35); // Fallback safe height
+            
+            // Scale to fit within the slot box (contain)
+            const scale = Math.min(slotW / anchor.width, slotH / anchor.height);
+            anchor.scale(scale);
         }
 
         // Auto-switch alignment based on position (Left vs Right)
@@ -1961,7 +2208,7 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
                 const finalH = Math.max(20, finalAnchorH);
 
                 // Apply if different (with small tolerance to avoid jitter)
-                if (Math.abs(finalH - currentH) > 1) {
+                if (Math.abs(finalH - currentH) > 1 && anchor.dataTag !== 'title') {
                     const oldLeft = anchor.left;
                     const oldWidth = anchor.getScaledWidth();
                     const oldRight = oldLeft + oldWidth;
@@ -1981,6 +2228,10 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
                     // Position anchor at the top of the content block within the gap
                     // (The tags follow below it in the layout steps)
                     const totalNewBlockH = finalH + tagsH;
+                    anchor.set('top', bestGap.top + 5);
+                    anchor.setCoords();
+                } else if (anchor.dataTag === 'title') {
+                    // For title, just move to the gap, do not scale
                     anchor.set('top', bestGap.top + 5);
                     anchor.setCoords();
                 }
@@ -2159,13 +2410,16 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
                 const pad = el.padding || 0;
                 // Align all elements to the same visual top line (current_y + maxRowPadding)
                 // Elements with less padding will be visually aligned with elements that have more padding.
-                el.set({ top: current_y + maxRowPadding, left: current_x + pad });
+                el.set({
+                    top: current_y + maxRowPadding,
+                    left: current_x + (el.visible ? pad : 0) // FIX: Ignore padding for hidden elements to ensure strictly increasing 'left'
+                });
                 el.setCoords(); // Update coordinates for accurate width calculation
 
                 // Collision Detection with Blocked Areas
                 // If collision, push right until clear OR until limit reached
                 const startX = current_x;
-                let isColliding = checkCollision(el, activeBlockedAreas, scaleFactor);
+                let isColliding = el.visible ? checkCollision(el, activeBlockedAreas, scaleFactor) : false;
 
                 while (isColliding && current_x < canvas.width - marginRight) {
                     current_x += 10;
@@ -2209,8 +2463,8 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
                         // createdSeparators.push(sep);
                     }
                 } else {
-                    // Increment tiny amount to preserve order for next sort without visual gap
-                    current_x += 0.1;
+                    // Increment small amount to preserve order for next sort without visual gap
+                    current_x += 0.01;
                 }
             });
 
@@ -2504,6 +2758,9 @@ function init() {
         }
         if (t.dataTag === 'title' && t.type === 'image') {
             preferredLogoWidth = t.getScaledWidth();
+            // Update slot dimensions to match the new visual size
+            t.slotWidth = t.getScaledWidth();
+            t.slotHeight = t.getScaledHeight();
         }
         if (t === mainBg) updateFades();
 
@@ -2787,10 +3044,10 @@ function jumpToHistory(index) {
 function saveHistory(force = false) {
     if (isUndoRedoProcessing || !canvas) return;
 
-    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
+    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList', 'slotWidth', 'slotHeight']);
 
     // Filter out fade effects and grid lines (same as saveToLocalStorage)
-    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator');
+    json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'guide' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator' && o.dataTag !== 'row_separator');
 
     json.custom_effects = {
         bgColor: document.getElementById('bgColor').value,
@@ -4284,49 +4541,7 @@ function setUIInteraction(enabled) {
     if (enabled) updateSelectionUI();
 }
 
-async function saveSettings() {
-    const config = {
-        general: {
-            overwrite_existing: document.getElementById('batchOverwrite').checked
-        },
-        jellyfin: {
-            url: document.getElementById('set-jf-url').value,
-            api_key: document.getElementById('set-jf-key').value,
-            user_id: document.getElementById('set-jf-user').value,
-            excluded_libraries: document.getElementById('set-jf-exclude').value
-        },
-        plex: {
-            url: document.getElementById('set-plex-url').value,
-            token: document.getElementById('set-plex-token').value
-        },
-        tmdb: {
-            api_key: document.getElementById('set-tmdb-key').value,
-            language: document.getElementById('set-tmdb-lang').value
-        },
-        radarr: {
-            url: document.getElementById('set-radarr-url').value,
-            api_key: document.getElementById('set-radarr-key').value
-        },
-        sonarr: {
-            url: document.getElementById('set-sonarr-url').value,
-            api_key: document.getElementById('set-sonarr-key').value
-        },
-        jellyseerr: {
-            url: document.getElementById('set-jellyseerr-url').value,
-            api_key: document.getElementById('set-jellyseerr-key').value
-        },
-        trakt: {
-            api_key: document.getElementById('set-trakt-key').value,
-            username: document.getElementById('set-trakt-user').value,
-            listname: document.getElementById('set-trakt-list').value
-        },
-        editor: {
-            resolution: document.getElementById('resSelect').value
-        }
-    };
-    const resp = await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
-    if (resp.ok) alert("Settings saved!");
-}
+
 function changeResolution() {
     if (gridEnabled) removeGrid();
     const res = document.getElementById('resSelect').value;
@@ -4350,10 +4565,10 @@ async function saveLayout() {
     btn.innerText = "Saving Layout...";
     setUIInteraction(false);
 
-    const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
+    const layout = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList', 'slotWidth', 'slotHeight']);
 
     // Filter out fade effects and grid lines BEFORE saving
-    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator');
+    layout.objects = layout.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'ambilight_bg' && o.dataTag !== 'separator' && o.dataTag !== 'row_separator');
 
     // Normalize to 1080p base resolution
     const currentScale = canvas.width / BASE_WIDTH;
@@ -4514,6 +4729,8 @@ async function loadLayout(name, silent = false) {
             obj.top *= scaleFactor;
             obj.scaleX *= scaleFactor;
             obj.scaleY *= scaleFactor;
+            if (obj.slotWidth) obj.slotWidth *= scaleFactor;
+            if (obj.slotHeight) obj.slotHeight *= scaleFactor;
         });
     }
 
@@ -4529,7 +4746,11 @@ async function loadLayout(name, silent = false) {
 
             mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
             const title = canvas.getObjects().find(o => o.dataTag === 'title' && o.type === 'image');
-            if (title) preferredLogoWidth = title.getScaledWidth();
+            if (title) {
+                if (!title.slotWidth) title.slotWidth = title.getScaledWidth();
+                if (!title.slotHeight) title.slotHeight = title.getScaledHeight();
+                preferredLogoWidth = title.slotWidth;
+            }
 
             // Fallback Background
             if (!mainBg && canvas.getObjects().length > 0) {
@@ -4684,7 +4905,7 @@ function saveToLocalStorage() {
 
 function performSaveToLocalStorage() {
     if (!canvas) return;
-    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
+    const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList', 'slotWidth', 'slotHeight']);
     // Filter out fade effects so they aren't saved as static objects
     json.objects = json.objects.filter(o => o.dataTag !== 'fade_effect' && o.dataTag !== 'grid_line' && o.dataTag !== 'guide_overlay' && o.dataTag !== 'separator' && o.dataTag !== 'row_separator');
     // Filter out ambilight background (it is auto-generated)
@@ -4814,6 +5035,8 @@ async function loadFromLocalStorage() {
                     obj.top *= scaleFactor;
                     obj.scaleX *= scaleFactor;
                     obj.scaleY *= scaleFactor;
+            if (obj.slotWidth) obj.slotWidth *= scaleFactor;
+            if (obj.slotHeight) obj.slotHeight *= scaleFactor;
                 });
             }
 
@@ -4825,7 +5048,11 @@ async function loadFromLocalStorage() {
 
                 mainBg = canvas.getObjects().find(o => o.dataTag === 'background');
                 const title = canvas.getObjects().find(o => o.dataTag === 'title' && o.type === 'image');
-                if (title) preferredLogoWidth = title.getScaledWidth();
+                if (title) {
+                    if (!title.slotWidth) title.slotWidth = title.getScaledWidth();
+                    if (!title.slotHeight) title.slotHeight = title.getScaledHeight();
+                    preferredLogoWidth = title.slotWidth;
+                }
 
                 // Cleanup Ghosts
                 const ghosts = canvas.getObjects().filter(o =>
@@ -5007,6 +5234,20 @@ function toggleTitleType() {
         const is4K = document.getElementById('resSelect').value === '2160';
         const titleSize = is4K ? 120 : 80;
 
+        // Preserve slot dimensions
+        const slotW = activeObj.slotWidth || activeObj.getScaledWidth();
+        const slotH = activeObj.slotHeight || activeObj.getScaledHeight();
+
+        // Calculate max width based on tags
+        const tagsW = getTagsMaxWidth();
+        let finalW = tagsW > 0 ? tagsW : slotW;
+
+        // Ensure we don't exceed canvas margins
+        const marginLeft = parseInt(document.getElementById('marginLeftInput').value) || 50;
+        const marginRight = parseInt(document.getElementById('marginRightInput').value) || 50;
+        const maxCanvasW = canvas.width - marginLeft - marginRight;
+        if (finalW > maxCanvasW) finalW = maxCanvasW;
+
         const newText = new fabric.IText(title, {
             left: activeObj.left,
             top: activeObj.top,
@@ -5016,8 +5257,15 @@ function toggleTitleType() {
             shadow: '2px 2px 10px rgba(0,0,0,0.8)',
             dataTag: 'title',
             editable: false,
-            logoAutoFix: activeObj.logoAutoFix
+            logoAutoFix: activeObj.logoAutoFix,
+            slotWidth: finalW,
+            slotHeight: slotH
         });
+
+        // Shrink & Scale logic (using finalW)
+        shrinkTextboxToContent(newText, finalW);
+        const scale = Math.min(finalW / newText.width, slotH / newText.height);
+        newText.scale(scale);
 
         // Adjust position based on alignment
         newText.set('left', getNewLeft(newText.getScaledWidth()));
@@ -5046,22 +5294,24 @@ function toggleTitleType() {
         fabric.Image.fromURL(proxiedLogo, function (img, isError) {
             if (isError || !img) return;
 
-            // Use standard sizing logic
-            const baseMaxW = canvas.width * 0.55;
-            const baseMaxH = canvas.height * 0.35;
-            const ratio = img.width / img.height;
-            let allowedHeight = baseMaxH;
+            // Use slot dimensions for scaling
+            const slotW = activeObj.slotWidth || activeObj.getScaledWidth();
+            const slotH = activeObj.slotHeight || activeObj.getScaledHeight();
 
-            if (ratio < 0.65) allowedHeight = baseMaxH * 0.50;
-            else if (ratio < 1.2) allowedHeight = baseMaxH * 0.75;
-
-            let scale = Math.min(baseMaxW / img.width, allowedHeight / img.height) * 0.9;
+            // Scale to fit within the slot
+            let scale = Math.min(slotW / img.width, slotH / img.height);
 
             img.scale(scale);
 
-            // Adjust position based on alignment
             const newLeft = getNewLeft(img.getScaledWidth());
-            img.set({ left: newLeft, top: activeObj.top, dataTag: 'title', logoAutoFix: autoFixState });
+            img.set({ 
+                left: newLeft, 
+                top: activeObj.top, 
+                dataTag: 'title', 
+                logoAutoFix: autoFixState,
+                slotWidth: slotW,
+                slotHeight: slotH
+            });
 
             canvas.remove(activeObj);
             canvas.add(img);
@@ -5415,7 +5665,7 @@ function injectCronFilterUI() {
         return label;
     };
 
-    checkboxesDiv.appendChild(createCb('cronLogoAutoFix', 'Auto Fix Logo Color', true));
+    checkboxesDiv.appendChild(createCb('cronLogoAutoFix', 'Auto Fix Logo Color', false));
     checkboxesDiv.appendChild(createCb('cronDryRun', 'Dry Run (Log only)', false));
 
     if (targetSibling) {
@@ -5423,6 +5673,13 @@ function injectCronFilterUI() {
     } else {
         targetParent.appendChild(checkboxesDiv);
     }
+
+    // Default: Run Immediately = ON
+    if (runNowCb) runNowCb.checked = true;
+
+    // Default: No providers selected
+    const providers = document.querySelectorAll('input[name="cronProvider"]');
+    providers.forEach(cb => cb.checked = false);
 }
 
 function toggleCronInputs() {
@@ -5606,4 +5863,315 @@ function updateRowSeparatorWidth() {
     document.getElementById('rowSeparatorWidthVal').innerText = val + "px";
     updateVerticalLayout();
     saveToLocalStorage();
+}
+
+// --- OMDb Integration ---
+
+// 1. Settings Management (Merged with API)
+async function saveSettings() {
+    const config = {
+        jellyfin: {
+            url: document.getElementById('set-jf-url').value,
+            api_key: document.getElementById('set-jf-key').value,
+            user_id: document.getElementById('set-jf-user').value,
+            excluded_libraries: document.getElementById('set-jf-exclude').value
+        },
+        plex: {
+            url: document.getElementById('set-plex-url').value,
+            token: document.getElementById('set-plex-token').value
+        },
+        tmdb: {
+            api_key: document.getElementById('set-tmdb-key').value,
+            language: document.getElementById('set-tmdb-lang').value
+        },
+        omdb: {
+            api_key: document.getElementById('set-omdb-key').value
+        },
+        radarr: {
+            url: document.getElementById('set-radarr-url').value,
+            api_key: document.getElementById('set-radarr-key').value
+        },
+        sonarr: {
+            url: document.getElementById('set-sonarr-url').value,
+            api_key: document.getElementById('set-sonarr-key').value
+        },
+        jellyseerr: {
+            url: document.getElementById('set-jellyseerr-url').value,
+            api_key: document.getElementById('set-jellyseerr-key').value
+        },
+        trakt: {
+            api_key: document.getElementById('set-trakt-key').value,
+            username: document.getElementById('set-trakt-user').value,
+            listname: document.getElementById('set-trakt-list').value
+        }
+    };
+
+    try {
+        const r = await fetch('/api/settings_full');
+        if (r.ok) {
+            const currentConfig = await r.json();
+            Object.assign(currentConfig.jellyfin, config.jellyfin);
+            Object.assign(currentConfig.plex, config.plex);
+            Object.assign(currentConfig.tmdb, config.tmdb);
+            currentConfig.omdb = config.omdb;
+            Object.assign(currentConfig.radarr, config.radarr);
+            Object.assign(currentConfig.sonarr, config.sonarr);
+            Object.assign(currentConfig.jellyseerr, config.jellyseerr);
+            Object.assign(currentConfig.trakt, config.trakt);
+
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(currentConfig)
+            });
+            alert("Settings Saved!");
+        } else {
+            await fetch('/api/settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            alert("Settings Saved (Fallback Mode)!");
+        }
+    } catch (e) {
+        console.error("Error saving settings:", e);
+        alert("Failed to save settings.");
+    }
+}
+
+// 2. API Service & Caching
+const OMDB_CACHE_KEY_PREFIX = 'omdb_cache_';
+const OMDB_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 Days
+
+async function fetchOmdbData(imdbId) {
+    if (!imdbId) return null;
+
+    // Check Cache
+    const cacheKey = OMDB_CACHE_KEY_PREFIX + imdbId;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        try {
+            const entry = JSON.parse(cached);
+            if (Date.now() - entry.timestamp < OMDB_CACHE_TTL) {
+                console.log(`[OMDb] Serving ${imdbId} from cache.`);
+                return entry.data;
+            }
+        } catch (e) { localStorage.removeItem(cacheKey); }
+    }
+
+    // Get API Key
+    const apiKeyElement = document.getElementById('set-omdb-key');
+    const apiKey = apiKeyElement ? apiKeyElement.value : null;
+
+    if (!apiKey) {
+        console.warn("[OMDb] No API Key configured.");
+        return null;
+    }
+
+    // Fetch from API
+    try {
+        console.log(`[OMDb] Fetching data for ${imdbId}...`);
+        const res = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${apiKey}&plot=full`);
+        const data = await res.json();
+
+        if (data.Response === "False") {
+            console.warn("[OMDb] API Error:", data.Error);
+            return null;
+        }
+
+        localStorage.setItem(cacheKey, JSON.stringify({
+            timestamp: Date.now(),
+            data: data
+        }));
+
+        return data;
+
+    } catch (e) {
+        console.error("[OMDb] Network Error:", e);
+        return null;
+    }
+}
+
+// 3. Data Mapping & Cleaning
+function mapOmdbToTags(data) {
+    if (!data) return {};
+
+    const getRating = (source) => {
+        if (!data.Ratings) return null;
+        const r = data.Ratings.find(x => x.Source === source);
+        if (!r) return null;
+        if (source === 'Rotten Tomatoes') return r.Value.replace('%', '');
+        if (source === 'Metacritic') return r.Value.split('/')[0];
+        return r.Value;
+    };
+
+    const cleanWriters = (writersStr) => {
+        if (!writersStr || writersStr === "N/A") return "";
+        return writersStr.split(',').map(w => {
+            return w.replace(/\s*\(.*?\)\s*/g, '').trim();
+        }).join(', ');
+    };
+
+    return {
+        awards: data.Awards !== "N/A" ? data.Awards : "",
+        country: data.Country !== "N/A" ? data.Country : "",
+        rated: data.Rated !== "N/A" ? data.Rated : "",
+        writer: cleanWriters(data.Writer),
+        rotten_tomatoes: getRating('Rotten Tomatoes'),
+        metacritic: getRating('Metacritic'),
+        imdb_rating: data.imdbRating !== "N/A" ? data.imdbRating : "",
+        box_office: data.BoxOffice !== "N/A" ? data.BoxOffice : "",
+        plot_full: data.Plot !== "N/A" ? data.Plot : ""
+    };
+}
+
+// 4. Tag Implementation
+async function addOmdbTag(type) {
+    let imdbId = lastFetchedData ? lastFetchedData.imdb_id : null;
+
+    // Try to find IMDb ID in external_ids if not at root
+    if (!imdbId && lastFetchedData && lastFetchedData.external_ids) {
+        imdbId = lastFetchedData.external_ids.imdb_id;
+    }
+
+    // Default to mock data immediately if no ID (Empty Canvas case)
+    if (!imdbId) {
+        console.log("No IMDb ID, using defaults.");
+    }
+
+    // Allow creating tag even if fetch failed (Default values)
+    let omdbData = null;
+    if (imdbId) {
+        omdbData = await fetchOmdbData(imdbId);
+    }
+
+    // Always fallback to default if no data, permitting creation on empty canvas
+    if (!omdbData) {
+        console.warn("Using default OMDb values.");
+        // Mock data for defaults
+        omdbData = { Ratings: [], Response: "True" };
+    }
+
+    const tags = mapOmdbToTags(omdbData);
+    let value = tags[type];
+
+    if (!value) {
+        // Use Placeholder if no data found but user specifically requested the tag
+        value = "99";
+    }
+
+    const is4K = document.getElementById('resSelect').value === '2160';
+    const baseSize = is4K ? 54 : 35;
+
+    // Badge Logic (Logos)
+    if (type === 'rotten_tomatoes' || type === 'metacritic') {
+        let logoUrl = '';
+        let label = '';
+        let dataTag = 'omdb_' + type;
+
+        if (type === 'rotten_tomatoes') {
+            logoUrl = '/static/provider_logos/rottentomatos.png';
+            label = value + '%';
+        } else {
+            logoUrl = '/static/provider_logos/metacritic.png';
+            label = value;
+        }
+
+        fabric.Image.fromURL(logoUrl, function (img) {
+            if (!img) return;
+
+            const text = new fabric.IText(label, {
+                fontFamily: 'Roboto',
+                fontSize: baseSize,
+                fill: 'white',
+                editable: false,
+                shadow: '2px 2px 5px rgba(0,0,0,0.5)'
+            });
+
+            // Scale logo to match text height
+            const textHeight = text.getScaledHeight();
+            img.scaleToHeight(textHeight * 1.0);
+
+            // Layout: Logo | Text (Top Aligned)
+            img.set({ left: 0, top: 0 });
+            text.set({
+                left: img.getScaledWidth() + 15,
+                top: 0
+            });
+
+            const group = new fabric.Group([img, text], {
+                left: 100,
+                top: 100,
+                originX: 'left',
+                originY: 'top',
+                dataTag: dataTag,
+                logoVariant: 0
+            });
+
+            canvas.add(group);
+            canvas.setActiveObject(group);
+            updateVerticalLayout();
+            saveToLocalStorage();
+        });
+        return;
+    }
+
+    // Long Plot (Constraint)
+    if (type === 'plot_full') {
+        const textObj = new fabric.Textbox(value, {
+            left: 100,
+            top: 300,
+            width: canvas.width * 0.5,
+            fontFamily: 'Roboto',
+            fontSize: baseSize,
+            fill: 'white',
+            shadow: '2px 2px 10px rgba(0,0,0,0.8)',
+            dataTag: 'omdb_plot',
+            splitByGrapheme: false,
+            editable: false
+        });
+        fitTextToContainer(textObj); // Use existing helper if available
+        canvas.add(textObj);
+        canvas.setActiveObject(textObj);
+        updateVerticalLayout();
+        saveToLocalStorage();
+        return;
+    }
+
+    addMetadataTag('omdb_' + type, value);
+}
+
+// --- OMDb Logo Switch ---
+function toggleRTLogo() {
+    if (!canvas) return;
+    const activeObj = canvas.getActiveObject();
+    if (!activeObj || activeObj.dataTag !== 'omdb_rotten_tomatoes') return;
+
+    // Toggle variant
+    const currentVariant = activeObj.logoVariant || 0;
+    const newVariant = (currentVariant === 0) ? 1 : 0;
+    activeObj.logoVariant = newVariant;
+
+    // Update Image Source
+    const imgObj = activeObj.getObjects().find(o => o.type === 'image');
+    if (imgObj) {
+        // Variant 0: rottentomatos.png (Rotten)
+        // Variant 1: rottentomatos2.png (Fresh)
+        const newSrc = newVariant === 0 ? '/static/provider_logos/rottentomatos.png' : '/static/provider_logos/rottentomatos2.png';
+
+        imgObj.setSrc(newSrc, function () {
+            // Re-render and update layout if needed
+            const textObj = activeObj.getObjects().find(o => o.type === 'i-text');
+            if (textObj) {
+                const textHeight = textObj.getScaledHeight();
+                imgObj.scaleToHeight(textHeight * 1.0);
+                imgObj.set({ left: 0, top: 0 });
+                textObj.set({ left: imgObj.getScaledWidth() + 15, top: 0 }); // Top Aligned
+
+                activeObj.addWithUpdate();
+                canvas.requestRenderAll();
+                saveToLocalStorage();
+            }
+        });
+    }
 }

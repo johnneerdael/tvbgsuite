@@ -4,30 +4,7 @@
         "frequency": "1",
         "start_time": "00:00"
     },
-    "cron_jobs": [
-        {
-            "id": "1771482269410",
-            "name": "T\u00e4glich",
-            "enabled": true,
-            "start_time": "00:00",
-            "frequency": "1",
-            "overwrite": false,
-            "force_run": true,
-            "layout_name": "batch",
-            "source_mode": "library",
-            "filter_mode": "all",
-            "filter_value": "",
-            "random_count": "10",
-            "logo_auto_fix": false,
-            "dry_run": false,
-            "item_types": "Movie,Series",
-            "limit": "0",
-            "providers": [
-                "jellyfin"
-            ],
-            "created_at": "2026-02-19T06:24:29.410Z"
-        }
-    ],
+    "cron_jobs": [],
     "editor": {
         "resolution": "1080"
     },
@@ -45,17 +22,20 @@
         "api_key": "",
         "url": ""
     },
+    "omdb": {
+        "api_key": "3be27afc"
+    },
     "plex": {
         "token": "",
         "url": ""
     },
     "radarr": {
-        "api_key": "",
-        "url": ""
+        "api_key": "eebcbe65b8d7426996923daa9bf0eb27",
+        "url": "http://truenas:30025/"
     },
     "sonarr": {
-        "api_key": "",
-        "url": ""
+        "api_key": "1b2a1f77e2154d39a13e8951f076e5f3",
+        "url": "http://truenas:30113/"
     },
     "tmdb": {
         "api_key": "",

@@ -217,6 +217,7 @@ def load_config():
         "sonarr": {"url": "", "api_key": ""},
         "jellyseerr": {"url": "", "api_key": ""},
         "trakt": {"api_key": "", "username": "", "listname": ""},
+        "omdb": {"api_key": ""},
         "editor": {"resolution": "1080"},
         "cron": {"enabled": False, "start_time": "00:00", "frequency": "1"}
     }
@@ -247,6 +248,8 @@ def clean_tmdb_url(path):
     return f"https://image.tmdb.org/t/p/original/{path.lstrip('/')}"
 
 # --- API ROUTES ---
+
+
 @gui_editor_bp.route('/api/proxy/image')
 def proxy_image():
     """ Proxies an image URL to bypass CORS/CORB blocks. """
@@ -626,6 +629,29 @@ def fetch_radarr_list(config):
     except: pass
     return []
 
+def fetch_tmdb_list(config, limit_count):
+    t = config.get('tmdb', {})
+    api_key = t.get('api_key')
+    if not api_key: return []
+    
+    # Fetch Trending items from TMDB
+    url = f"https://api.themoviedb.org/3/trending/all/week?api_key={api_key}"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            results = r.json().get('results', [])
+            valid = []
+            for item in results:
+                media_type = item.get('media_type', 'movie')
+                if media_type not in ['movie', 'tv']: continue
+                title = item.get('title') or item.get('name')
+                valid.append({"Id": f"tmdb-{media_type}-{item['id']}", "Name": title})
+            
+            if limit_count and str(limit_count) != '0':
+                return valid[:int(limit_count)]
+            return valid
+    except: pass
+    return []
 
 
 @gui_editor_bp.route('/api/media/random')
@@ -707,6 +733,8 @@ def get_media_list():
             all_items.extend(fetch_sonarr_list(config))
         elif p == 'radarr':
             all_items.extend(fetch_radarr_list(config))
+        elif p == 'tmdb':
+            all_items.extend(fetch_tmdb_list(config, limit_count))
             
     return jsonify(all_items)
 
@@ -934,6 +962,17 @@ def get_media_item(item_id):
                     "source": "Radarr"
                 })
         except: pass
+        
+    elif provider == "tmdb":
+        # ID format: tmdb-type-id
+        parts = actual_id.split("-")
+        if len(parts) >= 2:
+            mtype = parts[0]
+            tmdb_id = parts[1]
+            details = fetch_tmdb_details(tmdb_id, mtype, config)
+            if details:
+                details['source'] = "TMDB"
+                return jsonify(details)
 
     return jsonify({"error": f"Provider {provider} or Item not found"}), 400
 

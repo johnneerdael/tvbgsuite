@@ -192,7 +192,7 @@ async function startBatchProcess() {
     let initialState = null;
     if (!dryRun && typeof canvas !== 'undefined') {
         logBatch("DEBUG: Capturing initial state...");
-        initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
+        initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList', 'slotWidth', 'slotHeight']);
         // Filter out ambilight background to prevent stacking
         if (initialState.objects) {
             initialState.objects = initialState.objects.filter(o => o.dataTag !== 'ambilight_bg');
@@ -321,7 +321,7 @@ async function startBatchProcess() {
         }
         // --- End New ---
 
-        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'maxItems', 'fullList']);
+        const json = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'maxItems', 'fullList', 'slotWidth', 'slotHeight']);
 
         // Inject custom_effects so the saved JSON contains overlay info & blocked areas
         json.custom_effects = {

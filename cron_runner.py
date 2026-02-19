@@ -31,7 +31,61 @@ def log(msg):
 # --- START DER ANGEPASSTEN FUNKTION ---
 # Diese Funktion ist jetzt viel kürzer und effizienter.
 # Sie übergibt die Anweisungen direkt an Node.js, anstatt Bilder selbst herunterzuladen.
+def enrich_with_omdb(metadata, config):
+    omdb_key = config.get('omdb', {}).get('api_key')
+    if not omdb_key: return metadata
+    
+    imdb_id = metadata.get('imdb_id')
+    if not imdb_id:
+        pids = metadata.get('provider_ids', {})
+        if isinstance(pids, dict): imdb_id = pids.get('Imdb')
+    if not imdb_id:
+        eids = metadata.get('external_ids', {})
+        if isinstance(eids, dict): imdb_id = eids.get('imdb_id')
+        
+    if imdb_id:
+        try:
+            url = f"https://www.omdbapi.com/?i={imdb_id}&apikey={omdb_key}&plot=full"
+            r = requests.get(url, timeout=5)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get('Response') != 'False':
+                    # Map fields to match render_task expectations
+                    ratings = data.get('Ratings', [])
+                    for rate in ratings:
+                        if rate['Source'] == 'Rotten Tomatoes':
+                            metadata['omdb_rotten_tomatoes'] = rate['Value'].replace('%', '')
+                        elif rate['Source'] == 'Metacritic':
+                            metadata['omdb_metacritic'] = rate['Value'].split('/')[0]
+                    
+                    if data.get('Awards') != 'N/A': metadata['omdb_awards'] = data['Awards']
+                    if data.get('Country') != 'N/A': metadata['omdb_country'] = data['Country']
+                    if data.get('Rated') != 'N/A': metadata['omdb_rated'] = data['Rated']
+                    if data.get('Writer') != 'N/A': metadata['omdb_writer'] = data['Writer']
+                    if data.get('imdbRating') != 'N/A': metadata['omdb_imdb_rating'] = data['imdbRating']
+                    if data.get('BoxOffice') != 'N/A': metadata['omdb_box_office'] = data['BoxOffice']
+                    if data.get('Plot') != 'N/A':
+                        metadata['omdb_plot_full'] = data['Plot']
+                        metadata['omdb_plot'] = data['Plot']
+        except Exception as e:
+            log(f"OMDb fetch error: {e}")
+    return metadata
+
 def run_node_renderer(layout_path, metadata, output_base_path):
+    # Extract IMDb ID to ensure render_task.js can fetch OMDb data
+    imdb_id = metadata.get('imdb_id')
+    if not imdb_id:
+        # Check provider_ids (Jellyfin/Emby)
+        pids = metadata.get('provider_ids')
+        if isinstance(pids, dict):
+            imdb_id = pids.get('Imdb')
+    
+    if not imdb_id:
+        # Check external_ids (TMDB)
+        eids = metadata.get('external_ids')
+        if isinstance(eids, dict):
+            imdb_id = eids.get('imdb_id')
+
     # 1. Daten-Payload als JSON-String vorbereiten
     data_payload = {
         "title": metadata.get('title'),
@@ -47,9 +101,15 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         "id": metadata.get('id'),
         "action_url": metadata.get('action_url'),
         "provider_ids": metadata.get('provider_ids'),
+        "imdb_id": imdb_id,
         "backdrop_url": metadata.get('backdrop_url'),
         "logo_url": metadata.get('logo_url')
     }
+
+    # Pass through any OMDb fields that were enriched in Python
+    for k, v in metadata.items():
+        if k.startswith('omdb_'):
+            data_payload[k] = v
 
     data_json_string = json.dumps(data_payload, ensure_ascii=False)
 
@@ -78,10 +138,7 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         
         result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', cwd=script_dir)
         
-        log(f"--- NODE.JS OUTPUT (Exit Code: {result.returncode}) ---")
-        if result.stdout: log(f"STDOUT: {result.stdout.strip()}")
         if result.stderr: log(f"STDERR: {result.stderr.strip()}")
-        log("--------------------------------------------------")
 
         if result.returncode == 0:
             if os.path.exists(output_image_path):
@@ -347,6 +404,31 @@ def fetch_radarr_cron(config, job):
     except: pass
     return []
 
+def fetch_tmdb_cron(config, job):
+    t = config.get('tmdb', {})
+    api_key = t.get('api_key')
+    if not api_key: return []
+    
+    # Default limit for trending if not specified
+    limit = int(job.get('limit', 20))
+    if limit == 0: limit = 20
+    
+    url = f"https://api.themoviedb.org/3/trending/all/week?api_key={api_key}"
+    meta_items = []
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            results = r.json().get('results', [])
+            for item in results[:limit]:
+                media_type = item.get('media_type')
+                if media_type not in ['movie', 'tv']: continue
+                
+                details = fetch_tmdb_details(item['id'], media_type, config)
+                if details:
+                    details['source'] = "TMDB"
+                    meta_items.append(details)
+    except: pass
+    return meta_items
 
 
 def fetch_items_and_process(job=None):
@@ -368,6 +450,7 @@ def fetch_items_and_process(job=None):
         elif p == 'trakt': all_meta.extend(fetch_trakt_cron(config, job))
         elif p == 'sonarr': all_meta.extend(fetch_sonarr_cron(config, job))
         elif p == 'radarr': all_meta.extend(fetch_radarr_cron(config, job))
+        elif p == 'tmdb': all_meta.extend(fetch_tmdb_cron(config, job))
 
 
     log(f"Processing {len(all_meta)} items from {', '.join(providers)}...")
@@ -443,6 +526,10 @@ def fetch_items_and_process(job=None):
                 log(f"Skipping {safe_title} (Exists)"); continue
         
         log(f"Rendering: {meta['title']} ({meta.get('source', 'Unknown')})")
+        
+        # Enrich with OMDb data before rendering
+        meta = enrich_with_omdb(meta, config)
+        
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_output_base_path = os.path.join(temp_dir, 'output')
             img_b64, ambilight_b64, json_data, _ = run_node_renderer(layout_full_path, meta, temp_output_base_path)
