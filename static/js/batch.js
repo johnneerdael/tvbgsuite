@@ -73,6 +73,7 @@ async function startBatchProcess() {
     const count = parseInt(document.getElementById('batchCount').value);
     const delay = 1500; // Fixed generous delay for stability
     const overwrite = document.getElementById('batchOverwrite').checked;
+    const cleanup = document.getElementById('batchCleanup') ? document.getElementById('batchCleanup').checked : false;
     const sortGenre = false;
     const dryRun = document.getElementById('batchDryRun').checked;
 
@@ -95,6 +96,9 @@ async function startBatchProcess() {
     if (dryRun) {
         logBatch(`[DRY RUN] Mode active. No images will be generated.`);
     }
+    if (cleanup && mode === 'library') {
+        logBatch(`[CLEANUP] Enabled. Missing files will be removed from library.`);
+    }
 
     let itemsToProcess = [];
     if (mode === 'library') {
@@ -102,6 +106,7 @@ async function startBatchProcess() {
         let limitVal = document.getElementById('batchMaxItems').value || '0';
 
         const selectedProviders = Array.from(document.querySelectorAll('input[name="batchProvider"]:checked')).map(cb => cb.value);
+        // Note: We handle cleanup client-side now to support ID matching, so we don't pass &cleanup=true to the backend list API
         let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}&providers=${encodeURIComponent(selectedProviders.join(','))}`;
 
         if (filterMode === 'year') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterYear').value)}`;
@@ -127,6 +132,49 @@ async function startBatchProcess() {
             logBatch("No items found. Stopping.");
             stopBatchProcess();
             return;
+        }
+
+        // --- CLIENT-SIDE CLEANUP LOGIC ---
+        if (cleanup) {
+            logBatch("Performing cleanup (ID-based)...");
+            try {
+                // 1. Get valid IDs from the list we just fetched
+                const validIds = new Set(itemsToProcess.map(i => String(i.id)));
+                
+                // 2. Get existing files in the target layout
+                const galleryRes = await fetch(`/api/gallery/list/${encodeURIComponent(layoutName)}`);
+                const galleryFiles = await galleryRes.json();
+                const jsonFiles = galleryFiles.filter(f => f.endsWith('.json'));
+
+                let deletedCount = 0;
+
+                // 3. Check each file
+                for (const jsonFile of jsonFiles) {
+                    try {
+                        const fileUrl = `/api/gallery/image/${encodeURIComponent(layoutName)}/${encodeURIComponent(jsonFile)}?t=${Date.now()}`;
+                        const res = await fetch(fileUrl);
+                        if (!res.ok) continue;
+                        const data = await res.json();
+                        
+                        // Extract ID
+                        let itemId = data.metadata ? data.metadata.id : null;
+                        
+                        // If file has an ID, but it's not in our valid list -> Delete
+                        if (itemId && !validIds.has(String(itemId))) {
+                            const baseName = jsonFile.replace('.json', '');
+                            await fetch('/api/gallery/delete', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ folder: layoutName, filename: baseName + '.jpg' }) // Delete API handles related files
+                            });
+                            deletedCount++;
+                        }
+                    } catch (e) { console.warn("Cleanup check failed for", jsonFile); }
+                }
+                logBatch(`Cleanup complete. Removed ${deletedCount} unavailable items.`);
+            } catch (e) {
+                logBatch("Cleanup failed: " + e.message);
+            }
         }
     } else {
         logBatch(`Target: ${count} random images`);

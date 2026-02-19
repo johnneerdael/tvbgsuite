@@ -5177,6 +5177,7 @@ async function addCronJob() {
     const start = document.getElementById('cronJobStart').value;
     const freq = document.getElementById('cronJobFreq').value;
     const overwrite = document.getElementById('cronJobOverwrite').checked;
+    const cleanup = document.getElementById('cronJobCleanup') ? document.getElementById('cronJobCleanup').checked : false;
     const runNow = document.getElementById('cronJobRunNow').checked;
 
     const layout = document.getElementById('cronJobLayout').value;
@@ -5196,6 +5197,7 @@ async function addCronJob() {
         start_time: start,
         frequency: freq,
         overwrite: overwrite,
+        cleanup: cleanup,
         force_run: runNow,
         layout_name: layout,
         source_mode: mode,
@@ -5278,7 +5280,7 @@ function renderCronJobs(jobs) {
             <div>
                 <div style="font-weight:bold; font-size:12px; color:#fff;">${job.name}</div>
                 <div style="font-size:10px; color:#aaa;">${job.layout_name} • ${job.start_time} • ${job.frequency}x/day</div>
-                <div style="font-size:10px; color:#888;">${job.overwrite ? 'Overwrite: On' : 'Overwrite: Off'}</div>
+                <div style="font-size:10px; color:#888;">${job.overwrite ? 'Overwrite: On' : 'Overwrite: Off'} • ${job.cleanup ? 'Cleanup: On' : 'Cleanup: Off'}</div>
             </div>
             <button onclick="deleteCronJob('${job.id}')" style="background:#c62828; border:none; color:white; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Del</button>
         `;

@@ -9835,16 +9835,6 @@
             "action_url": "jellyfin://items/1817bfa9aa13c1e7177da9e01c3ba49a"
         },
         {
-            "path": "/app/layouts/previews/Default/I Spit on Your Grave Déjà Vu - 2019.jpg",
-            "layout": "Default",
-            "genres": "Thriller, Horror",
-            "officialRating": "FSK-18",
-            "year": 2019,
-            "rating": 0.0,
-            "title": "I Spit on Your Grave: Déjà Vu",
-            "action_url": "jellyfin://items/ba9bfec8e3237087f486b5b7e2748674"
-        },
-        {
             "path": "/app/layouts/previews/Default/Die Unfassbaren 3 - Now you see me - 2025.jpg",
             "layout": "Default",
             "genres": "Thriller, Krimi, Mystery",
@@ -11525,16 +11515,6 @@
             "action_url": "jellyfin://items/4d3aec706e99d2e6670590dcf4108841"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Der Blender - The Imposter - 2012.jpg",
-            "layout": "Default",
-            "genres": "Dokumentarfilm, Mystery, Krimi",
-            "officialRating": "FSK-12",
-            "year": 2012,
-            "rating": 7.316,
-            "title": "Der Blender - The Imposter",
-            "action_url": "jellyfin://items/59ccf30b1de7bf8e0703c30b01f7bfe1"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Der Bomber - 1982.jpg",
             "layout": "Default",
             "genres": "Action, Komödie, Drama",
@@ -12405,16 +12385,6 @@
             "action_url": "jellyfin://items/bf9c87457aeae2645930409579b87e3c"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Evil Dead - 2013.jpg",
-            "layout": "Default",
-            "genres": "Horror",
-            "officialRating": "FSK-18",
-            "year": 2013,
-            "rating": 6.6,
-            "title": "Evil Dead",
-            "action_url": "jellyfin://items/586efe51d8b7ab496dc2044e4902855c"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Evil Dead Rise - 2023.jpg",
             "layout": "Default",
             "genres": "Horror, Thriller",
@@ -12533,16 +12503,6 @@
             "rating": 6.185,
             "title": "Fast Charlie",
             "action_url": "jellyfin://items/aaf031a3a70401f64bbfbdfae0f410d7"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Fatherhood - 2021.jpg",
-            "layout": "Default",
-            "genres": "Drama, Komödie",
-            "officialRating": "FSK-6",
-            "year": 2021,
-            "rating": 7.502,
-            "title": "Fatherhood",
-            "action_url": "jellyfin://items/b640b18828098f7d2d2ddf862eec4877"
         },
         {
             "path": "/app/editor_backgrounds/Default/Fear and Loathing in Las Vegas - 1998.jpg",
@@ -13115,16 +13075,6 @@
             "action_url": "jellyfin://items/4ef6ba442c58a0ceb02411826049c9f1"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Horizon - 2024.jpg",
-            "layout": "Default",
-            "genres": "Western, Drama",
-            "officialRating": "FSK-12",
-            "year": 2024,
-            "rating": 6.841,
-            "title": "Horizon",
-            "action_url": "jellyfin://items/1520c71036dcc489ae509cb9931ae4e1"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Hotel Artemis - 2018.jpg",
             "layout": "Default",
             "genres": "Science Fiction, Action, Krimi, Thriller",
@@ -13593,16 +13543,6 @@
             "rating": 8.022,
             "title": "Kill Bill: The Whole Bloody Affair",
             "action_url": "jellyfin://items/a65e8ece761be7565765afd14afef85c"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/The Kill Room - 2023.jpg",
-            "layout": "Default",
-            "genres": "Komödie, Krimi",
-            "officialRating": "FSK-12",
-            "year": 2023,
-            "rating": 6.0,
-            "title": "The Kill Room",
-            "action_url": "jellyfin://items/a8fac941ff559796d0fe8d0b8068044e"
         },
         {
             "path": "/app/editor_backgrounds/Default/Killing Them Softly - 2012.jpg",
@@ -14665,16 +14605,6 @@
             "action_url": "jellyfin://items/54b3be6d852d8c3e166c1c69e1be64a2"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Oppenheimer - 2023.jpg",
-            "layout": "Default",
-            "genres": "Drama, Historie",
-            "officialRating": "FSK-12",
-            "year": 2023,
-            "rating": 8.036,
-            "title": "Oppenheimer",
-            "action_url": "jellyfin://items/c5a2cc1755bef6a0eded89bd7a510ef3"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/The Order - 2024.jpg",
             "layout": "Default",
             "genres": "Krimi, Drama, Thriller",
@@ -15015,16 +14945,6 @@
             "action_url": "jellyfin://items/5e95b147432e9c4e85fb704662513add"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Reasonable Doubt - 2014.jpg",
-            "layout": "Default",
-            "genres": "Krimi, Thriller",
-            "officialRating": "FSK-16",
-            "year": 2014,
-            "rating": 5.827,
-            "title": "Reasonable Doubt",
-            "action_url": "jellyfin://items/1d1bcb13351808d4b035e3048382dd26"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Rebel - In den Fängen des Terrors - 2022.jpg",
             "layout": "Default",
             "genres": "Action, Thriller, Drama",
@@ -15135,16 +15055,6 @@
             "action_url": "jellyfin://items/a03ef818ffaf7652de91c81479a7c9dd"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Resurrection - 2022.jpg",
-            "layout": "Default",
-            "genres": "Drama, Horror, Mystery",
-            "officialRating": "R",
-            "year": 2022,
-            "rating": 5.974,
-            "title": "Resurrection",
-            "action_url": "jellyfin://items/01dbb344ec2bf01b6855ab99d8c6224a"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/The Retirement Plan - 2023.jpg",
             "layout": "Default",
             "genres": "Action, Komödie, Krimi",
@@ -15203,16 +15113,6 @@
             "rating": 7.051,
             "title": "The Rip",
             "action_url": "jellyfin://items/ef57880bcff9dae039b0905c82902bc6"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/Rise of the Footsoldier Origins - 2021.jpg",
-            "layout": "Default",
-            "genres": "Krimi, Drama, Action",
-            "officialRating": "FSK-18",
-            "year": 2021,
-            "rating": 5.643,
-            "title": "Rise of the Footsoldier: Origins",
-            "action_url": "jellyfin://items/264dcf0bbb2fb70c633c67d655212725"
         },
         {
             "path": "/app/editor_backgrounds/Default/Robot Dreams - 2023.jpg",
@@ -15713,16 +15613,6 @@
             "rating": 0.0,
             "title": "Those Who Walk Away",
             "action_url": "jellyfin://items/8d299a5d377bad42074f58531b6e3440"
-        },
-        {
-            "path": "/app/editor_backgrounds/Default/100 Yards - 2024.jpg",
-            "layout": "Default",
-            "genres": "Action, Drama",
-            "officialRating": "FSK-16",
-            "year": 2024,
-            "rating": 6.1,
-            "title": "100 Yards",
-            "action_url": "jellyfin://items/accd58c305fd5221be7605ef09da0ed8"
         },
         {
             "path": "/app/layouts/previews/cron/Der karierte Ninja 2 - 2021.jpg",
@@ -19853,6 +19743,206 @@
             "rating": 7.272,
             "title": "28 Years Later: The Bone Temple",
             "action_url": "jellyfin://items/773d8168276b58a8e0b7e71c00e164bf"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Pulp Fiction - 1994.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Krimi, Komödie",
+            "officialRating": "FSK-16",
+            "year": 1994,
+            "rating": 0.0,
+            "title": "Pulp Fiction",
+            "action_url": "jellyfin://items/983d9ad7352e79e6189a591d31d0f635"
+        },
+        {
+            "path": "/app/layouts/previews/Default/I Spit on Your Grave Déjà Vu - 2019.jpg",
+            "layout": "Default",
+            "genres": "Thriller, Horror",
+            "officialRating": "FSK-18",
+            "year": 2019,
+            "rating": 0.0,
+            "title": "I Spit on Your Grave: Déjà Vu",
+            "action_url": "jellyfin://items/ba9bfec8e3237087f486b5b7e2748674"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Emancipation - 2022.jpg",
+            "layout": "Default",
+            "genres": "Drama, Kriegsfilm, Historie",
+            "officialRating": "FSK-16",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Emancipation",
+            "action_url": "jellyfin://items/6f9042808b303675b985b94907b7c7c8"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Retirement Plan - 2023.jpg",
+            "layout": "Default",
+            "genres": "Action, Komödie, Krimi",
+            "officialRating": "FSK-16",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "The Retirement Plan",
+            "action_url": "jellyfin://items/81443749df0da1b286d83e413afd3466"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Shadow of God - 2025.jpg",
+            "layout": "Default",
+            "genres": "Horror",
+            "officialRating": "FSK-16",
+            "year": 2025,
+            "rating": 0.0,
+            "title": "Shadow of God",
+            "action_url": "jellyfin://items/d7610b639de59a7a6aa6856e8d5b108c"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Smashing Machine - 2025.jpg",
+            "layout": "Default",
+            "genres": "Drama",
+            "officialRating": "FSK-12",
+            "year": 2025,
+            "rating": 0.0,
+            "title": "The Smashing Machine",
+            "action_url": "jellyfin://items/7afda2e1556f8e158429a1ebdef58511"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Darkness - 2016.jpg",
+            "layout": "Default",
+            "genres": "Horror, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "The Darkness",
+            "action_url": "jellyfin://items/343fcb6019b85e83e380d6499c857b2a"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Bobs Burgers - Der Film - 2022.jpg",
+            "layout": "Default",
+            "genres": "Animation, Musik, Komödie, Krimi, Mystery",
+            "officialRating": "FSK-0",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Bob’s Burgers - Der Film",
+            "action_url": "jellyfin://items/34794c83a18a474284b17749829fa1bc"
+        },
+        {
+            "path": "/app/layouts/previews/Default/The Little Things - 2021.jpg",
+            "layout": "Default",
+            "genres": "Drama, Krimi, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2021,
+            "rating": 0.0,
+            "title": "The Little Things",
+            "action_url": "jellyfin://items/e59121fd6e9f568637560c4179c08341"
+        },
+        {
+            "path": "/app/layouts/previews/Default/Live by Night - 2016.jpg",
+            "layout": "Default",
+            "genres": "Krimi, Drama, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2016,
+            "rating": 0.0,
+            "title": "Live by Night",
+            "action_url": "jellyfin://items/852fb57abb717b13d3664afbd3b7ee8e"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Resurrection - 2022.jpg",
+            "layout": "Default",
+            "genres": "Drama, Horror, Mystery",
+            "officialRating": "R",
+            "year": 2022,
+            "rating": 0.0,
+            "title": "Resurrection",
+            "action_url": "jellyfin://items/01dbb344ec2bf01b6855ab99d8c6224a"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/100 Yards - 2024.jpg",
+            "layout": "Default",
+            "genres": "Action, Drama",
+            "officialRating": "FSK-16",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "100 Yards",
+            "action_url": "jellyfin://items/accd58c305fd5221be7605ef09da0ed8"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/The Kill Room - 2023.jpg",
+            "layout": "Default",
+            "genres": "Komödie, Krimi",
+            "officialRating": "FSK-12",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "The Kill Room",
+            "action_url": "jellyfin://items/a8fac941ff559796d0fe8d0b8068044e"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Reasonable Doubt - 2014.jpg",
+            "layout": "Default",
+            "genres": "Krimi, Thriller",
+            "officialRating": "FSK-16",
+            "year": 2014,
+            "rating": 0.0,
+            "title": "Reasonable Doubt",
+            "action_url": "jellyfin://items/1d1bcb13351808d4b035e3048382dd26"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Oppenheimer - 2023.jpg",
+            "layout": "Default",
+            "genres": "Drama, Historie",
+            "officialRating": "FSK-12",
+            "year": 2023,
+            "rating": 0.0,
+            "title": "Oppenheimer",
+            "action_url": "jellyfin://items/c5a2cc1755bef6a0eded89bd7a510ef3"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Horizon - 2024.jpg",
+            "layout": "Default",
+            "genres": "Western, Drama",
+            "officialRating": "FSK-12",
+            "year": 2024,
+            "rating": 0.0,
+            "title": "Horizon",
+            "action_url": "jellyfin://items/1520c71036dcc489ae509cb9931ae4e1"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Rise of the Footsoldier Origins - 2021.jpg",
+            "layout": "Default",
+            "genres": "Krimi, Drama, Action",
+            "officialRating": "FSK-18",
+            "year": 2021,
+            "rating": 0.0,
+            "title": "Rise of the Footsoldier: Origins",
+            "action_url": "jellyfin://items/264dcf0bbb2fb70c633c67d655212725"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Fatherhood - 2021.jpg",
+            "layout": "Default",
+            "genres": "Drama, Komödie",
+            "officialRating": "FSK-6",
+            "year": 2021,
+            "rating": 0.0,
+            "title": "Fatherhood",
+            "action_url": "jellyfin://items/b640b18828098f7d2d2ddf862eec4877"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Evil Dead - 2013.jpg",
+            "layout": "Default",
+            "genres": "Horror",
+            "officialRating": "FSK-18",
+            "year": 2013,
+            "rating": 0.0,
+            "title": "Evil Dead",
+            "action_url": "jellyfin://items/586efe51d8b7ab496dc2044e4902855c"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Der Blender - The Imposter - 2012.jpg",
+            "layout": "Default",
+            "genres": "Dokumentarfilm, Mystery, Krimi",
+            "officialRating": "FSK-12",
+            "year": 2012,
+            "rating": 0.0,
+            "title": "Der Blender - The Imposter",
+            "action_url": "jellyfin://items/59ccf30b1de7bf8e0703c30b01f7bfe1"
         }
     ]
 }

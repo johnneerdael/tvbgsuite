@@ -44,6 +44,9 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         "actors": metadata.get('actors', []),
         "directors": metadata.get('directors', []),
         "source": metadata.get('source', 'Jellyfin'),
+        "id": metadata.get('id'),
+        "action_url": metadata.get('action_url'),
+        "provider_ids": metadata.get('provider_ids'),
         "backdrop_url": metadata.get('backdrop_url'),
         "logo_url": metadata.get('logo_url')
     }
@@ -165,6 +168,7 @@ def fetch_jellyfin_cron(config, job):
             
             is_in_boxset = it.get('ParentId') in boxset_ids
             meta_items.append({
+                "id": it.get('Id'),
                 "title": it.get('Name'),
                 "year": it.get('ProductionYear'),
                 "overview": it.get('Overview'),
@@ -212,6 +216,7 @@ def fetch_plex_cron(config, job):
                         runtime = f"{h}h {m}min" if h > 0 else f"{m}min"
                         
                         meta_items.append({
+                            "id": it.get('ratingKey'),
                             "title": it.get('title'),
                             "year": it.get('year'),
                             "overview": it.get('summary'),
@@ -271,6 +276,7 @@ def fetch_sonarr_cron(config, job):
                     if tmdb_id:
                         details = fetch_tmdb_details(tmdb_id, 'tv', config)
                         if details:
+                            details['id'] = sid
                             details['source'] = "Sonarr"
                             meta_items.append(details)
                             seen_series.add(sid)
@@ -278,6 +284,7 @@ def fetch_sonarr_cron(config, job):
                     
                     # Fallback
                     meta_items.append({
+                        "id": sid,
                         "title": series.get('title'),
                         "year": series.get('year'),
                         "overview": series.get('overview', ''),
@@ -323,12 +330,14 @@ def fetch_radarr_cron(config, job):
                 if tmdb_id:
                     details = fetch_tmdb_details(tmdb_id, 'movie', config)
                     if details:
+                        details['id'] = m.get('id')
                         details['source'] = "Radarr"
                         meta_items.append(details)
                         continue
                 
                 # Fallback
                 meta_items.append({
+                    "id": m.get('id'),
                     "title": m.get('title'),
                     "year": m.get('year'),
                     "overview": m.get('overview', ''),
@@ -362,6 +371,52 @@ def fetch_items_and_process(job=None):
 
 
     log(f"Processing {len(all_meta)} items from {', '.join(providers)}...")
+
+    # --- CLEANUP LOGIC ---
+    if job.get('cleanup', False):
+        if len(all_meta) > 0:
+            log("Cleanup active: Removing orphan files...")
+            target_dir = os.path.join(os.path.dirname(__file__), 'editor_backgrounds', layout_name)
+            if os.path.exists(target_dir):
+                valid_filenames = set()
+                valid_ids = set()
+                
+                for meta in all_meta:
+                    # 1. Track valid IDs
+                    if meta.get('id'):
+                        valid_ids.add(str(meta.get('id')))
+                    
+                    # 2. Track valid Filenames (Fallback)
+                    safe_title = "".join(c for c in meta.get('title', '') if c.isalnum() or c in " ._-").strip()
+                    base = f"{safe_title} - {meta.get('year')}"
+                    valid_filenames.add(base)
+                
+                for f in os.listdir(target_dir):
+                    if f.endswith('.json'):
+                        json_path = os.path.join(target_dir, f)
+                        should_delete = False
+                        try:
+                            with open(json_path, 'r', encoding='utf-8') as jf:
+                                data = json.load(jf)
+                                meta_id = str(data.get('metadata', {}).get('id', ''))
+                                
+                                if meta_id and meta_id in valid_ids:
+                                    should_delete = False # ID match -> Keep
+                                else:
+                                    # No ID match (or no ID in file). Check filename as fallback.
+                                    base_name = f.replace('.json', '')
+                                    if base_name not in valid_filenames:
+                                        should_delete = True
+                        except:
+                            should_delete = False # Error reading -> Skip to be safe
+                        
+                        if should_delete:
+                            base = f.replace('.json', '')
+                            for ext in ['.json', '.jpg', '.ambilight.jpg']:
+                                try: os.remove(os.path.join(target_dir, base + ext))
+                                except: pass
+        else:
+            log("Cleanup skipped: No items found (Safety check).")
 
     for meta in all_meta:
         if os.path.exists(STOP_SIGNAL_FILE): break

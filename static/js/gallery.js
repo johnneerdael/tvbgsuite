@@ -64,6 +64,8 @@ function renderGalleryUI() {
     });
     tabsHtml += '</div>';
     
+    tabsHtml += `<button onclick="scanForOrphans()" style="background: #ef6c00; width: auto; padding: 6px 12px; font-size: 12px; border: 1px solid #ff9800; white-space: nowrap; flex-shrink: 0; margin-right: 5px;" data-i18n="scan_btn">Find Unavailable Media</button>`;
+
     if (images.length > 0) {
         tabsHtml += `<button onclick="deleteAllGalleryImages('${currentGalleryTab}')" style="background: #c62828; width: auto; padding: 6px 12px; font-size: 12px; border: 1px solid #ff5252; white-space: nowrap; flex-shrink: 0;">🗑️ Delete All</button>`;
     }
@@ -444,4 +446,144 @@ async function deleteLayout(name) {
     } else {
         alert("Error deleting layout.");
     }
+}
+
+// Updated Scan Logic: Uses Media IDs from JSON files instead of Filenames
+async function scanForOrphans() {
+    if (!currentGalleryTab || currentGalleryTab.startsWith("LayoutPreview: ")) {
+        alert("Please select a valid layout folder first.");
+        return;
+    }
+    
+    const btn = document.querySelector('button[onclick="scanForOrphans()"]');
+    const originalText = btn.innerText;
+    btn.innerText = "Scanning...";
+    btn.disabled = true;
+
+    try {
+        // 1. Fetch Provider Items (Source of Truth)
+        // We fetch Movies and Series from all providers
+        const providers = 'jellyfin,plex,trakt,sonarr,radarr';
+        const providerRes = await fetch(`/api/media/list?mode=library&types=Movie,Series&limit=0&providers=${providers}`);
+        const providerData = await providerRes.json();
+        
+        if (providerData.error) throw new Error(providerData.error);
+
+        // Safety check: If no items returned, abort to prevent accidental "delete all"
+        if (!Array.isArray(providerData) || providerData.length === 0) {
+            throw new Error("No media items found from providers. Check your provider settings or connections.");
+        }
+        
+        // Create a set of valid IDs from Provider
+        const validIds = new Set();
+        providerData.forEach(item => {
+            if (item.Id) validIds.add(String(item.Id));
+        });
+        
+        console.log(`[Scan] Provider items: ${providerData.length}, Valid IDs: ${validIds.size}`);
+
+        // 2. Fetch Local Gallery Items
+        const galleryImages = loadedGalleryData[currentGalleryTab] || [];
+        const jsonFiles = galleryImages.filter(f => f.endsWith('.json'));
+
+        const orphans = [];
+        
+        // 3. Check each JSON file for valid ID
+        // Process in chunks to avoid blocking the browser
+        const chunkSize = 10;
+        for (let i = 0; i < jsonFiles.length; i += chunkSize) {
+            const chunk = jsonFiles.slice(i, i + chunkSize);
+            btn.innerText = `Scanning ${Math.min(i + chunkSize, jsonFiles.length)}/${jsonFiles.length}...`;
+            
+            await Promise.all(chunk.map(async (jsonFile) => {
+                try {
+                    // Fetch the JSON content
+                    const fileUrl = `/api/gallery/image/${encodeURIComponent(currentGalleryTab)}/${encodeURIComponent(jsonFile)}?t=${Date.now()}`;
+                    const res = await fetch(fileUrl);
+                    if (!res.ok) return;
+                    
+                    const data = await res.json();
+                    let itemId = null;
+                    
+                    // Extract ID from metadata (Jellyfin/Emby style in action_url)
+                    if (data.metadata) {
+                        if (data.metadata.action_url) {
+                            // Matches "jellyfin://items/ID"
+                            const match = data.metadata.action_url.match(/items\/([a-zA-Z0-9]+)/);
+                            if (match) itemId = match[1];
+                        }
+                        // Fallback: direct ID if available
+                        if (!itemId && data.metadata.id) itemId = data.metadata.id;
+                    }
+                    
+                    // If we found an ID, check if it exists in provider list
+                    if (itemId && !validIds.has(String(itemId))) {
+                        // ID not found -> Orphan
+                        const baseName = jsonFile.replace('.json', '');
+                        orphans.push(jsonFile);
+                        
+                        // Add associated images if they exist
+                        const jpg = baseName + '.jpg';
+                        if (galleryImages.includes(jpg)) orphans.push(jpg);
+                        
+                        const ambi = baseName + '.ambilight.jpg';
+                        if (galleryImages.includes(ambi)) orphans.push(ambi);
+                    }
+                } catch (err) {
+                    console.warn(`[Scan] Failed to check ${jsonFile}`, err);
+                }
+            }));
+        }
+        
+        // Deduplicate list
+        const uniqueOrphans = [...new Set(orphans)];
+
+        if (uniqueOrphans.length === 0) {
+            alert("No unavailable media found.");
+        } else {
+            showOrphanModal(uniqueOrphans);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Scan failed: " + e.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+function showOrphanModal(orphans) {
+    const list = document.getElementById('orphanList');
+    list.innerHTML = '';
+    orphans.forEach(file => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex; align-items:center; padding:2px;';
+        div.innerHTML = `<input type="checkbox" class="orphan-check" value="${file}" checked style="margin-right:10px;"> <span style="font-size:12px; color:#ccc;">${file}</span>`;
+        list.appendChild(div);
+    });
+    document.getElementById('orphanModal').style.display = 'flex';
+}
+
+function toggleOrphanSelection(checked) {
+    document.querySelectorAll('.orphan-check').forEach(cb => cb.checked = checked);
+}
+
+async function deleteSelectedOrphans() {
+    const selected = Array.from(document.querySelectorAll('.orphan-check:checked')).map(cb => cb.value);
+    if (selected.length === 0) return;
+    
+    if (!confirm(`Delete ${selected.length} files?`)) return;
+    
+    const layoutKey = currentGalleryTab;
+    document.getElementById('orphanModal').style.display = 'none';
+    
+    for (const file of selected) {
+        await fetch('/api/gallery/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ folder: layoutKey, filename: file })
+        });
+    }
+    
+    loadGallery();
 }
