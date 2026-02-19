@@ -414,6 +414,181 @@ def format_jellyfin_item(item, clean_url, api_key):
         "source": "Jellyfin"
     }
 
+def fetch_jellyfin_list(config, filter_mode, filter_val, item_types, limit_count, request_args):
+    jf = config.get('jellyfin', {})
+    if not jf.get('url') or not jf.get('api_key'): return []
+    
+    headers = {"X-Emby-Token": jf['api_key']}
+    jf_url = str(jf.get('url', '')).rstrip('/')
+    clean_url = jf_url
+
+    
+    excluded_libs = jf.get('excluded_libraries', "")
+    excluded_list = [x.strip() for x in excluded_libs.split(',') if x.strip()]
+    excluded_paths = []
+    if excluded_list:
+        try:
+            r_libs = requests.get(f"{clean_url}/Library/VirtualFolders", headers=headers, timeout=5)
+            if r_libs.status_code == 200:
+                libs = r_libs.json()
+                for lib in libs:
+                    if lib.get('Name') in excluded_list:
+                        excluded_paths.extend(lib.get('Locations', []))
+        except: pass
+
+    base_params = f"Recursive=true&IncludeItemTypes={item_types}&ExcludeItemTypes=BoxSet&Fields=Name,Path,OfficialRating,InheritedParentalRatingValue"
+    if limit_count and limit_count != '0':
+        base_params += f"&Limit={limit_count}"
+    else:
+        base_params += "&Limit=100000"
+    sort_params = "&SortBy=SortName"
+    
+    if filter_mode == 'recent':
+        sort_params = "&SortBy=DateCreated&SortOrder=Descending"
+    elif filter_mode == 'year':
+        sort_params = f"&SortBy=SortName&Years={filter_val}"
+    elif filter_mode == 'genre':
+        sort_params = f"&SortBy=SortName&Genres={filter_val}"
+    elif filter_mode == 'rating':
+        sort_params = f"&SortBy=CommunityRating&SortOrder=Descending&MinCommunityRating={filter_val}"
+    elif filter_mode == 'custom':
+        min_year = request_args.get('min_year')
+        max_year = request_args.get('max_year')
+        min_rating = request_args.get('min_rating')
+        genre = request_args.get('genre')
+        c_params = []
+        if min_year or max_year:
+            try:
+                start = int(min_year) if min_year else 1900
+                end = int(max_year) if max_year else datetime.now().year
+                years_str = ",".join(str(y) for y in range(min(start, end), max(start, end) + 1))
+                c_params.append(f"Years={years_str}")
+            except: pass
+        if min_rating: c_params.append(f"MinCommunityRating={min_rating}")
+        if genre: c_params.append(f"Genres={genre}")
+        if c_params: sort_params += "&" + "&".join(c_params)
+
+    url = f"{clean_url}/Users/{jf['user_id']}/Items?{base_params}{sort_params}"
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()
+        items = r.json().get('Items', [])
+        valid = []
+        for item in items:
+            if excluded_paths and item.get('Path') and any(ex in item['Path'] for ex in excluded_paths):
+                continue
+            if filter_mode == 'official_rating':
+                f_val = str(filter_val).strip().lower()
+                i_rating = item.get('InheritedParentalRatingValue')
+                o_rating = str(item.get('OfficialRating', '') or '').lower()
+                match = False
+                if f_val.isdigit():
+                    if i_rating is not None and int(i_rating) == int(f_val): match = True
+                    elif f_val in re.findall(r'\d+', o_rating): match = True
+                else:
+                    f_norm = "".join(c for c in f_val if c.isalnum())
+                    o_norm = "".join(c for c in o_rating if c.isalnum())
+                    if f_norm and f_norm in o_norm: match = True
+                if not match: continue
+            valid.append({"Id": f"jellyfin-{item['Id']}", "Name": item['Name']})
+        return valid
+    except: return []
+
+def fetch_plex_list(config, filter_mode, filter_val, item_types, limit_count):
+    p = config.get('plex', {})
+    if not p.get('url') or not p.get('token'): return []
+    url = str(p.get('url', '')).rstrip('/')
+
+    token = p['token']
+    headers = {"Accept": "application/json"}
+    try:
+        r_sections = requests.get(f"{url}/library/sections?X-Plex-Token={token}", headers=headers, timeout=5)
+        if r_sections.status_code != 200: return []
+        sections = r_sections.json().get('MediaContainer', {}).get('Directory', [])
+        valid = []
+        plex_types = []
+        if 'Movie' in item_types: plex_types.append('movie')
+        if 'Series' in item_types: plex_types.append('show')
+        for s in sections:
+            if s.get('type') in plex_types:
+                sid = s.get('key')
+                # Basic fetch for now - complex filtering can be added later
+                r_items = requests.get(f"{url}/library/sections/{sid}/all?X-Plex-Token={token}", headers=headers, timeout=10)
+                if r_items.status_code == 200:
+                    items = r_items.json().get('MediaContainer', {}).get('Metadata', [])
+                    for item in items:
+                        valid.append({"Id": f"plex-{item.get('ratingKey')}", "Name": item.get('title')})
+        if limit_count and limit_count != '0':
+            return valid[:int(limit_count)]
+        return valid
+    except: return []
+
+def fetch_trakt_list(config):
+    t = config.get('trakt', {})
+    if not t.get('api_key') or not t.get('username') or not t.get('listname'): return []
+    url = f"https://api.trakt.tv/users/{t['username']}/lists/{t['listname']}/items"
+    headers = {"Content-Type": "application/json", "trakt-api-version": "2", "trakt-api-key": t['api_key']}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            items = r.json()
+            valid = []
+            for it in items:
+                mtype = it['type']
+                media = it.get(mtype)
+                if media and media.get('ids', {}).get('tmdb'):
+                    valid.append({"Id": f"trakt-{mtype}-{media['ids']['tmdb']}", "Name": media.get('title')})
+            return valid
+    except: return []
+
+def fetch_sonarr_list(config):
+    s = config.get('sonarr', {})
+    if not s.get('url') or not s.get('api_key'): return []
+    url = f"{str(s.get('url', '')).rstrip('/')}/api/v3/calendar"
+
+
+    headers = {"X-Api-Key": s['api_key']}
+    # Fetch calendar for next 30 days
+    params = {
+        "start": datetime.utcnow().date().isoformat(),
+        "end": (datetime.utcnow() + timedelta(days=30)).date().isoformat()
+    }
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=10)
+        if r.status_code == 200:
+            episodes = r.json()
+            valid = []
+            seen_series = set()
+            for ep in episodes:
+                series = ep.get('series', {})
+                sid = series.get('id')
+                if sid and sid not in seen_series:
+                    valid.append({"Id": f"sonarr-{sid}", "Name": series.get('title')})
+                    seen_series.add(sid)
+            return valid
+    except: pass
+    return []
+
+def fetch_radarr_list(config):
+    r_conf = config.get('radarr', {})
+    if not r_conf.get('url') or not r_conf.get('api_key'): return []
+    url = f"{r_conf['url'].rstrip('/')}/api/v3/movie"
+    headers = {"X-Api-Key": r_conf['api_key']}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            movies = r.json()
+            # Sort by added date or similar? Radarr doesn't have a simple "upcoming" API like Sonarr calendar
+            # but we can filter by 'monitored' and 'hasFile'==False for "upcoming"
+            valid = []
+            for m in movies:
+                valid.append({"Id": f"radarr-{m['id']}", "Name": m.get('title')})
+            return valid
+    except: pass
+    return []
+
+
+
 @gui_editor_bp.route('/api/media/random')
 def get_random_media():
     config = load_config()
@@ -478,122 +653,25 @@ def get_media_list():
     filter_val = request.args.get('val', '')
     item_types = request.args.get('types', 'Movie,Series')
     limit_count = request.args.get('limit', '0')
+    providers = request.args.get('providers', 'jellyfin').split(',')
     
-    jf = config.get('jellyfin', {})
-    excluded_libs = jf.get('excluded_libraries', "")
-    excluded_list = [x.strip() for x in excluded_libs.split(',') if x.strip()]
+    all_items = []
+    for p in providers:
+        p = p.strip().lower()
+        if p == 'jellyfin':
+            all_items.extend(fetch_jellyfin_list(config, filter_mode, filter_val, item_types, limit_count, request.args))
+        elif p == 'plex':
+            all_items.extend(fetch_plex_list(config, filter_mode, filter_val, item_types, limit_count))
+        elif p == 'trakt':
+            all_items.extend(fetch_trakt_list(config))
+        elif p == 'sonarr':
+            all_items.extend(fetch_sonarr_list(config))
+        elif p == 'radarr':
+            all_items.extend(fetch_radarr_list(config))
+            
+    return jsonify(all_items)
 
-    if jf.get('url') and jf.get('api_key'):
-        headers = {"X-Emby-Token": jf['api_key']}
-        clean_url = jf['url'].rstrip('/')
-        
-        excluded_paths = []
-        if excluded_list:
-            try:
-                r_libs = requests.get(f"{clean_url}/Library/VirtualFolders", headers=headers, timeout=5)
-                if r_libs.status_code == 200:
-                    libs = r_libs.json()
-                    for lib in libs:
-                        if lib.get('Name') in excluded_list:
-                            excluded_paths.extend(lib.get('Locations', []))
-            except Exception as e:
-                print(f"Error fetching libraries: {e}")
 
-        # Fetch all items sorted by name
-        base_params = f"Recursive=true&IncludeItemTypes={item_types}&ExcludeItemTypes=BoxSet&Fields=Name,Path,OfficialRating,InheritedParentalRatingValue"
-        if limit_count and limit_count != '0':
-            base_params += f"&Limit={limit_count}"
-        else:
-            base_params += "&Limit=100000"
-        sort_params = "&SortBy=SortName"
-        
-        if filter_mode == 'recent':
-            sort_params = "&SortBy=DateCreated&SortOrder=Descending"
-        elif filter_mode == 'year':
-            sort_params = f"&SortBy=SortName&Years={filter_val}"
-        elif filter_mode == 'genre':
-            sort_params = f"&SortBy=SortName&Genres={filter_val}"
-        elif filter_mode == 'rating':
-            sort_params = f"&SortBy=CommunityRating&SortOrder=Descending&MinCommunityRating={filter_val}"
-        elif filter_mode == 'imdb':
-            # Jellyfin doesn't always allow sorting by ProviderIds directly in simple queries easily, 
-            # but usually CommunityRating is the best proxy. We'll stick to CommunityRating for simplicity or custom filtering.
-            sort_params = f"&SortBy=CommunityRating&SortOrder=Descending&MinCommunityRating={filter_val}"
-        elif filter_mode == 'official_rating':
-            # We filter in python to be more flexible with formats (e.g. "6" vs "FSK 6" vs "DE-6")
-            pass
-        elif filter_mode == 'custom':
-            min_year = request.args.get('min_year')
-            max_year = request.args.get('max_year')
-            min_rating = request.args.get('min_rating')
-            genre = request.args.get('genre')
-            
-            c_params = []
-            if min_year or max_year:
-                try:
-                    current_year = time.localtime().tm_year
-                    start = int(min_year) if min_year else 1900
-                    end = int(max_year) if max_year else current_year
-                    if start > end: start, end = end, start
-                    # Jellyfin expects comma separated years for the Years parameter
-                    years_str = ",".join(str(y) for y in range(start, end + 1))
-                    c_params.append(f"Years={years_str}")
-                except: pass
-            
-            if min_rating:
-                c_params.append(f"MinCommunityRating={min_rating}")
-            if genre:
-                c_params.append(f"Genres={genre}")
-            
-            sort_params = "&SortBy=SortName"
-            if c_params:
-                sort_params += "&" + "&".join(c_params)
-
-        url = f"{clean_url}/Users/{jf['user_id']}/Items?{base_params}{sort_params}"
-
-        try:
-            r = requests.get(url, headers=headers, timeout=10)
-            r.raise_for_status()
-            items = r.json().get('Items', [])
-            
-            valid_items = []
-            for item in items:
-                if excluded_paths and item.get('Path') and any(ex in item['Path'] for ex in excluded_paths):
-                    continue
-                
-                if filter_mode == 'official_rating':
-                    f_val = str(filter_val).strip().lower()
-                    i_rating = item.get('InheritedParentalRatingValue')
-                    o_rating = str(item.get('OfficialRating', '') or '').lower()
-                    
-                    match = False
-                    # 1. Numeric Search (e.g. "6")
-                    if f_val.isdigit():
-                        # Check InheritedParentalRatingValue
-                        if i_rating is not None and int(i_rating) == int(f_val):
-                            match = True
-                        # Check OfficialRating for exact number (e.g. "FSK 6", "DE-6") using Regex
-                        # This finds "6" in "FSK 6" or "DE-6" but NOT in "16"
-                        elif f_val in re.findall(r'\d+', o_rating):
-                            match = True
-                    # 2. String Search (e.g. "FSK 6")
-                    else:
-                        # Normalize both to alphanumeric only
-                        f_norm = "".join(c for c in f_val if c.isalnum())
-                        o_norm = "".join(c for c in o_rating if c.isalnum())
-                        if f_norm and f_norm in o_norm:
-                            match = True
-                            
-                    if not match:
-                        continue
-
-                valid_items.append({"Id": item['Id'], "Name": item['Name']})
-            
-            return jsonify(valid_items)
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-            
-    return jsonify([])
 
 @gui_editor_bp.route('/api/media/search')
 def search_media():
@@ -615,21 +693,206 @@ def search_media():
     except:
         return jsonify([])
 
+def format_plex_item(item, base_url, token):
+    # Check for Logo (clearLogo) - Plex stores this in its own way
+    # For now, let's assume we can fetch it if available
+    logo_url = f"{base_url}/library/metadata/{item.get('ratingKey')}/clearLogo?X-Plex-Token={token}"
+    
+    # Plex duration is in milliseconds
+    duration_ms = item.get('duration', 0)
+    h, m = divmod(duration_ms // 60000, 60)
+    runtime_str = f"{h}h {m}min" if h > 0 else f"{m}min"
+    
+    genres = [g.get('tag') for g in item.get('Genre', [])]
+    actors = [r.get('tag') for r in item.get('Role', [])]
+    directors = [d.get('tag') for d in item.get('Director', [])]
+    if not directors:
+        directors = [w.get('tag') for w in item.get('Writer', [])]
+
+    return {
+        "id": f"plex-{item.get('ratingKey')}",
+        "title": item.get('title'),
+        "original_title": item.get('originalTitle'),
+        "year": item.get('year'),
+        "rating": item.get('rating') or item.get('audienceRating'),
+        "overview": item.get('summary', ''),
+        "genres": ", ".join(genres),
+        "tags": [],
+        "actors": actors,
+        "directors": directors,
+        "studios": [item.get('studio')] if item.get('studio') else [],
+        "provider_ids": {}, # Can extract if needed
+        "runtime": runtime_str,
+        "backdrop_url": f"{base_url}/library/metadata/{item.get('ratingKey')}/art?X-Plex-Token={token}",
+        "logo_url": logo_url,
+        "officialRating": item.get('contentRating'),
+        "source": "Plex"
+    }
+
+def fetch_tmdb_details(tmdb_id, media_type, config):
+    t = config.get('tmdb', {})
+    api_key = t.get('api_key')
+    if not api_key: return {}
+    
+    lang = t.get('language', 'en-US')
+    base_url = "https://api.themoviedb.org/3"
+    
+    try:
+        # 1. Main Details
+        r = requests.get(f"{base_url}/{media_type}/{tmdb_id}?api_key={api_key}&language={lang}", timeout=5)
+        if r.status_code != 200: return {}
+        data = r.json()
+        
+        # 2. Images (for Logo)
+        logo_url = None
+        r_img = requests.get(f"{base_url}/{media_type}/{tmdb_id}/images?api_key={api_key}", timeout=5)
+        if r_img.status_code == 200:
+            logos = r_img.json().get('logos', [])
+            # Prefer English logos
+            en_logos = [l for l in logos if l.get('iso_639_1') == 'en']
+            logo_path = (en_logos[0] if en_logos else (logos[0] if logos else {})).get('file_path')
+            if logo_path:
+                logo_url = f"https://image.tmdb.org/t/p/original{logo_path}"
+                
+        # 3. Credits (for Actors/Directors)
+        r_credits = requests.get(f"{base_url}/{media_type}/{tmdb_id}/credits?api_key={api_key}", timeout=5)
+        credits = r_credits.json() if r_credits.status_code == 200 else {}
+        
+        actors = [a.get('name') for a in credits.get('cast', [])[:10]]
+        directors = [d.get('name') for d in credits.get('crew', []) if d.get('job') == 'Director']
+        
+        runtime = ""
+        if media_type == 'movie':
+            rt = data.get('runtime', 0)
+            h, m = divmod(rt, 60)
+            runtime = f"{h}h {m}min" if h > 0 else f"{m}min"
+        else:
+            ep_rt = data.get('episode_run_time', [0])[0]
+            runtime = f"{ep_rt} min"
+            
+        return {
+            "id": f"trakt-{media_type}-{tmdb_id}",
+            "title": data.get('title') or data.get('name'),
+            "original_title": data.get('original_title') or data.get('original_name'),
+            "year": (data.get('release_date') or data.get('first_air_date') or "")[:4],
+            "rating": data.get('vote_average'),
+            "overview": data.get('overview', ''),
+            "genres": ", ".join([g.get('name') for g in data.get('genres', [])]),
+            "actors": actors,
+            "directors": directors,
+            "runtime": runtime,
+            "backdrop_url": f"https://image.tmdb.org/t/p/original{data.get('backdrop_path')}" if data.get('backdrop_path') else None,
+            "logo_url": logo_url,
+            "source": "Trakt/TMDB"
+        }
+    except: return {}
+
 @gui_editor_bp.route('/api/media/item/<item_id>')
 def get_media_item(item_id):
     config = load_config()
-    jf = config.get('jellyfin', {})
-    if jf.get('url') and jf.get('api_key'):
-        headers = {"X-Emby-Token": jf['api_key']}
-        clean_url = jf['url'].rstrip('/')
-        url = f"{clean_url}/Users/{jf['user_id']}/Items/{item_id}?Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue,People"
+    
+    provider = "jellyfin"
+    actual_id = item_id
+    if "-" in item_id:
+        parts = item_id.split("-")
+        provider = parts[0]
+        actual_id = "-".join(parts[1:])
+
+    if provider == "jellyfin":
+        jf = config.get('jellyfin', {})
+        if jf.get('url') and jf.get('api_key'):
+            headers = {"X-Emby-Token": jf['api_key']}
+            clean_url = str(jf.get('url', '')).rstrip('/')
+
+            url = f"{clean_url}/Users/{jf['user_id']}/Items/{actual_id}?Fields=Type,Overview,Genres,CommunityRating,ProductionYear,RunTimeTicks,ImageTags,Path,ProviderIds,OfficialRating,InheritedParentalRatingValue,People"
+            try:
+                r = requests.get(url, headers=headers, timeout=5)
+                r.raise_for_status()
+                return jsonify(format_jellyfin_item(r.json(), clean_url, jf['api_key']))
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+                
+    elif provider == "plex":
+        p = config.get('plex', {})
+        if p.get('url') and p.get('token'):
+            url = str(p.get('url', '')).rstrip('/')
+
+            token = p['token']
+            # Fetch metadata for ratingKey
+            headers = {"Accept": "application/json"}
+            try:
+                r = requests.get(f"{url}/library/metadata/{actual_id}?X-Plex-Token={token}", headers=headers, timeout=5)
+                r.raise_for_status()
+                meta = r.json().get('MediaContainer', {}).get('Metadata', [{}])[0]
+                return jsonify(format_plex_item(meta, url, token))
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+                
+    elif provider == "trakt":
+        # Trakt IDs are formatted as "trakt-type-tmdbid" (media listing returns this)
+        parts = actual_id.split("-")
+        if len(parts) >= 2:
+            mtype = parts[0] # 'movie' or 'show' (or 'tv')
+            if mtype == 'show': mtype = 'tv' # TMDB uses 'tv'
+            tmdb_id = parts[1]
+            return jsonify(fetch_tmdb_details(tmdb_id, mtype, config))
+
+    elif provider == "sonarr":
+        s = config.get('sonarr', {})
+        if not s.get('url') or not s.get('api_key'): return jsonify({"error": "Sonarr not configured"}), 400
+        url = f"{s['url'].rstrip('/')}/api/v3/series/{actual_id}"
+        headers = {"X-Api-Key": s['api_key']}
         try:
-            r = requests.get(url, headers=headers, timeout=5)
-            r.raise_for_status()
-            return jsonify(format_jellyfin_item(r.json(), clean_url, jf['api_key']))
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-    return jsonify({"error": "Jellyfin not configured"}), 400
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                series = r.json()
+                tvdb_id = series.get('tvdbId')
+                if tvdb_id:
+                    # Resolve TMDB ID from TVDB
+                    tmdb_api_key = config.get('tmdb', {}).get('api_key')
+                    if tmdb_api_key:
+                        find_url = f"https://api.themoviedb.org/3/find/{tvdb_id}?api_key={tmdb_api_key}&external_source=tvdb_id"
+                        r_tmdb = requests.get(find_url, timeout=5)
+                        if r_tmdb.status_code == 200:
+                            results = r_tmdb.json().get('tv_results', [])
+                            if results:
+                                tmdb_id = results[0]['id']
+                                return jsonify(fetch_tmdb_details(tmdb_id, 'tv', config))
+                # Fallback if no TMDB match
+                return jsonify({
+                    "id": f"sonarr-{actual_id}",
+                    "title": series.get('title'),
+                    "overview": series.get('overview', ''),
+                    "year": series.get('year'),
+                    "source": "Sonarr"
+                })
+        except: pass
+
+    elif provider == "radarr":
+        r_conf = config.get('radarr', {})
+        if not r_conf.get('url') or not r_conf.get('api_key'): return jsonify({"error": "Radarr not configured"}), 400
+        url = f"{r_conf['url'].rstrip('/')}/api/v3/movie/{actual_id}"
+        headers = {"X-Api-Key": r_conf['api_key']}
+        try:
+            r = requests.get(url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                movie = r.json()
+                tmdb_id = movie.get('tmdbId')
+                if tmdb_id:
+                    return jsonify(fetch_tmdb_details(tmdb_id, 'movie', config))
+                # Fallback
+                return jsonify({
+                    "id": f"radarr-{actual_id}",
+                    "title": movie.get('title'),
+                    "overview": movie.get('overview', ''),
+                    "year": movie.get('year'),
+                    "source": "Radarr"
+                })
+        except: pass
+
+    return jsonify({"error": f"Provider {provider} or Item not found"}), 400
+
+
 
 @gui_editor_bp.route('/api/settings', methods=['POST'])
 def update_settings():

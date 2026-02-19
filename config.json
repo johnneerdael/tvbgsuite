@@ -4,7 +4,30 @@
         "frequency": "1",
         "start_time": "00:00"
     },
-    "cron_jobs": [],
+    "cron_jobs": [
+        {
+            "id": "1771482269410",
+            "name": "T\u00e4glich",
+            "enabled": true,
+            "start_time": "00:00",
+            "frequency": "1",
+            "overwrite": false,
+            "force_run": true,
+            "layout_name": "batch",
+            "source_mode": "library",
+            "filter_mode": "all",
+            "filter_value": "",
+            "random_count": "10",
+            "logo_auto_fix": false,
+            "dry_run": false,
+            "item_types": "Movie,Series",
+            "limit": "0",
+            "providers": [
+                "jellyfin"
+            ],
+            "created_at": "2026-02-19T06:24:29.410Z"
+        }
+    ],
     "editor": {
         "resolution": "1080"
     },

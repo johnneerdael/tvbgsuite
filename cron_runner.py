@@ -8,11 +8,13 @@ import subprocess
 import tempfile
 import base64
 from urllib.parse import quote
-from datetime import datetime
+from datetime import datetime, timedelta
+
 
 # Path to own module folder
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from gui_editor import load_config, save_config
+from gui_editor import load_config, save_config, fetch_tmdb_details
+
 
 # Config
 API_URL = "http://127.0.0.1:5000/api/save_image"
@@ -41,10 +43,11 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         "officialRating": metadata.get('officialRating'),
         "actors": metadata.get('actors', []),
         "directors": metadata.get('directors', []),
-        "source": "Jellyfin",
+        "source": metadata.get('source', 'Jellyfin'),
         "backdrop_url": metadata.get('backdrop_url'),
         "logo_url": metadata.get('logo_url')
     }
+
     data_json_string = json.dumps(data_payload, ensure_ascii=False)
 
     # 2. Erwartete Ausgabepfade definieren
@@ -102,31 +105,13 @@ def run_node_renderer(layout_path, metadata, output_base_path):
                 try: os.remove(p)
                 except: pass
 
-    # preferred_logo_width wird nicht mehr zurückgegeben
     return image_b64, ambilight_b64, final_json, None
-# --- ENDE DER ANGEPASSTEN FUNKTION ---
 
-def fetch_items_and_process(job=None):
-    if not job: return
-    
-    job_name = job.get('name', 'Unnamed Job')
-    log(f"Starting Cron Job: {job_name}")
-    
-    config = load_config()
-    
-    layout_dir = os.path.join(os.path.dirname(__file__), 'layouts')
-    layout_name = job.get('layout_name', 'Default')
-    layout_full_path = os.path.join(layout_dir, f"{layout_name}.json")
-    
-    if not os.path.exists(layout_full_path):
-        log(f"Layout not found: {layout_name}")
-        return
+    # --- ENDE DER ANGEPASSTEN FUNKTION ---
 
-    log(f"Using Layout: {layout_name}")
-
+def fetch_jellyfin_cron(config, job):
     jf = config.get('jellyfin', {})
-    if not jf.get('url'): return
-
+    if not jf.get('url'): return []
     headers = {"X-Emby-Token": jf['api_key']}
     base_url = jf['url'].rstrip('/')
     
@@ -135,150 +120,285 @@ def fetch_items_and_process(job=None):
         bs_url = f"{base_url}/Users/{jf['user_id']}/Items?IncludeItemTypes=BoxSet&Recursive=true&Fields=Id"
         r_bs = requests.get(bs_url, headers=headers, timeout=10)
         if r_bs.status_code == 200:
-            for b in r_bs.json().get('Items', []):
-                boxset_ids.add(b['Id'])
-    except Exception as e:
-        log(f"Error fetching BoxSets: {e}")
+            for b in r_bs.json().get('Items', []): boxset_ids.add(b['Id'])
+    except: pass
 
-    source_mode = job.get('source_mode', 'library')
-    filter_mode = job.get('filter_mode', 'all')
-    filter_val = job.get('filter_value', '')
-    item_types = job.get('item_types', 'Movie,Series')
-    limit_count = job.get('limit', '0')
-    
     params = [
-        f"IncludeItemTypes={item_types}",
-        "Recursive=true",
-        "ExcludeItemTypes=BoxSet",
+        f"IncludeItemTypes={job.get('item_types', 'Movie,Series')}",
+        "Recursive=true", "ExcludeItemTypes=BoxSet",
         "Fields=Overview,Genres,OfficialRating,CommunityRating,ProviderIds,ProductionYear,RunTimeTicks,OriginalTitle,Tags,Studios,InheritedParentalRatingValue,ImageTags,ParentId,People"
     ]
     
-    if source_mode == 'random':
-        limit = int(job.get('random_count', 10))
+    if job.get('source_mode') == 'random':
         params.append("SortBy=Random")
-        params.append(f"Limit={limit}")
+        params.append(f"Limit={job.get('random_count', 10)}")
     else:
-        if limit_count and limit_count != '0':
-            params.append(f"Limit={limit_count}")
-        else:
-            params.append("Limit=100000")
-            
-        if filter_mode == 'recent':
+        limit = job.get('limit', '0')
+        if limit != '0': params.append(f"Limit={limit}")
+        
+        fmode = job.get('filter_mode', 'all')
+        fval = job.get('filter_value', '')
+        if fmode == 'recent':
             params.append("SortBy=DateCreated")
             params.append("SortOrder=Descending")
-        elif filter_mode == 'year' and filter_val:
-            params.append("SortBy=SortName")
-            params.append(f"Years={filter_val}")
-        elif filter_mode == 'genre' and filter_val:
-            params.append("SortBy=SortName")
-            params.append(f"Genres={filter_val}")
-        elif filter_mode == 'rating':
+        elif fmode == 'year' and fval:
+            params.append(f"Years={fval}")
+        elif fmode == 'genre' and fval:
+            params.append(f"Genres={fval}")
+        elif fmode == 'rating' and fval:
+            params.append(f"MinCommunityRating={fval}")
             params.append("SortBy=CommunityRating")
             params.append("SortOrder=Descending")
-            if filter_val: params.append(f"MinCommunityRating={filter_val}")
         else:
             params.append("SortBy=SortName")
 
-    query_string = "&".join(params)
-    url = f"{base_url}/Users/{jf['user_id']}/Items?{query_string}"
-    
+    url = f"{base_url}/Users/{jf['user_id']}/Items?{'&'.join(params)}"
     try:
-        req = requests.get(url, headers=headers)
-        items = req.json().get('Items', [])
-    except Exception as e:
-        log(f"Jellyfin Error: {e}")
-        return
+        r = requests.get(url, headers=headers)
+        items = r.json().get('Items', [])
+        meta_items = []
+        for it in items:
+            ticks = it.get('RunTimeTicks', 0)
+            minutes = (ticks // 600000000) if ticks else 0
+            h, m = divmod(minutes, 60)
+            runtime = f"{h}h {m}min" if h > 0 else f"{m}min"
+            
+            is_in_boxset = it.get('ParentId') in boxset_ids
+            meta_items.append({
+                "title": it.get('Name'),
+                "year": it.get('ProductionYear'),
+                "overview": it.get('Overview'),
+                "rating": it.get('CommunityRating'),
+                "officialRating": it.get('OfficialRating'),
+                "genres": ", ".join(it.get('Genres', [])),
+                "runtime": runtime,
+                "backdrop_url": f"{base_url}/Items/{it['Id']}/Images/Backdrop?api_key={jf['api_key']}",
+                "logo_url": None if is_in_boxset else (f"{base_url}/Items/{it['Id']}/Images/Logo?api_key={jf['api_key']}" if 'Logo' in it.get('ImageTags', {}) else None),
+                "action_url": f"jellyfin://items/{it['Id']}",
+                "provider_ids": it.get('ProviderIds', {}),
+                "actors": [p.get('Name') for p in it.get('People', []) if p.get('Type') == 'Actor'],
+                "directors": list(dict.fromkeys(p.get('Name') for p in it.get('People', []) if p.get('Type') == 'Director')) or list(dict.fromkeys(p.get('Name') for p in it.get('People', []) if p.get('Type') == 'Writer')),
+                "source": "Jellyfin"
+            })
+        return meta_items
+    except: return []
 
-    log(f"Processing {len(items)} items...")
-
-    for item in items:
-        if os.path.exists(STOP_SIGNAL_FILE): break
+def fetch_plex_cron(config, job):
+    p = config.get('plex', {})
+    if not p.get('url') or not p.get('token'): return []
+    url = p['url'].rstrip('/')
+    token = p['token']
+    headers = {"Accept": "application/json"}
+    try:
+        r_sections = requests.get(f"{url}/library/sections?X-Plex-Token={token}", headers=headers, timeout=5)
+        if r_sections.status_code != 200: return []
+        sections = r_sections.json().get('MediaContainer', {}).get('Directory', [])
         
+        item_types = job.get('item_types', 'Movie,Series')
+        plex_types = []
+        if 'Movie' in item_types: plex_types.append('movie')
+        if 'Series' in item_types: plex_types.append('show')
+        
+        meta_items = []
+        for s in sections:
+            if s.get('type') in plex_types:
+                sid = s.get('key')
+                r_items = requests.get(f"{url}/library/sections/{sid}/all?X-Plex-Token={token}", headers=headers, timeout=10)
+                if r_items.status_code == 200:
+                    items = r_items.json().get('MediaContainer', {}).get('Metadata', [])
+                    for it in items:
+                        duration_ms = it.get('duration', 0)
+                        h, m = divmod(duration_ms // 60000, 60)
+                        runtime = f"{h}h {m}min" if h > 0 else f"{m}min"
+                        
+                        meta_items.append({
+                            "title": it.get('title'),
+                            "year": it.get('year'),
+                            "overview": it.get('summary'),
+                            "rating": it.get('rating') or it.get('audienceRating'),
+                            "officialRating": it.get('contentRating'),
+                            "genres": ", ".join([g.get('tag') for g in it.get('Genre', [])]),
+                            "runtime": runtime,
+                            "backdrop_url": f"{url}/library/metadata/{it['ratingKey']}/art?X-Plex-Token={token}",
+                            "logo_url": f"{url}/library/metadata/{it['ratingKey']}/clearLogo?X-Plex-Token={token}",
+                            "source": "Plex",
+                            "actors": [r.get('tag') for r in it.get('Role', [])],
+                            "directors": [d.get('tag') for d in it.get('Director', [])]
+                        })
+        return meta_items
+    except: return []
+
+def fetch_trakt_cron(config, job):
+
+    # Simplified placeholder for now
+    return []
+
+
+def fetch_sonarr_cron(config, job):
+    s = config.get('sonarr', {})
+    if not s.get('url') or not s.get('api_key'): return []
+    url = f"{s['url'].rstrip('/')}/api/v3/calendar"
+    headers = {"X-Api-Key": s['api_key']}
+    days = int(job.get('days_ahead', 7)) # Custom field or default
+    params = {
+        "start": datetime.utcnow().date().isoformat(),
+        "end": (datetime.utcnow() + timedelta(days=days)).date().isoformat()
+    }
+    try:
+        r = requests.get(url, headers=headers, params=params, timeout=10)
+        if r.status_code == 200:
+            episodes = r.json()
+            meta_items = []
+            seen_series = set()
+            for ep in episodes:
+                series = ep.get('series', {})
+                sid = series.get('id')
+                if sid and sid not in seen_series:
+                    tvdb_id = series.get('tvdbId')
+                    tmdb_id = None
+                    # Try resolve TMDB ID if possible
+                    if tvdb_id:
+                        tmdb_api_key = config.get('tmdb', {}).get('api_key')
+                        if tmdb_api_key:
+                            find_url = f"https://api.themoviedb.org/3/find/{tvdb_id}?api_key={tmdb_api_key}&external_source=tvdb_id"
+                            try:
+                                r_tmdb = requests.get(find_url, timeout=5)
+                                if r_tmdb.status_code == 200:
+                                    results = r_tmdb.json().get('tv_results', [])
+                                    if results: tmdb_id = results[0]['id']
+                            except: pass
+                    
+                    if tmdb_id:
+                        details = fetch_tmdb_details(tmdb_id, 'tv', config)
+                        if details:
+                            details['source'] = "Sonarr"
+                            meta_items.append(details)
+                            seen_series.add(sid)
+                            continue
+                    
+                    # Fallback
+                    meta_items.append({
+                        "title": series.get('title'),
+                        "year": series.get('year'),
+                        "overview": series.get('overview', ''),
+                        "source": "Sonarr"
+                    })
+                    seen_series.add(sid)
+            return meta_items
+    except: pass
+    return []
+
+def fetch_radarr_cron(config, job):
+    r_conf = config.get('radarr', {})
+    if not r_conf.get('url') or not r_conf.get('api_key'): return []
+    url = f"{r_conf['url'].rstrip('/')}/api/v3/movie"
+    headers = {"X-Api-Key": r_conf['api_key']}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            movies = r.json()
+            meta_items = []
+            days = int(job.get('days_ahead', 7))
+            start = datetime.utcnow().date()
+            end = start + timedelta(days=days)
+            
+            for m in movies:
+                # Filter for upcoming/missing
+                if not m.get('monitored') or m.get('hasFile'): continue
+                
+                # Check release dates
+                digital = m.get('digitalRelease')
+                physical = m.get('physicalRelease')
+                in_range = False
+                for d_str in [digital, physical]:
+                    if d_str:
+                        try:
+                            d_dt = datetime.strptime(d_str, "%Y-%m-%dT%H:%M:%SZ").date()
+                            if start <= d_dt <= end: in_range = True; break
+                        except: pass
+                
+                if not in_range: continue
+                
+                tmdb_id = m.get('tmdbId')
+                if tmdb_id:
+                    details = fetch_tmdb_details(tmdb_id, 'movie', config)
+                    if details:
+                        details['source'] = "Radarr"
+                        meta_items.append(details)
+                        continue
+                
+                # Fallback
+                meta_items.append({
+                    "title": m.get('title'),
+                    "year": m.get('year'),
+                    "overview": m.get('overview', ''),
+                    "source": "Radarr"
+                })
+            return meta_items
+    except: pass
+    return []
+
+
+
+def fetch_items_and_process(job=None):
+    if not job: return
+    job_name = job.get('name', 'Unnamed Job')
+    log(f"Starting Cron Job: {job_name}")
+    config = load_config()
+    layout_name = job.get('layout_name', 'Default')
+    layout_full_path = os.path.join(os.path.dirname(__file__), 'layouts', f"{layout_name}.json")
+    if not os.path.exists(layout_full_path):
+        log(f"Layout not found: {layout_name}"); return
+
+    providers = job.get('providers', ['jellyfin'])
+    all_meta = []
+    for p in providers:
+        p = p.strip().lower()
+        if p == 'jellyfin': all_meta.extend(fetch_jellyfin_cron(config, job))
+        elif p == 'plex': all_meta.extend(fetch_plex_cron(config, job))
+        elif p == 'trakt': all_meta.extend(fetch_trakt_cron(config, job))
+        elif p == 'sonarr': all_meta.extend(fetch_sonarr_cron(config, job))
+        elif p == 'radarr': all_meta.extend(fetch_radarr_cron(config, job))
+
+
+    log(f"Processing {len(all_meta)} items from {', '.join(providers)}...")
+
+    for meta in all_meta:
+        if os.path.exists(STOP_SIGNAL_FILE): break
+
+        # Check if job still exists/enabled
         if job.get('id'):
             try:
                 curr_conf = load_config()
-                curr_jobs = curr_conf.get('cron_jobs', [])
-                active = next((j for j in curr_jobs if j.get('id') == job['id']), None)
-                if not active:
-                    log(f"Job {job.get('name')} was deleted. Stopping.")
-                    break
-                if not active.get('enabled', True):
-                    log(f"Job {job.get('name')} was disabled. Stopping.")
-                    break
-            except:
-                pass
+                active = next((j for j in curr_conf.get('cron_jobs', []) if j.get('id') == job['id']), None)
+                if not active or not active.get('enabled', True):
+                    log(f"Job {job.get('name')} changed state. Stopping."); break
+            except: pass
 
-        safe_title = "".join(c for c in item.get('Name', '') if c.isalnum() or c in " ._-").strip()
-        
+        safe_title = "".join(c for c in meta.get('title', '') if c.isalnum() or c in " ._-").strip()
         if job.get('dry_run'):
-            log(f"[Dry Run] Processing: {safe_title}")
-            continue
+            log(f"[Dry Run] Processing: {safe_title}"); continue
             
-        output_base_name = f"{safe_title} - {item.get('ProductionYear')}"
+        output_base_name = f"{safe_title} - {meta.get('year')}"
         filename_for_api = f"{output_base_name}.jpg"
 
         if not job.get('overwrite', False):
-            base_path = os.path.dirname(os.path.abspath(__file__))
-            target_dir = os.path.join(base_path, 'editor_backgrounds', layout_name)
-            expected_path = os.path.join(target_dir, filename_for_api)
-            if os.path.exists(expected_path):
-                log(f"Skipping {safe_title} (Exists)")
-                continue
+            target_dir = os.path.join(os.path.dirname(__file__), 'editor_backgrounds', layout_name)
+            if os.path.exists(os.path.join(target_dir, filename_for_api)):
+                log(f"Skipping {safe_title} (Exists)"); continue
         
-        ticks = item.get('RunTimeTicks', 0)
-        minutes = (ticks // 600000000) if ticks else 0
-        h, m = divmod(minutes, 60)
-        runtime = f"{h}h {m}min" if h > 0 else f"{m}min"
-        
-        is_in_boxset = item.get('ParentId') in boxset_ids
-
-        meta = {
-            "title": item.get('Name'),
-            "year": item.get('ProductionYear'),
-            "overview": item.get('Overview'),
-            "rating": item.get('CommunityRating'),
-            "officialRating": item.get('OfficialRating'),
-            "genres": ", ".join(item.get('Genres', [])),
-            "runtime": runtime,
-            "backdrop_url": f"{base_url}/Items/{item['Id']}/Images/Backdrop?api_key={jf['api_key']}",
-            "logo_url": None if is_in_boxset else (f"{base_url}/Items/{item['Id']}/Images/Logo?api_key={jf['api_key']}" if 'Logo' in item.get('ImageTags', {}) else None),
-            "action_url": f"jellyfin://items/{item['Id']}",
-            "provider_ids": item.get('ProviderIds', {}),
-            "actors": [p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Actor'],
-            "directors": (
-                list(dict.fromkeys(p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Director'))
-                or list(dict.fromkeys(p.get('Name') for p in item.get('People', []) if p.get('Type') == 'Writer'))
-            )
-        }
-
-        log(f"Rendering: {meta['title']}")
-
-        # Der Aufruf erfolgt jetzt in einem temporären Verzeichnis
+        log(f"Rendering: {meta['title']} ({meta.get('source', 'Unknown')})")
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_output_base_path = os.path.join(temp_dir, 'output')
             img_b64, ambilight_b64, json_data, _ = run_node_renderer(layout_full_path, meta, temp_output_base_path)
-
             if img_b64 and json_data:
-                payload = {
-                    "image": img_b64,
-                    "layout_name": layout_name,
-                    "metadata": meta,
-                    "canvas_json": json_data,
-                    "overwrite_filename": filename_for_api,
-                    "target_type": "gallery"
-                }
-                
-                if ambilight_b64:
-                    payload['ambilight_image_data'] = ambilight_b64
-                    
-                try:
-                    requests.post(API_URL, json=payload)
-                except Exception as e:
-                    log(f"Upload failed: {e}")
-            else:
-                log("Rendering failed.")
-
+                payload = {"image": img_b64, "layout_name": layout_name, "metadata": meta, "canvas_json": json_data, "overwrite_filename": filename_for_api, "target_type": "gallery"}
+                if ambilight_b64: payload['ambilight_image_data'] = ambilight_b64
+                try: requests.post(API_URL, json=payload)
+                except Exception as e: log(f"Upload failed: {e}")
+            else: log("Rendering failed.")
     log("Batch Finished.")
+
 
 def run_scheduler():
     log("Scheduler Mode Started")

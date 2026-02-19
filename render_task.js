@@ -113,7 +113,7 @@ if (fontsDir) {
                 if (fs.statSync(fullPath).size > 0) {
                     const families = getFontFamilies(file);
                     families.forEach(fam => {
-                        console.log(`[DEBUG] Registering font: ${file} as ${fam}`);
+                        // console.log(`[DEBUG] Registering font: ${file} as ${fam}`);
                         canvasModule.registerFont(fullPath, { family: fam });
                         const noSpaces = fam.replace(/\s+/g, '');
                         if (noSpaces !== fam) canvasModule.registerFont(fullPath, { family: noSpaces });
@@ -121,7 +121,7 @@ if (fontsDir) {
                         const withSpaces = fam.replace(/([a-z])([A-Z])/g, '$1 $2');
                         if (withSpaces !== fam && withSpaces !== noSpaces) {
                             canvasModule.registerFont(fullPath, { family: withSpaces });
-                            console.log(`[DEBUG] Registering alias: ${withSpaces}`);
+                            // console.log(`[DEBUG] Registering alias: ${withSpaces}`);
                         }
                     });
                 }

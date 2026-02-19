@@ -4492,12 +4492,16 @@ function closePreviewPopup() {
 }
 
 async function loadLayout(name, silent = false) {
+    if (!silent) console.log(`Loading layout: ${name}`);
     const resp = await fetch(`/api/layouts/load/${name}`);
     if (!resp.ok) {
+        console.error(`Failed to fetch layout: ${name}`);
+
         if (!silent) alert("Error loading layout");
         return;
     }
     const data = await resp.json();
+    if (!silent) console.log("Layout JSON fetched, starting canvas.loadFromJSON...");
 
     // Scale up to current resolution
     const currentRes = document.getElementById('resSelect').value;
@@ -4518,6 +4522,8 @@ async function loadLayout(name, silent = false) {
 
         // Hier nutzen wir den Callback (1. Funktion) UND den Reviver (2. Funktion für Gradienten)
         canvas.loadFromJSON(data, () => {
+            if (!silent) console.log("loadFromJSON callback fired.");
+
             // --- CALLBACK START (Wird ausgeführt, wenn alles geladen ist) ---
             canvas.getObjects().forEach(o => { if (o.dataTag === 'overview') o.set('objectCaching', false); });
 
@@ -4562,13 +4568,20 @@ async function loadLayout(name, silent = false) {
             }
 
             // --- HIER IST DER FIX: Warten auf Schriften statt setTimeout ---
+            if (!silent) console.log("Waiting for fonts...");
             waitForUsedFonts(canvas).then(() => {
+                if (!silent) console.log("Fonts loaded.");
                 canvas.getObjects().forEach(o => o.setCoords()); // Koordinaten neu berechnen
                 updateVerticalLayout(); // Jetzt Text ausrichten (da Breiten nun stimmen)
+                if (!silent) console.log("Layout update complete.");
                 canvas.requestRenderAll();
                 resolve();
+            }).catch(err => {
+                console.error("Error in waitForUsedFonts:", err);
+                resolve(); // Still resolve to let it proceed
             });
             // --- FIX ENDE ---
+
 
         }, (o, object) => {
             // --- REVIVER START (Deine Gradienten-Reparatur) ---
@@ -5174,6 +5187,8 @@ async function addCronJob() {
     const logoAutoFix = document.getElementById('cronLogoAutoFix') ? document.getElementById('cronLogoAutoFix').checked : true;
     const dryRun = document.getElementById('cronDryRun') ? document.getElementById('cronDryRun').checked : false;
 
+    const providers = Array.from(document.querySelectorAll('input[name="cronProvider"]:checked')).map(cb => cb.value);
+
     const newJob = {
         id: Date.now().toString(), // Simple ID
         name: name,
@@ -5191,8 +5206,10 @@ async function addCronJob() {
         dry_run: dryRun,
         item_types: document.getElementById('cronMediaType') ? document.getElementById('cronMediaType').value : 'Movie,Series',
         limit: document.getElementById('cronMaxItems') ? document.getElementById('cronMaxItems').value : '0',
+        providers: providers,
         created_at: new Date().toISOString()
     };
+
 
     // Get current config, append job, save
     // We need to fetch current config first to not overwrite other stuff

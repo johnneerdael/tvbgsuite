@@ -101,7 +101,9 @@ async function startBatchProcess() {
         let mediaType = document.getElementById('batchMediaType').value || 'Movie,Series';
         let limitVal = document.getElementById('batchMaxItems').value || '0';
 
-        let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}`;
+        const selectedProviders = Array.from(document.querySelectorAll('input[name="batchProvider"]:checked')).map(cb => cb.value);
+        let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}&providers=${encodeURIComponent(selectedProviders.join(','))}`;
+
         if (filterMode === 'year') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterYear').value)}`;
         if (filterMode === 'genre') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterGenre').value)}`;
         if (filterMode === 'rating') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterRating').value)}`;
@@ -133,19 +135,24 @@ async function startBatchProcess() {
 
     // 1. Load the selected layout first
     if (!dryRun) {
-        await loadLayout(layoutName, true); // This loads it onto the main canvas (Silent Mode)
+        logBatch(`DEBUG: Calling loadLayout for "${layoutName}"...`);
+        await loadLayout(layoutName, true);
     }
     logBatch("Layout loaded successfully.");
 
     // --- FIX: Capture initial layout state ---
     let initialState = null;
     if (!dryRun && typeof canvas !== 'undefined') {
+        logBatch("DEBUG: Capturing initial state...");
         initialState = canvas.toJSON(['dataTag', 'fullMediaText', 'selectable', 'evented', 'lockScalingY', 'splitByGrapheme', 'fixedHeight', 'editable', 'matchHeight', 'autoBackgroundColor', 'textureId', 'textureScale', 'textureRotation', 'textureOpacity', 'snapToObjects', 'logoAutoFix', 'maxItems', 'fullList']);
         // Filter out ambilight background to prevent stacking
         if (initialState.objects) {
             initialState.objects = initialState.objects.filter(o => o.dataTag !== 'ambilight_bg');
         }
+        logBatch("DEBUG: Initial state captured.");
     }
+
+
 
     const total = itemsToProcess.length;
     for (let i = 0; i < total; i++) {
@@ -212,7 +219,9 @@ async function startBatchProcess() {
 
             // C. Force a clean redraw
             canvas.renderAll();
+            logBatch("DEBUG: Canvas layout updated.");
         }
+
         // --- FIX END ---
 
         // 2. Hide overlay for screenshot

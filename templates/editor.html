@@ -905,89 +905,6 @@
                     </div>
                     <input type="range" id="lineSpacingInput" min="0" max="100" value="20" oninput="updateLineSpacing()"
                         style="margin-top:2px;">
-                    <label style="margin-top:10px; display:block; font-size:11px;" data-i18n="tag_separator">Tag Separator</label>
-                    <div style="display:flex; gap:5px;">
-                        <select id="tagSeparatorSelect" onchange="setSeparatorFromSelect(this.value)" style="flex:1; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
-                            <option value="">None</option>
-                            <option value="•">• Dot</option>
-                            <option value="|">| Pipe</option>
-                            <option value="-">- Minus</option>
-                            <option value="+">+ Plus</option>
-                            <option value="/">/ Slash</option>
-                            <option value="\"> \ Backslash</option>
-                            <option value="★">★ Star</option>
-                            <option value="➤">➤ Arrow</option>
-                            <option value="—">— Em Dash</option>
-                        </select>
-                        <input type="text" id="tagSeparatorInput" placeholder="Custom" oninput="updateVerticalLayout(); saveToLocalStorage()"
-                            style="width:50px; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; box-sizing:border-box; text-align:center;">
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_size">Separator Size</label>
-                        <span id="tagSeparatorSizeVal" style="font-size:11px;">30px</span>
-                    </div>
-                    <input type="range" id="tagSeparatorSizeInput" min="10" max="100" value="30" oninput="updateSeparatorSize()" style="margin-top:2px;">
-                    
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_color">Separator Color</label>
-                    </div>
-                    <div style="display:flex; gap:5px; align-items:center;">
-                        <input type="color" id="tagSeparatorColorInput" value="#ffffff" oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:25px; width:40px; border:none; padding:0; background:none; cursor:pointer;">
-                        <select id="tagSeparatorTextureSelect" onchange="updateSeparatorTexture()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:2px; font-size:11px;"></select>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="tag_separator_opacity">Separator Opacity</label>
-                        <span id="tagSeparatorOpacityVal" style="font-size:11px;">100%</span>
-                    </div>
-                    <input type="range" id="tagSeparatorOpacityInput" min="0" max="100" value="100" oninput="updateSeparatorOpacity()" style="margin-top:2px;">
-
-                    <label style="margin-top:10px; display:block; font-size:11px;" data-i18n="row_separator">Row Separator</label>
-                    <div style="display:flex; gap:5px;">
-                        <select id="rowSeparatorStyle" onchange="updateVerticalLayout(); saveToLocalStorage()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
-                            <option value="">None</option>
-                            <option value="solid">Solid Line</option>
-                            <option value="dotted">Dotted Line</option>
-                            <option value="dashed">Dashed Line</option>
-                        </select>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="thickness">Thickness</label>
-                        <span id="rowSeparatorThicknessVal" style="font-size:11px;">2px</span>
-                    </div>
-                    <input type="range" id="rowSeparatorThickness" min="1" max="20" value="2" oninput="updateRowSeparatorThickness()" style="margin-top:2px;">
-                    
-                    <label style="font-size:11px; margin-top:5px; display:block;" data-i18n="row_separator_align">Line Alignment</label>
-                    <select id="rowSeparatorAlign" onchange="updateVerticalLayout(); saveToLocalStorage()" style="width:100%; background:#333; border:1px solid #555; color:white; padding:4px; border-radius:3px; font-size:11px;">
-                        <option value="center" data-i18n="align_center">Center</option>
-                        <option value="left" data-i18n="align_left">Left</option>
-                        <option value="right" data-i18n="align_right">Right</option>
-                    </select>
-
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="color_texture">Color / Texture</label>
-                    </div>
-                    <div style="display:flex; gap:5px; align-items:center;">
-                        <input type="color" id="rowSeparatorColor" value="#ffffff" oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:20px; width:40px; border:none; padding:0; background:none; cursor:pointer;">
-                        <select id="rowSeparatorTextureSelect" onchange="updateRowSeparatorTexture()" style="flex:1; background:#333; border:1px solid #555; color:white; padding:2px; font-size:11px;"></select>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                        <label style="font-size:11px; margin:0;" data-i18n="opacity">Opacity</label>
-                        <span id="rowSeparatorOpacityVal" style="font-size:11px;">100%</span>
-                    </div>
-                    <input type="range" id="rowSeparatorOpacityInput" min="0" max="100" value="100" oninput="updateRowSeparatorOpacity()" style="margin-top:2px;">
-
-                    <div style="display:flex; align-items:center; margin-top:5px; gap:5px;">
-                        <input type="checkbox" id="rowSeparatorAutoWidth" onchange="toggleRowSeparatorWidthControl(); updateVerticalLayout(); saveToLocalStorage()" checked>
-                        <label for="rowSeparatorAutoWidth" style="font-size:11px; margin:0;" data-i18n="auto_width">Auto Width</label>
-                    </div>
-                    <div id="rowSeparatorWidthControl" style="display:none;">
-                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                            <label style="font-size:11px; margin:0;" data-i18n="width">Width</label>
-                            <span id="rowSeparatorWidthVal" style="font-size:11px;">500px</span>
-                        </div>
-                        <input type="range" id="rowSeparatorWidth" min="10" max="1920" value="500" oninput="updateRowSeparatorWidth()" style="margin-top:2px;">
-                    </div>
-
                     <div id="layerControlContainer" style="display:none; gap:5px; margin-top:10px;">
                         <button onclick="moveLayer('up')" style="flex:1; font-size:11px; padding:4px;">⬆ Bring
                             Forward</button>
@@ -1010,6 +927,116 @@
                                     value="50" oninput="updateVerticalLayout(); saveToLocalStorage()"></div>
                             <div><label style="font-size:10px;">Right</label><input type="number" id="marginRightInput"
                                     value="50" oninput="updateVerticalLayout(); saveToLocalStorage()"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group" id="group-separators">
+                <h3 onclick="toggleGroup('group-separators')"><span class="group-arrow collapsed">▼</span> <span
+                        data-i18n="group_separators">Separators</span></h3>
+                <div class="group-content collapsed">
+                    <div style="border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 5px;">
+                        <label style="font-weight: bold; font-size: 13px; color: #fff;" data-i18n="tag_separator">Tag
+                            Separator</label>
+                        <div style="display: flex; gap: 5px; margin-top: 5px;">
+                            <input type="text" id="tagSeparatorInput" placeholder="Separator (e.g. | )" style="flex: 1;"
+                                oninput="updateVerticalLayout(); saveToLocalStorage()">
+                            <select style="width: 80px;" onchange="setSeparatorFromSelect(this.value)">
+                                <option value="" data-i18n="separator_presets">Presets</option>
+                                <option value=" | "> | </option>
+                                <option value=" • "> • </option>
+                                <option value=" — "> — </option>
+                                <option value=" / "> / </option>
+                                <option value=" · "> · </option>
+                            </select>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="size">Size</label>
+                            <span id="tagSeparatorSizeVal" style="font-size:11px;">40px</span>
+                        </div>
+                        <input type="range" id="tagSeparatorSizeInput" min="10" max="200" value="40"
+                            oninput="updateSeparatorSize()" style="margin-top:2px;">
+
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="color">Color</label>
+                            <input type="color" id="tagSeparatorColorInput" value="#ffffff"
+                                oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:20px; width:40px; border:none; padding:0;">
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="opacity">Opacity</label>
+                            <span id="tagSeparatorOpacityVal" style="font-size:11px;">100%</span>
+                        </div>
+                        <input type="range" id="tagSeparatorOpacityInput" min="0" max="100" value="100"
+                            oninput="updateSeparatorOpacity()" style="margin-top:2px;">
+
+                        <label style="font-size:11px; margin-top:5px; display:block;"
+                            data-i18n="texture">Texture</label>
+                        <select id="tagSeparatorTextureSelect" onchange="updateSeparatorTexture()"
+                            style="margin-top:2px;"></select>
+                    </div>
+
+                    <div>
+                        <label style="font-weight: bold; font-size: 13px; color: #fff;" data-i18n="row_separator">Row
+                            Separator</label>
+
+                        <label style="font-size:11px; margin-top:5px; display:block;"
+                            data-i18n="row_sep_style">Style</label>
+                        <select id="rowSeparatorStyle" onchange="updateVerticalLayout(); saveToLocalStorage()"
+                            style="margin-top:2px;">
+                            <option value="none">None</option>
+                            <option value="line" data-i18n="row_sep_type_line">Line</option>
+                            <option value="dots" data-i18n="row_sep_type_dots">Dots</option>
+                            <option value="dashed">Dashed</option>
+                        </select>
+
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="color">Color</label>
+                            <input type="color" id="rowSeparatorColor" value="#ffffff"
+                                oninput="updateVerticalLayout(); saveToLocalStorage()" style="height:20px; width:40px; border:none; padding:0;">
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="row_sep_thickness">Thickness</label>
+                            <span id="rowSeparatorThicknessVal" style="font-size:11px;">2px</span>
+                        </div>
+                        <input type="range" id="rowSeparatorThickness" min="1" max="20" value="2"
+                            oninput="updateRowSeparatorThickness()" style="margin-top:2px;">
+
+                        <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                            <label style="font-size:11px; margin:0;" data-i18n="opacity">Opacity</label>
+                            <span id="rowSeparatorOpacityVal" style="font-size:11px;">100%</span>
+                        </div>
+                        <input type="range" id="rowSeparatorOpacityInput" min="0" max="100" value="100"
+                            oninput="updateRowSeparatorOpacity()" style="margin-top:2px;">
+
+                        <label style="font-size:11px; margin-top:5px; display:block;"
+                            data-i18n="texture">Texture</label>
+                        <select id="rowSeparatorTextureSelect" onchange="updateRowSeparatorTexture()"
+                            style="margin-top:2px;"></select>
+
+                        <label style="font-size:11px; margin-top:5px; display:block;" data-i18n="row_separator_align">Alignment</label>
+                        <select id="rowSeparatorAlign" onchange="updateVerticalLayout(); saveToLocalStorage()" style="margin-top:2px;">
+                            <option value="center">Center</option>
+                            <option value="left">Left</option>
+                            <option value="right">Right</option>
+                        </select>
+
+                        <div style="display:flex; align-items:center; margin-top:10px; gap:5px;">
+                            <input type="checkbox" id="rowSeparatorAutoWidth" checked
+                                onchange="toggleRowSeparatorWidthControl(); updateVerticalLayout(); saveToLocalStorage()">
+                            <label for="rowSeparatorAutoWidth" style="font-size:11px; margin:0; cursor:pointer;"
+                                data-i18n="row_sep_auto_width">Auto Width</label>
+                        </div>
+
+                        <div id="rowSeparatorWidthControl" style="display:none; margin-top:5px;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <label style="font-size:11px; margin:0;" data-i18n="row_sep_width">Manual Width</label>
+                                <span id="rowSeparatorWidthVal" style="font-size:11px;">500px</span>
+                            </div>
+                            <input type="range" id="rowSeparatorWidth" min="100" max="2000" value="500"
+                                oninput="updateRowSeparatorWidth()" style="margin-top:2px;">
                         </div>
                     </div>
                 </div>
@@ -1448,8 +1475,42 @@
                             <label for="batchMode" data-i18n="source_mode">Source Mode</label>
                             <select id="batchMode" onchange="toggleBatchInputs()">
                                 <option value="random">Random Selection</option>
-                                <option value="library">Full Library (Jellyfin)</option>
+                                <option value="library">Full Library</option>
                             </select>
+
+                            <div id="batchProviderSelection" style="margin-top: 10px;">
+                                <label>Providers</label>
+                                <div
+                                    style="display: flex; gap: 10px; flex-wrap: wrap; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; border: 1px solid #444;">
+                                    <label
+                                        style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" name="batchProvider" value="jellyfin" checked
+                                            style="width: 14px; height: 14px; margin: 0;"> Jellyfin
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" name="batchProvider" value="plex"
+                                            style="width: 14px; height: 14px; margin: 0;"> Plex
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" name="batchProvider" value="trakt"
+                                            style="width: 14px; height: 14px; margin: 0;"> Trakt
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" name="batchProvider" value="sonarr"
+                                            style="width: 14px; height: 14px; margin: 0;"> Sonarr
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; margin: 0;">
+                                        <input type="checkbox" name="batchProvider" value="radarr"
+                                            style="width: 14px; height: 14px; margin: 0;"> Radarr
+                                    </label>
+
+                                </div>
+                            </div>
+
 
                             <div id="batchFilterSettings"
                                 style="display:none; margin-top:10px; border-top:1px solid #333; padding-top:10px;">
@@ -1584,6 +1645,39 @@
                                     Layout</label>
                                 <select id="cronJobLayout"
                                     style="width:100%; margin-bottom:5px; padding:5px; background:#333; border:1px solid #555; color:white;"></select>
+
+                                <label style="font-size:11px; color:#aaa;">Providers</label>
+                                <div
+                                    style="display: flex; gap: 8px; flex-wrap: wrap; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px; border: 1px solid #555; margin-bottom: 5px;">
+                                    <label
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; margin: 0; color: #ccc;">
+                                        <input type="checkbox" name="cronProvider" value="jellyfin" checked
+                                            style="width: 14px; height: 14px; margin: 0;"> Jellyfin
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; margin: 0; color: #ccc;">
+                                        <input type="checkbox" name="cronProvider" value="plex"
+                                            style="width: 14px; height: 14px; margin: 0;"> Plex
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; margin: 0; color: #ccc;">
+                                        <input type="checkbox" name="cronProvider" value="trakt"
+                                            style="width: 14px; height: 14px; margin: 0;"> Trakt
+                                    </label>
+
+                                    <label
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; margin: 0; color: #ccc;">
+                                        <input type="checkbox" name="cronProvider" value="sonarr"
+                                            style="width: 14px; height: 14px; margin: 0;"> Sonarr
+                                    </label>
+                                    <label
+                                        style="display: flex; align-items: center; gap: 4px; font-size: 10px; cursor: pointer; margin: 0; color: #ccc;">
+                                        <input type="checkbox" name="cronProvider" value="radarr"
+                                            style="width: 14px; height: 14px; margin: 0;"> Radarr
+                                    </label>
+
+                                </div>
+
 
                                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; margin-bottom:5px;">
                                     <div>
