@@ -11995,16 +11995,6 @@
             "action_url": "jellyfin://items/c0039367855fdcd6b71bc3c6db2140ca"
         },
         {
-            "path": "/app/editor_backgrounds/Default/Die Simpsons - 1989.jpg",
-            "layout": "Default",
-            "genres": "Familie, Animation, Komödie",
-            "officialRating": "FSK-12",
-            "year": 1989,
-            "rating": 8.012,
-            "title": "Die Simpsons",
-            "action_url": "jellyfin://items/b05f9e40711a44baadea27d6d8ff2b81"
-        },
-        {
             "path": "/app/editor_backgrounds/Default/Die Troublemaker - 1994.jpg",
             "layout": "Default",
             "genres": "Western, Komödie, Liebesfilm",
@@ -19943,6 +19933,16 @@
             "rating": 0.0,
             "title": "Der Blender - The Imposter",
             "action_url": "jellyfin://items/59ccf30b1de7bf8e0703c30b01f7bfe1"
+        },
+        {
+            "path": "/app/editor_backgrounds/Default/Die Simpsons - 1989.jpg",
+            "layout": "Default",
+            "genres": "Familie, Animation, Komödie",
+            "officialRating": "FSK-12",
+            "year": 1989,
+            "rating": 0.0,
+            "title": "Die Simpsons",
+            "action_url": "jellyfin://items/b05f9e40711a44baadea27d6d8ff2b81"
         }
     ]
 }

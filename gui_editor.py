@@ -368,16 +368,55 @@ def rebuild_cache_endpoint():
         print(f"Error during manual cache rebuild: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-def format_jellyfin_item(item, clean_url, api_key):
+# --- HELPER FUNCTIONS FOR SEASON COUNT ---
+def get_jellyfin_season_count(server_url, item_id, user_id, api_key):
+    """Holt die echte Anzahl der Staffeln (ohne Specials/S0) für Jellyfin."""
+    try:
+        url = f"{server_url}/Shows/{item_id}/Seasons?userId={user_id}&Fields=IndexNumber"
+        headers = {"X-Emby-Token": api_key}
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            items = r.json().get('Items', [])
+            # Zähle alles, wo IndexNumber nicht 0 ist
+            count = sum(1 for i in items if i.get('IndexNumber') != 0)
+            return count
+    except Exception as e:
+        print(f"Error fetching Jellyfin seasons: {e}")
+    return 0
+
+def get_plex_season_count(server_url, rating_key, token):
+    """Holt die echte Anzahl der Staffeln (ohne Specials/S0) für Plex."""
+    try:
+        url = f"{server_url}/library/metadata/{rating_key}/children"
+        headers = {"X-Plex-Token": token, "Accept": "application/json"}
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            # Plex Container -> Metadata enthält die Staffeln
+            metadata = r.json().get('MediaContainer', {}).get('Metadata', [])
+            # Zähle alles, wo index nicht 0 ist (Plex nutzt 'index' für Staffelnummer)
+            count = sum(1 for s in metadata if int(s.get('index', 0)) != 0)
+            return count
+    except Exception as e:
+        print(f"Error fetching Plex seasons: {e}")
+    return 0
+
+def format_jellyfin_item(item, clean_url, api_key, user_id=None):
     # Check for Logo availability
     has_logo = 'Logo' in item.get('ImageTags', {})
     logo_url = f"{clean_url}/Items/{item['Id']}/Images/Logo?api_key={api_key}" if has_logo else None
 
-    # Convert Ticks to Runtime
+    # Default Runtime logic
     ticks = item.get('RunTimeTicks', 0)
     minutes = (ticks // 600000000) if ticks else 0
     h, m = divmod(minutes, 60)
     runtime_str = f"{h}h {m}min" if h > 0 else f"{m}min"
+
+    # --- NEU: Override Runtime with Season Count for Series ---
+    if item.get('Type') == 'Series' and user_id:
+        season_count = get_jellyfin_season_count(clean_url, item['Id'], user_id, api_key)
+        if season_count > 0:
+            runtime_str = f"{season_count} Season{'s' if season_count > 1 else ''}"
+    # ----------------------------------------------------------
 
     # Extract Actors and Directors from People
     people = item.get('People', [])
@@ -629,7 +668,7 @@ def get_random_media():
             
             if valid_items:
                 item = random.choice(valid_items)
-                return jsonify(format_jellyfin_item(item, clean_url, jf['api_key']))
+                return jsonify(format_jellyfin_item(item, clean_url, jf['api_key'], jf['user_id']))
         except Exception as e:
             print(f"DEBUG: Jellyfin Error: {e}")
 
@@ -694,14 +733,20 @@ def search_media():
         return jsonify([])
 
 def format_plex_item(item, base_url, token):
-    # Check for Logo (clearLogo) - Plex stores this in its own way
-    # For now, let's assume we can fetch it if available
+    # Check for Logo (clearLogo)
     logo_url = f"{base_url}/library/metadata/{item.get('ratingKey')}/clearLogo?X-Plex-Token={token}"
     
     # Plex duration is in milliseconds
     duration_ms = item.get('duration', 0)
     h, m = divmod(duration_ms // 60000, 60)
     runtime_str = f"{h}h {m}min" if h > 0 else f"{m}min"
+    
+    # --- NEU: Override Runtime with Season Count for Shows ---
+    if item.get('type') == 'show':
+        season_count = get_plex_season_count(base_url, item.get('ratingKey'), token)
+        if season_count > 0:
+            runtime_str = f"{season_count} Season{'s' if season_count > 1 else ''}"
+    # ---------------------------------------------------------
     
     genres = [g.get('tag') for g in item.get('Genre', [])]
     actors = [r.get('tag') for r in item.get('Role', [])]
@@ -721,7 +766,7 @@ def format_plex_item(item, base_url, token):
         "actors": actors,
         "directors": directors,
         "studios": [item.get('studio')] if item.get('studio') else [],
-        "provider_ids": {}, # Can extract if needed
+        "provider_ids": {}, 
         "runtime": runtime_str,
         "backdrop_url": f"{base_url}/library/metadata/{item.get('ratingKey')}/art?X-Plex-Token={token}",
         "logo_url": logo_url,
@@ -808,7 +853,7 @@ def get_media_item(item_id):
             try:
                 r = requests.get(url, headers=headers, timeout=5)
                 r.raise_for_status()
-                return jsonify(format_jellyfin_item(r.json(), clean_url, jf['api_key']))
+                return jsonify(format_jellyfin_item(r.json(), clean_url, jf['api_key'], jf['user_id']))
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
                 
