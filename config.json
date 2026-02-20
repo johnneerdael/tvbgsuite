@@ -31,14 +31,14 @@
     },
     "radarr": {
         "api_key": "eebcbe65b8d7426996923daa9bf0eb27",
-        "url": "http://truenas:30025/"
+        "url": "http://truenas:30025"
     },
     "sonarr": {
         "api_key": "1b2a1f77e2154d39a13e8951f076e5f3",
-        "url": "http://truenas:30113/"
+        "url": "http://truenas:30113"
     },
     "tmdb": {
-        "api_key": "",
+        "api_key": "cce052c98b4c4f16e4dcf6ed3bdd1145",
         "language": "de-DE"
     },
     "trakt": {

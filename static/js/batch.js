@@ -13,6 +13,7 @@ function toggleBatchInputs() {
     document.getElementById('filterInputRating').style.display = (mode === 'library' && (filterMode === 'rating' || filterMode === 'imdb')) ? 'block' : 'none';
     document.getElementById('filterInputOfficialRating').style.display = (mode === 'library' && filterMode === 'official_rating') ? 'block' : 'none';
     document.getElementById('filterInputCustom').style.display = (mode === 'library' && filterMode === 'custom') ? 'block' : 'none';
+    // Note: 'missing' mode requires no extra inputs, so it falls through to 'none' for all specific inputs above.
 
     // Update label for count based on context
     const countLabel = document.querySelector('label[for="batchCount"]');
@@ -21,6 +22,42 @@ function toggleBatchInputs() {
 
     // Auto-Run Visibility
     document.getElementById('autoRunSettings').style.display = document.getElementById('batchAutoRun').checked ? 'block' : 'none';
+}
+
+// Ensure Cron UI handles the new option correctly
+function toggleCronInputs() {
+    const modeEl = document.getElementById('cronSourceMode');
+    const filterEl = document.getElementById('cronFilterMode');
+    
+    if (!modeEl || !filterEl) return;
+
+    const mode = modeEl.value;
+    const filterMode = filterEl.value;
+
+    // Hide generic filter value input if "missing" is selected
+    const valInput = document.getElementById('cronFilterValue');
+    if (valInput) {
+        // If mode is library AND filter is missing, hide the value input
+        if (mode === 'library' && filterMode === 'missing') {
+            valInput.style.display = 'none';
+        } else if (mode === 'library' && filterMode !== 'all') {
+            valInput.style.display = 'block';
+        }
+    }
+}
+
+// Inject "Missing / Wanted" option if it doesn't exist
+function injectMissingFilterOption() {
+    const targets = ['batchFilterMode', 'cronFilterMode'];
+    targets.forEach(id => {
+        const select = document.getElementById(id);
+        if (select && !select.querySelector('option[value="missing"]')) {
+            const opt = document.createElement('option');
+            opt.value = 'missing';
+            opt.innerText = 'Missing / Wanted (Radarr/Sonarr)';
+            select.appendChild(opt);
+        }
+    });
 }
 
 async function loadBatchLayouts() {
@@ -107,6 +144,21 @@ async function startBatchProcess() {
 
         const selectedProviders = Array.from(document.querySelectorAll('input[name="batchProvider"]:checked')).map(cb => cb.value);
         // Note: We handle cleanup client-side now to support ID matching, so we don't pass &cleanup=true to the backend list API
+        
+        // --- TRIGGER MISSING SEARCH (Sonarr/Radarr) ---
+        // if (!dryRun) {
+        //     const pList = selectedProviders.map(p => p.toLowerCase());
+        //     if (pList.includes('sonarr') || pList.includes('radarr')) {
+        //         logBatch("Triggering background search for missing items (Sonarr/Radarr)...");
+        //         fetch('/api/trigger_search', {
+        //             method: 'POST',
+        //             headers: {'Content-Type': 'application/json'},
+        //             body: JSON.stringify({ providers: selectedProviders })
+        //         }).catch(e => logBatch("Warning: Could not trigger search: " + e));
+        //     }
+        // }
+        // ----------------------------------------------
+
         let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}&providers=${encodeURIComponent(selectedProviders.join(','))}`;
 
         if (filterMode === 'year') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterYear').value)}`;
@@ -416,3 +468,11 @@ async function startBatchProcess() {
         stopBatchProcess();
     }
 }
+
+// Initialize UI additions
+document.addEventListener('DOMContentLoaded', () => {
+    injectMissingFilterOption();
+    // Re-run toggle to ensure UI state is correct after injection
+    if(typeof toggleBatchInputs === 'function') toggleBatchInputs();
+    if(typeof toggleCronInputs === 'function') toggleCronInputs();
+});

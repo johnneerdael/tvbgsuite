@@ -1,4 +1,4 @@
-CURRENT_VERSION = "1.1.1"
+CURRENT_VERSION = "1.1.2"
 import os
 import sys
 import json
@@ -23,6 +23,12 @@ sys.dont_write_bytecode = True
 
 # --- IMPORT IMAGE ENGINE ---
 from image_engine import ImageGenerator
+
+# Import the missing search trigger script
+try:
+    import trigger_missing
+except ImportError:
+    trigger_missing = None
 
 # Blueprint Setup
 gui_editor_bp = Blueprint('gui_editor', __name__)
@@ -583,13 +589,39 @@ def fetch_trakt_list(config):
             return valid
     except: return []
 
-def fetch_sonarr_list(config):
+def fetch_sonarr_list(config, filter_mode='all'):
     s = config.get('sonarr', {})
     if not s.get('url') or not s.get('api_key'): return []
-    url = f"{str(s.get('url', '')).rstrip('/')}/api/v3/calendar"
-
-
     headers = {"X-Api-Key": s['api_key']}
+
+    # --- Handle 'Missing' Filter Mode ---
+    if filter_mode == 'missing':
+        url = f"{str(s.get('url', '')).rstrip('/')}/api/v3/wanted/missing"
+        params = {
+            "page": 1,
+            "pageSize": 1000, # Fetch a larger chunk for the UI list
+            "sortKey": "airDateUtc",
+            "sortDir": "desc"
+        }
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                records = data.get('records', [])
+                valid = []
+                seen_series = set()
+                for item in records:
+                    series = item.get('series', {})
+                    sid = series.get('id')
+                    if sid and sid not in seen_series:
+                        valid.append({"Id": f"sonarr-{sid}-missing", "Name": series.get('title')})
+                        seen_series.add(sid)
+                return valid
+        except: pass
+        return []
+    # ------------------------------------
+
+    url = f"{str(s.get('url', '')).rstrip('/')}/api/v3/calendar"
     # Fetch calendar for next 30 days
     params = {
         "start": datetime.utcnow().date().isoformat(),
@@ -611,11 +643,29 @@ def fetch_sonarr_list(config):
     except: pass
     return []
 
-def fetch_radarr_list(config):
+def fetch_radarr_list(config, filter_mode='all'):
     r_conf = config.get('radarr', {})
     if not r_conf.get('url') or not r_conf.get('api_key'): return []
-    url = f"{r_conf['url'].rstrip('/')}/api/v3/movie"
     headers = {"X-Api-Key": r_conf['api_key']}
+
+    # --- Handle 'Missing' Filter Mode ---
+    if filter_mode == 'missing':
+        url = f"{r_conf['url'].rstrip('/')}/api/v3/wanted/missing"
+        params = {"page": 1, "pageSize": 1000, "sortKey": "releaseDate", "sortDir": "desc"}
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=10)
+            if r.status_code == 200:
+                data = r.json()
+                records = data.get('records', [])
+                valid = []
+                for m in records:
+                    valid.append({"Id": f"radarr-{m['id']}-missing", "Name": m.get('title')})
+                return valid
+        except: pass
+        return []
+    # ------------------------------------
+
+    url = f"{r_conf['url'].rstrip('/')}/api/v3/movie"
     try:
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
@@ -720,6 +770,12 @@ def get_media_list():
     limit_count = request.args.get('limit', '0')
     providers = request.args.get('providers', 'jellyfin').split(',')
     
+    # If mode is 'missing', restrict providers to *arrs only.
+    # Jellyfin/Plex/Trakt do not support 'missing' logic in this context and would return existing items.
+    if filter_mode == 'missing':
+        allowed_missing_providers = ['sonarr', 'radarr']
+        providers = [p for p in providers if p.strip().lower() in allowed_missing_providers]
+
     all_items = []
     for p in providers:
         p = p.strip().lower()
@@ -730,9 +786,9 @@ def get_media_list():
         elif p == 'trakt':
             all_items.extend(fetch_trakt_list(config))
         elif p == 'sonarr':
-            all_items.extend(fetch_sonarr_list(config))
+            all_items.extend(fetch_sonarr_list(config, filter_mode))
         elif p == 'radarr':
-            all_items.extend(fetch_radarr_list(config))
+            all_items.extend(fetch_radarr_list(config, filter_mode))
         elif p == 'tmdb':
             all_items.extend(fetch_tmdb_list(config, limit_count))
             
@@ -816,6 +872,15 @@ def fetch_tmdb_details(tmdb_id, media_type, config):
         if r.status_code != 200: return {}
         data = r.json()
         
+        # Extract IMDb ID
+        imdb_id = data.get('imdb_id')
+        if not imdb_id and media_type == 'tv':
+            try:
+                r_ext = requests.get(f"{base_url}/tv/{tmdb_id}/external_ids?api_key={api_key}", timeout=5)
+                if r_ext.status_code == 200:
+                    imdb_id = r_ext.json().get('imdb_id')
+            except: pass
+
         # 2. Images (for Logo)
         logo_url = None
         r_img = requests.get(f"{base_url}/{media_type}/{tmdb_id}/images?api_key={api_key}", timeout=5)
@@ -846,6 +911,7 @@ def fetch_tmdb_details(tmdb_id, media_type, config):
         return {
             "id": f"trakt-{media_type}-{tmdb_id}",
             "title": data.get('title') or data.get('name'),
+            "imdb_id": imdb_id,
             "original_title": data.get('original_title') or data.get('original_name'),
             "year": (data.get('release_date') or data.get('first_air_date') or "")[:4],
             "rating": data.get('vote_average'),
@@ -913,6 +979,12 @@ def get_media_item(item_id):
     elif provider == "sonarr":
         s = config.get('sonarr', {})
         if not s.get('url') or not s.get('api_key'): return jsonify({"error": "Sonarr not configured"}), 400
+        
+        is_missing = False
+        if actual_id.endswith("-missing"):
+            actual_id = actual_id.replace("-missing", "")
+            is_missing = True
+            
         url = f"{s['url'].rstrip('/')}/api/v3/series/{actual_id}"
         headers = {"X-Api-Key": s['api_key']}
         try:
@@ -930,20 +1002,29 @@ def get_media_item(item_id):
                             results = r_tmdb.json().get('tv_results', [])
                             if results:
                                 tmdb_id = results[0]['id']
-                                return jsonify(fetch_tmdb_details(tmdb_id, 'tv', config))
+                                details = fetch_tmdb_details(tmdb_id, 'tv', config)
+                                if details:
+                                    details['source'] = "Sonarr Missing" if is_missing else "Sonarr"
+                                    return jsonify(details)
                 # Fallback if no TMDB match
                 return jsonify({
                     "id": f"sonarr-{actual_id}",
                     "title": series.get('title'),
                     "overview": series.get('overview', ''),
                     "year": series.get('year'),
-                    "source": "Sonarr"
+                    "source": "Sonarr Missing" if is_missing else "Sonarr"
                 })
         except: pass
 
     elif provider == "radarr":
         r_conf = config.get('radarr', {})
         if not r_conf.get('url') or not r_conf.get('api_key'): return jsonify({"error": "Radarr not configured"}), 400
+        
+        is_missing = False
+        if actual_id.endswith("-missing"):
+            actual_id = actual_id.replace("-missing", "")
+            is_missing = True
+            
         url = f"{r_conf['url'].rstrip('/')}/api/v3/movie/{actual_id}"
         headers = {"X-Api-Key": r_conf['api_key']}
         try:
@@ -952,14 +1033,17 @@ def get_media_item(item_id):
                 movie = r.json()
                 tmdb_id = movie.get('tmdbId')
                 if tmdb_id:
-                    return jsonify(fetch_tmdb_details(tmdb_id, 'movie', config))
+                    details = fetch_tmdb_details(tmdb_id, 'movie', config)
+                    if details:
+                        details['source'] = "Radarr Missing" if is_missing else "Radarr"
+                        return jsonify(details)
                 # Fallback
                 return jsonify({
                     "id": f"radarr-{actual_id}",
                     "title": movie.get('title'),
                     "overview": movie.get('overview', ''),
                     "year": movie.get('year'),
-                    "source": "Radarr"
+                    "source": "Radarr Missing" if is_missing else "Radarr"
                 })
         except: pass
         
@@ -2049,6 +2133,35 @@ def get_latest_batch_image():
     if LATEST_GENERATED_IMAGE and os.path.exists(LATEST_GENERATED_IMAGE):
         return send_file(LATEST_GENERATED_IMAGE)
     return "", 404
+
+@gui_editor_bp.route('/api/trigger_search', methods=['POST'])
+def trigger_batch_search_endpoint():
+    """
+    Triggered by the browser batch process.
+    Runs the missing episode/movie search in a background thread.
+    """
+    if not trigger_missing:
+        return jsonify({"status": "error", "message": "trigger_missing module not loaded"}), 500
+
+    data = request.json
+    providers = [p.lower() for p in data.get('providers', [])]
+
+    def run_background_search():
+        # Simple logger wrapper to print to server console
+        def logger(msg):
+            print(f"[Batch-Trigger] {msg}")
+
+        # Search triggering disabled per user request
+        # if 'sonarr' in providers:
+        #     trigger_missing.run_sonarr_batch_search(logger=logger)
+        # 
+        # if 'radarr' in providers:
+        #     trigger_missing.trigger_radarr_missing_search(logger=logger)
+
+    # Start in background thread so UI doesn't hang
+    threading.Thread(target=run_background_search).start()
+    
+    return jsonify({"status": "success", "message": "Search started in background"})
 
 if __name__ == '__main__':
     from flask import Flask

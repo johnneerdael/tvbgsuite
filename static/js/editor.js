@@ -1292,7 +1292,15 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         break;
                     case 'overview':
                         let ov = mediaData.overview || mediaData.Overview || "";
-                        if (obj.type === 'textbox') { obj.fullMediaText = ov; } else { val = ov; }
+                        if (obj.type === 'textbox') { 
+                            obj.fullMediaText = ov;
+                            const strOv = String(ov || "").trim();
+                            if (strOv === "" || strOv === "N/A") {
+                                obj.set('visible', false);
+                            } else {
+                                obj.set('visible', true);
+                            }
+                        } else { val = ov; }
                         break;
                     case 'genres':
                         val = mediaData.genres || "";
@@ -1320,8 +1328,8 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         } else if (srcVal === 'Trakt') {
                             pText = "Now on my watchlist ";
                             pLogo = "traktlogo.png";
-                        } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(srcVal)) {
-                            pText = "Soon available on ";
+                        } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(srcVal) || (srcVal && srcVal.includes('Missing'))) {
+                            pText = (srcVal && srcVal.includes('Missing')) ? "Requested on " : "Soon available on ";
                             pLogo = "jellyfinlogo.png";
                         } else {
                             pText = "Now available on ";
@@ -1526,6 +1534,47 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             }
                         }
 
+                        if (obj.type === 'group') {
+                            // Check if we have a valid value (synchronous path)
+                            // If val is undefined here, it means either it was missing from data OR async fetch took over (val set to undefined)
+                            // If async took over, we don't touch visibility here (async callback handles it)
+                            // If it was just missing, we should hide it.
+                            
+                            if (val !== undefined) {
+                                const strVal = (val === null) ? "" : String(val).trim();
+                                const isValid = strVal !== "" && strVal !== "N/A";
+                                
+                                obj.set('visible', isValid);
+                                if (isValid) obj.set('opacity', 1);
+                                
+                                if (isValid) {
+                                    const t = obj.getObjects().find(o => o.type === 'i-text');
+                                    const img = obj.getObjects().find(o => o.type === 'image');
+                                    if (t) {
+                                        t.set({ text: val ? val + '%' : '' });
+                                        if (img) {
+                                            t.setCoords(); // Update dim
+                                            const th = t.getScaledHeight();
+                                            img.scaleToHeight(th * 1.0);
+                                            img.set({ top: 0, left: 0 });
+                                            t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                        }
+                                        const preservedTop = obj.top;
+                                        const preservedLeft = obj.left;
+                                        obj.addWithUpdate();
+                                        obj.set('top', preservedTop);
+                                        obj.set('left', preservedLeft);
+                                        obj.setCoords();
+                                    }
+                                }
+                                val = undefined; // Prevent generic handler
+                            } else if (!obj.dataTag || !mediaData.imdb_id) {
+                                // If no value and no async fetch possible (no ID), hide it
+                                obj.set('visible', false);
+                            }
+                        }
+                        break;
+/*
                         if (obj.type === 'group' && val !== undefined) {
                             const t = obj.getObjects().find(o => o.type === 'i-text');
                             const img = obj.getObjects().find(o => o.type === 'image');
@@ -1550,7 +1599,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             obj.set('visible', !!val);
                             val = undefined; // handled
                         }
-                        break;
+*/
                     case 'omdb_metacritic':
                         val = mediaData.metacritic;
 
@@ -1616,6 +1665,41 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             }
                         }
 
+                        if (obj.type === 'group') {
+                            if (val !== undefined) {
+                                const strVal = (val === null) ? "" : String(val).trim();
+                                const isValid = strVal !== "" && strVal !== "N/A";
+                                
+                                obj.set('visible', isValid);
+                                if (isValid) obj.set('opacity', 1);
+                                
+                                if (isValid) {
+                                    const t = obj.getObjects().find(o => o.type === 'i-text');
+                                    const img = obj.getObjects().find(o => o.type === 'image');
+                                    if (t) {
+                                        t.set({ text: val || '' });
+                                        if (img) {
+                                            t.setCoords();
+                                            const th = t.getScaledHeight();
+                                            img.scaleToHeight(th * 1.0);
+                                            img.set({ top: 0, left: 0 });
+                                            t.set({ left: img.getScaledWidth() + 15, top: 0 });
+                                        }
+                                        const preservedTop = obj.top;
+                                        const preservedLeft = obj.left;
+                                        obj.addWithUpdate();
+                                        obj.set('top', preservedTop);
+                                        obj.set('left', preservedLeft);
+                                        obj.setCoords();
+                                    }
+                                }
+                                val = undefined;
+                            } else if (!obj.dataTag || !mediaData.imdb_id) {
+                                obj.set('visible', false);
+                            }
+                        }
+                        break;
+/*
                         if (obj.type === 'group' && val !== undefined) {
                             const t = obj.getObjects().find(o => o.type === 'i-text');
                             const img = obj.getObjects().find(o => o.type === 'image');
@@ -1638,7 +1722,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             obj.set('visible', !!val);
                             val = undefined;
                         }
-                        break;
+*/
                     default:
                         val = mediaData[obj.dataTag];
                         break;
@@ -1646,7 +1730,8 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
 
                 // Only update visibility for tags that actually produced a value (or explicit null)
                 if (val !== undefined && obj.dataTag !== 'overview' && obj.dataTag !== 'background' && obj.dataTag !== 'fade_effect' && obj.dataTag !== 'guide_overlay') {
-                    if (val === null || val === "" || val === "N/A") {
+                    const strVal = (val === null || val === undefined) ? "" : String(val).trim();
+                    if (strVal === "" || strVal === "N/A") {
                         obj.set('visible', false);
                     } else {
                         // Apply automatic wrapping for actors/directors
@@ -2367,7 +2452,7 @@ function updateVerticalLayout(skipRender = false, retryCount = 0) {
 
             // Calculate total width of this row
             let totalRowWidth = 0;
-            const visibleEls = row.filter(e => e.visible);
+            const visibleEls = row.filter(e => e.visible && e.getScaledWidth() > 0.1);
             visibleEls.forEach((el, index) => {
                 el.setCoords(); // Ensure coords are fresh for width calc
                 const pad = el.padding || 0;
@@ -2984,6 +3069,7 @@ function init() {
     updateFadeControls();
     loadCronJobs(); // Load jobs on init
     injectCronFilterUI(); // Inject filter UI for Cron Jobs
+    updateCronFrequencyOptions(); // Inject extra frequency options
 
     // Set initial mobile title
     const activeLink = document.querySelector('.tab-link.active');
@@ -5524,12 +5610,16 @@ function renderCronJobs(jobs) {
     }
 
     jobs.forEach(job => {
+        let freqDisplay = `${job.frequency}x/day`;
+        if (job.frequency === 'weekly') freqDisplay = 'Weekly';
+        else if (job.frequency === 'monthly') freqDisplay = 'Monthly';
+
         const item = document.createElement('div');
         item.style.cssText = "background:rgba(255,255,255,0.05); padding:8px; border-radius:4px; border:1px solid #444; display:flex; justify-content:space-between; align-items:center;";
         item.innerHTML = `
             <div>
                 <div style="font-weight:bold; font-size:12px; color:#fff;">${job.name}</div>
-                <div style="font-size:10px; color:#aaa;">${job.layout_name} • ${job.start_time} • ${job.frequency}x/day</div>
+                <div style="font-size:10px; color:#aaa;">${job.layout_name} • ${job.start_time} • ${freqDisplay}</div>
                 <div style="font-size:10px; color:#888;">${job.overwrite ? 'Overwrite: On' : 'Overwrite: Off'} • ${job.cleanup ? 'Cleanup: On' : 'Cleanup: Off'}</div>
             </div>
             <button onclick="deleteCronJob('${job.id}')" style="background:#c62828; border:none; color:white; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Del</button>
@@ -5605,6 +5695,7 @@ function injectCronFilterUI() {
                 <option value="year">By Year</option>
                 <option value="genre">By Genre</option>
                 <option value="rating">By Rating</option>
+                <option value="missing">Missing / Wanted (Radarr/Sonarr)</option>
             </select>
             
             <input type="text" id="cronFilterValue" placeholder="Value (e.g. 2023 or Action)" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px; margin-bottom:10px; display:none;">
@@ -5680,6 +5771,24 @@ function injectCronFilterUI() {
     // Default: No providers selected
     const providers = document.querySelectorAll('input[name="cronProvider"]');
     providers.forEach(cb => cb.checked = false);
+}
+
+function updateCronFrequencyOptions() {
+    const select = document.getElementById('cronJobFreq');
+    if (!select) return;
+    
+    if (!select.querySelector('option[value="weekly"]')) {
+        const opt = document.createElement('option');
+        opt.value = 'weekly';
+        opt.innerText = 'Weekly (Monday)';
+        select.appendChild(opt);
+    }
+    if (!select.querySelector('option[value="monthly"]')) {
+        const opt = document.createElement('option');
+        opt.value = 'monthly';
+        opt.innerText = 'Monthly (1st)';
+        select.appendChild(opt);
+    }
 }
 
 function toggleCronInputs() {

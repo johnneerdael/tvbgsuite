@@ -204,7 +204,9 @@ function groupElementsByRow(elements, threshold = 5) {
 
 function fitTextToContainer(canvas, textbox) {
     if (!canvas || !textbox) return;
-    const textSource = textbox.fullMediaText || textbox.text || "";
+    // FIX: Handle empty string correctly (don't fallback to placeholder text if fullMediaText is explicitly "")
+    const textSource = (textbox.fullMediaText !== undefined) ? textbox.fullMediaText : (textbox.text || "");
+    
     textbox.set('text', textSource);
 
     // Node-canvas specific: initDimensions might need to be called if text changes
@@ -237,7 +239,11 @@ function fitTextToContainer(canvas, textbox) {
  * clamping it to a maximum width.
  */
 function shrinkTextboxToContent(textbox, maxWidth) {
-    if (!textbox || textbox.type !== 'textbox' || !textbox._textLines) return;
+    if (!textbox || textbox.type !== 'textbox') return;
+
+    // Force calculation of lines to ensure width is correct before layout
+    if (typeof textbox.initDimensions === 'function') textbox.initDimensions();
+    if (!textbox._textLines) return;
 
     let maxLineW = 0;
     for (let i = 0; i < textbox._textLines.length; i++) {
@@ -248,6 +254,7 @@ function shrinkTextboxToContent(textbox, maxWidth) {
     if (maxLineW > 0) {
         // Use a small buffer to prevent accidental wrapping
         textbox.set('width', Math.min(maxLineW + 10, maxWidth));
+        textbox.set('dirty', true); // Force redraw flag
         if (typeof textbox.setCoords === 'function') textbox.setCoords();
     }
 }
@@ -562,7 +569,7 @@ function updateVerticalLayout(canvas, settings, activeBlockedAreas = [], retryCo
         row.sort((a, b) => a.left - b.left);
 
         let totalRowWidth = 0;
-        const visibleEls = row.filter(e => e.visible);
+        const visibleEls = row.filter(e => e.visible && (e.width * e.scaleX) > 0.1);
         visibleEls.forEach((el, index) => {
             el.setCoords();
             const pad = el.padding || 0;
@@ -1469,7 +1476,9 @@ function getCertificationFilename(rating) {
                 if (!val && obj.dataTag === 'omdb_metacritic') val = data['metacritic'];
 
                 // Fallback: Try parsing from OMDb Ratings array if available (raw OMDb dump)
-                if (!val && data.Ratings && Array.isArray(data.Ratings)) {
+                // Only try fallback if val is missing or N/A
+                const currentStr = (val === null || val === undefined) ? "" : String(val).trim();
+                if ((!val || currentStr === "N/A") && data.Ratings && Array.isArray(data.Ratings)) {
                     const source = obj.dataTag === 'omdb_rotten_tomatoes' ? 'Rotten Tomatoes' : 'Metacritic';
                     const rating = data.Ratings.find(r => r.Source === source);
                     if (rating) {
@@ -1483,8 +1492,10 @@ function getCertificationFilename(rating) {
                     val = data.Metascore;
                 }
 
-                if (val !== undefined && val !== null && val !== '' && textObj) {
-                    let label = String(val);
+                const finalStr = (val === null || val === undefined) ? "" : String(val).trim();
+
+                if (finalStr !== "" && finalStr !== "N/A" && textObj) {
+                    let label = finalStr;
                     if (obj.dataTag === 'omdb_rotten_tomatoes' && !label.includes('%')) {
                         label += '%';
                     }
@@ -1506,6 +1517,7 @@ function getCertificationFilename(rating) {
                     }
 
                     obj.set('visible', true);
+                    obj.set('opacity', 1); // Force opacity to 1 in case it was saved as 0
                     
                     // Preserve group position
                     const preservedLeft = obj.left;
@@ -1595,8 +1607,8 @@ function getCertificationFilename(rating) {
                     } else if (source === 'Trakt') {
                         providerText = "Now on my watchlist ";
                         providerLogo = "traktlogo.png";
-                    } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(source)) {
-                        providerText = "Soon available on ";
+                    } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(source) || (source && source.includes('Missing'))) {
+                        providerText = (source && source.includes('Missing')) ? "Requested on " : "Soon available on ";
                         providerLogo = "jellyfinlogo.png";
                     } else {
                         // Default fallback
@@ -1722,7 +1734,8 @@ function getCertificationFilename(rating) {
             }
 
             if (val !== undefined && obj.dataTag !== 'overview' && obj.dataTag !== 'background') {
-                if (val === null || val === "" || val === "N/A") {
+                const strVal = (val === null || val === undefined) ? "" : String(val).trim();
+                if (strVal === "" || strVal === "N/A") {
                     obj.set('visible', false);
                 } else {
                     // Apply automatic wrapping for actors/directors (Synced with editor.js)
@@ -1745,14 +1758,20 @@ function getCertificationFilename(rating) {
                         obj.set({ width: canvas.width * 0.5, text: String(val), visible: true });
                         shrinkTextboxToContent(obj, canvas.width * 0.5);
                     } else {
-                        obj.set({ text: String(val), visible: true });
+                        obj.set({ text: String(val), visible: true, opacity: 1 });
                     }
                 }
             }
 
             if (obj.dataTag === 'overview' && obj.type === 'textbox') {
-                if (!obj.fullMediaText && val) obj.fullMediaText = String(val);
-                fitTextToContainer(canvas, obj);
+                const strVal = (val !== undefined) ? String(val || "") : (obj.fullMediaText || "");
+                if (strVal.trim() === "" || strVal.trim() === "N/A") {
+                    obj.set('visible', false);
+                } else {
+                    obj.set('visible', true);
+                    if (val !== undefined) obj.fullMediaText = strVal;
+                    fitTextToContainer(canvas, obj);
+                }
             }
         });
 
@@ -2127,6 +2146,16 @@ function getCertificationFilename(rating) {
 
         // 8. RENDER MAIN OUTPUT (JPEG)
         console.log("Updating vertical layout for final render...");
+        
+        // Force refresh of textboxes to ensure correct dimensions for layout
+        canvas.getObjects().forEach(obj => {
+            if (obj.dataTag === 'overview' && obj.type === 'textbox') {
+                fitTextToContainer(canvas, obj);
+            } else if ((obj.dataTag === 'actors' || obj.dataTag === 'directors') && obj.type === 'textbox') {
+                shrinkTextboxToContent(obj, canvas.width * 0.5);
+            }
+        });
+
         updateVerticalLayout(canvas, settings, blockedAreas);
         console.log("Rendering all...");
         canvas.renderAll();

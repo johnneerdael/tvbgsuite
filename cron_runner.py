@@ -15,6 +15,11 @@ from datetime import datetime, timedelta
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from gui_editor import load_config, save_config, fetch_tmdb_details
 
+# Import the missing search trigger script
+try:
+    import trigger_missing
+except ImportError:
+    trigger_missing = None
 
 # Config
 API_URL = "http://127.0.0.1:5000/api/save_image"
@@ -301,6 +306,54 @@ def fetch_sonarr_cron(config, job):
     if not s.get('url') or not s.get('api_key'): return []
     url = f"{s['url'].rstrip('/')}/api/v3/calendar"
     headers = {"X-Api-Key": s['api_key']}
+    
+    # --- Handle 'Missing' Filter Mode ---
+    if job.get('filter_mode') == 'missing':
+        url = f"{s['url'].rstrip('/')}/api/v3/wanted/missing"
+        # Fetch a reasonable amount of missing items
+        params = {
+            "page": 1,
+            "pageSize": 100, 
+            "sortKey": "airDateUtc",
+            "sortDir": "desc"
+        }
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                records = data.get('records', [])
+                meta_items = []
+                seen_series = set()
+                
+                for item in records:
+                    series = item.get('series', {})
+                    sid = series.get('id')
+                    
+                    # Group by Series: Skip if we already have this series
+                    if sid in seen_series: continue
+                    
+                    # Resolve TMDB ID via TVDB ID
+                    tvdb_id = series.get('tvdbId')
+                    if tvdb_id:
+                        tmdb_id = resolve_tmdb_from_tvdb(tvdb_id, config)
+                        if tmdb_id:
+                            details = fetch_tmdb_details(tmdb_id, 'tv', config)
+                            if details:
+                                details['id'] = sid # Use Sonarr ID for consistency
+                                details['source'] = "Sonarr Missing"
+                                meta_items.append(details)
+                                seen_series.add(sid)
+                
+                # Apply limit if specified
+                limit = int(job.get('limit', 0))
+                if limit > 0:
+                    return meta_items[:limit]
+                return meta_items
+        except Exception as e:
+            log(f"Sonarr Missing fetch error: {e}")
+        return []
+    # ------------------------------------
+
     days = int(job.get('days_ahead', 7)) # Custom field or default
     params = {
         "start": datetime.utcnow().date().isoformat(),
@@ -319,16 +372,7 @@ def fetch_sonarr_cron(config, job):
                     tvdb_id = series.get('tvdbId')
                     tmdb_id = None
                     # Try resolve TMDB ID if possible
-                    if tvdb_id:
-                        tmdb_api_key = config.get('tmdb', {}).get('api_key')
-                        if tmdb_api_key:
-                            find_url = f"https://api.themoviedb.org/3/find/{tvdb_id}?api_key={tmdb_api_key}&external_source=tvdb_id"
-                            try:
-                                r_tmdb = requests.get(find_url, timeout=5)
-                                if r_tmdb.status_code == 200:
-                                    results = r_tmdb.json().get('tv_results', [])
-                                    if results: tmdb_id = results[0]['id']
-                            except: pass
+                    if tvdb_id: tmdb_id = resolve_tmdb_from_tvdb(tvdb_id, config)
                     
                     if tmdb_id:
                         details = fetch_tmdb_details(tmdb_id, 'tv', config)
@@ -345,6 +389,7 @@ def fetch_sonarr_cron(config, job):
                         "title": series.get('title'),
                         "year": series.get('year'),
                         "overview": series.get('overview', ''),
+                        "imdb_id": series.get('imdbId'),
                         "source": "Sonarr"
                     })
                     seen_series.add(sid)
@@ -352,11 +397,55 @@ def fetch_sonarr_cron(config, job):
     except: pass
     return []
 
+def resolve_tmdb_from_tvdb(tvdb_id, config):
+    """Helper to resolve TMDB ID from TVDB ID using TMDB API."""
+    tmdb_api_key = config.get('tmdb', {}).get('api_key')
+    if not tmdb_api_key: return None
+    
+    find_url = f"https://api.themoviedb.org/3/find/{tvdb_id}?api_key={tmdb_api_key}&external_source=tvdb_id"
+    try:
+        r_tmdb = requests.get(find_url, timeout=5)
+        if r_tmdb.status_code == 200:
+            results = r_tmdb.json().get('tv_results', [])
+            if results: return results[0]['id']
+    except: pass
+    return None
+
 def fetch_radarr_cron(config, job):
     r_conf = config.get('radarr', {})
     if not r_conf.get('url') or not r_conf.get('api_key'): return []
     url = f"{r_conf['url'].rstrip('/')}/api/v3/movie"
     headers = {"X-Api-Key": r_conf['api_key']}
+
+    # --- Handle 'Missing' Filter Mode ---
+    if job.get('filter_mode') == 'missing':
+        url = f"{r_conf['url'].rstrip('/')}/api/v3/wanted/missing"
+        params = {"page": 1, "pageSize": 100, "sortKey": "releaseDate", "sortDir": "desc"}
+        
+        try:
+            r = requests.get(url, headers=headers, params=params, timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                records = data.get('records', [])
+                meta_items = []
+                
+                for m in records:
+                    tmdb_id = m.get('tmdbId')
+                    if tmdb_id:
+                        details = fetch_tmdb_details(tmdb_id, 'movie', config)
+                        if details:
+                            details['id'] = m.get('id')
+                            details['source'] = "Radarr Missing"
+                            meta_items.append(details)
+                
+                limit = int(job.get('limit', 0))
+                if limit > 0: return meta_items[:limit]
+                return meta_items
+        except Exception as e:
+            log(f"Radarr Missing fetch error: {e}")
+        return []
+    # ------------------------------------
+
     try:
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
@@ -398,6 +487,7 @@ def fetch_radarr_cron(config, job):
                     "title": m.get('title'),
                     "year": m.get('year'),
                     "overview": m.get('overview', ''),
+                    "imdb_id": m.get('imdbId'),
                     "source": "Radarr"
                 })
             return meta_items
@@ -448,8 +538,10 @@ def fetch_items_and_process(job=None):
         if p == 'jellyfin': all_meta.extend(fetch_jellyfin_cron(config, job))
         elif p == 'plex': all_meta.extend(fetch_plex_cron(config, job))
         elif p == 'trakt': all_meta.extend(fetch_trakt_cron(config, job))
-        elif p == 'sonarr': all_meta.extend(fetch_sonarr_cron(config, job))
-        elif p == 'radarr': all_meta.extend(fetch_radarr_cron(config, job))
+        elif p == 'sonarr': 
+            all_meta.extend(fetch_sonarr_cron(config, job))
+        elif p == 'radarr': 
+            all_meta.extend(fetch_radarr_cron(config, job))
         elif p == 'tmdb': all_meta.extend(fetch_tmdb_cron(config, job))
 
 
@@ -544,7 +636,7 @@ def fetch_items_and_process(job=None):
 
 def run_scheduler():
     log("Scheduler Mode Started")
-    last_run_minute = -1
+    last_run_minutes = {}
 
     while True:
         if os.path.exists(STOP_SIGNAL_FILE):
@@ -557,6 +649,8 @@ def run_scheduler():
             jobs = config.get('cron_jobs', [])
             
             for i, job in enumerate(jobs):
+                job_id = job.get('id', str(i))
+                
                 if not job.get('enabled', True): continue
 
                 if job.get('force_run'):
@@ -574,21 +668,40 @@ def run_scheduler():
                 except:
                     start_h, start_m = 0, 0
                 
-                freq = int(job.get('frequency', 1))
-                if freq < 1: freq = 1
+                freq_raw = job.get('frequency', '1')
+                should_run = False
                 
-                interval_minutes = (24 * 60) / freq
-                start_total_minutes = start_h * 60 + start_m
                 current_total_minutes = now.hour * 60 + now.minute
                 
-                for k in range(freq):
-                    target = (start_total_minutes + (k * interval_minutes)) % (24 * 60)
-                    if int(target) == current_total_minutes:
-                        if last_run_minute != current_total_minutes:
-                            log(f"Schedule Trigger: {job.get('name')}")
-                            fetch_items_and_process(job)
-                            last_run_minute = current_total_minutes
-                        break
+                if str(freq_raw) == 'weekly':
+                    # Run on Monday (0) at start_time
+                    if now.weekday() == 0 and now.hour == start_h and now.minute == start_m:
+                        should_run = True
+                elif str(freq_raw) == 'monthly':
+                    # Run on 1st day of month at start_time
+                    if now.day == 1 and now.hour == start_h and now.minute == start_m:
+                        should_run = True
+                else:
+                    # Numeric frequency (times per day)
+                    try: freq = int(freq_raw)
+                    except: freq = 1
+                    if freq < 1: freq = 1
+                    
+                    interval_minutes = (24 * 60) / freq
+                    start_total_minutes = start_h * 60 + start_m
+                    
+                    for k in range(freq):
+                        target = (start_total_minutes + (k * interval_minutes)) % (24 * 60)
+                        if int(target) == current_total_minutes:
+                            should_run = True
+                            break
+                
+                if should_run:
+                    if last_run_minutes.get(job_id) != current_total_minutes:
+                        log(f"Schedule Trigger: {job.get('name')} ({freq_raw})")
+                        fetch_items_and_process(job)
+                        last_run_minutes[job_id] = current_total_minutes
+
         except Exception as e:
             log(f"Scheduler Error: {e}")
         
