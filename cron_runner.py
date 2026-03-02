@@ -7,7 +7,8 @@ import requests
 import subprocess
 import tempfile
 import base64
-from urllib.parse import quote
+import re
+from urllib.parse import quote, unquote
 from datetime import datetime, timedelta
 
 
@@ -68,7 +69,7 @@ def enrich_with_omdb(metadata, config):
                     if data.get('Rated') != 'N/A': metadata['omdb_rated'] = data['Rated']
                     if data.get('Writer') != 'N/A': metadata['omdb_writer'] = data['Writer']
                     if data.get('imdbRating') != 'N/A': metadata['omdb_imdb_rating'] = data['imdbRating']
-                    if data.get('BoxOffice') != 'N/A': metadata['omdb_box_office'] = data['BoxOffice']
+                    if data.get('BoxOffice') and data.get('BoxOffice') != 'N/A': metadata['omdb_box_office'] = data.get('BoxOffice')
                     if data.get('Plot') != 'N/A':
                         metadata['omdb_plot_full'] = data['Plot']
                         metadata['omdb_plot'] = data['Plot']
@@ -127,16 +128,45 @@ def run_node_renderer(layout_path, metadata, output_base_path):
     image_b64 = None
     ambilight_b64 = None
     final_json = None
+    temp_layout_path = None
     
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         script_path = os.path.join(script_dir, 'render_task.js')
         
+        # --- Layout Pre-Processing: Replace URLs with Local Paths ---
+        # Fixes ECONNRESET by avoiding loopback network calls for local assets
+        try:
+            with open(layout_path, 'r', encoding='utf-8') as f:
+                layout_content = f.read()
+            
+            provider_logos_dir = os.path.join(script_dir, 'static', 'provider_logos')
+            
+            # 1. Replace Provider Logos (http://.../static/provider_logos/X -> file:///app/provider_logos/X)
+            def repl_logo(m):
+                return f"file://{os.path.join(provider_logos_dir, m.group(1))}"
+            
+            layout_content = re.sub(r'http[s]?://[^"\']+/static/provider_logos/([^"\']+)', repl_logo, layout_content)
+            
+            # 2. Unwrap Proxy URLs (http://.../api/proxy/image?url=X -> X)
+            def repl_proxy(m):
+                return unquote(m.group(1))
+            
+            layout_content = re.sub(r'http[s]?://[^"\']+/api/proxy/image\?url=([^"\']+)', repl_proxy, layout_content)
+            
+            # Write to temp file
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json', encoding='utf-8') as tf:
+                tf.write(layout_content)
+                temp_layout_path = tf.name
+        except Exception as e:
+            log(f"Layout preprocessing warning: {e}")
+            temp_layout_path = layout_path # Fallback to original
+
         # Der neue, korrekte Befehl mit drei Argumenten
         cmd = [
             'node',
             script_path,
-            layout_path,
+            temp_layout_path,
             output_base_path,
             data_json_string
         ]
@@ -169,6 +199,11 @@ def run_node_renderer(layout_path, metadata, output_base_path):
             if p and os.path.exists(p):
                 try: os.remove(p)
                 except: pass
+        
+        # Clean up temp layout file
+        if temp_layout_path and temp_layout_path != layout_path and os.path.exists(temp_layout_path):
+            try: os.remove(temp_layout_path)
+            except: pass
 
     return image_b64, ambilight_b64, final_json, None
 

@@ -2127,11 +2127,42 @@ def get_gallery_image(folder, filename):
          
     return send_from_directory(os.path.join(base_path, folder), filename)
 
+def find_most_recent_image_in_dirs(search_dirs):
+    """Scans a list of directories for the most recently modified image file."""
+    latest_file = None
+    latest_time = 0
+    
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+    for d in search_dirs:
+        s_dir = os.path.join(base_path, d)
+        if not os.path.exists(s_dir):
+            continue
+        for root, _, files in os.walk(s_dir):
+            for file in files:
+                if file.lower().endswith(('.jpg', '.jpeg', '.png')) and '.ambilight' not in file.lower():
+                    path = os.path.join(root, file)
+                    try:
+                        mtime = os.path.getmtime(path)
+                        if mtime > latest_time:
+                            latest_time = mtime
+                            latest_file = path
+                    except OSError:
+                        continue
+    return latest_file
+
 @gui_editor_bp.route('/api/batch/preview/latest_image')
 def get_latest_batch_image():
     global LATEST_GENERATED_IMAGE
     if LATEST_GENERATED_IMAGE and os.path.exists(LATEST_GENERATED_IMAGE):
         return send_file(LATEST_GENERATED_IMAGE)
+    
+    search_folders = [d for d in KNOWN_DIRS if 'backgrounds' in d]
+    fallback_image = find_most_recent_image_in_dirs(search_folders)
+    if fallback_image:
+        LATEST_GENERATED_IMAGE = fallback_image
+        return send_file(fallback_image)
+
     return "", 404
 
 @gui_editor_bp.route('/api/trigger_search', methods=['POST'])
