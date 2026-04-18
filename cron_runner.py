@@ -15,6 +15,9 @@ from datetime import datetime, timedelta
 # Path to own module folder
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from gui_editor import load_config, save_config, fetch_tmdb_details
+from providers.metadata_router import choose_tv_metadata
+from providers.ratings import apply_configured_rating
+from providers.trakt_client import TraktClient
 
 # Import the missing search trigger script
 try:
@@ -100,10 +103,12 @@ def run_node_renderer(layout_path, metadata, output_base_path):
         "genres": metadata.get('genres'),
         "runtime": metadata.get('runtime'),
         "rating": metadata.get('rating'),
+        "rating_provider": metadata.get('rating_provider'),
+        "rating_logo": metadata.get('rating_logo'),
         "officialRating": metadata.get('officialRating'),
         "actors": metadata.get('actors', []),
         "directors": metadata.get('directors', []),
-        "source": metadata.get('source', 'Jellyfin'),
+        "source": metadata.get('source', 'TMDB'),
         "id": metadata.get('id'),
         "action_url": metadata.get('action_url'),
         "provider_ids": metadata.get('provider_ids'),
@@ -331,9 +336,25 @@ def fetch_plex_cron(config, job):
     except: return []
 
 def fetch_trakt_cron(config, job):
-
-    # Simplified placeholder for now
-    return []
+    trakt_config = config.get('trakt', {})
+    client = TraktClient(trakt_config)
+    limit = int(job.get('limit') or job.get('random_count') or 20)
+    catalog_ids = job.get('trakt_catalogs') or trakt_config.get('catalogs', {}).get('enabled', [])
+    list_items = client.fetch_catalog_items(catalog_ids, limit=limit)
+    meta_items = []
+    for item in list_items:
+        item_id = item.get("Id", "")
+        parts = item_id.split("-")
+        if len(parts) >= 3 and parts[0] == "trakt":
+            media_type = "tv" if parts[1] == "tv" else "movie"
+            tmdb_id = parts[2]
+            details = fetch_tmdb_details(tmdb_id, media_type, config)
+            if details:
+                details = choose_tv_metadata(details, media_type, config)
+                details = apply_configured_rating(details, config)
+                details['source'] = "Trakt"
+                meta_items.append(details)
+    return meta_items
 
 
 def fetch_sonarr_cron(config, job):
@@ -550,6 +571,8 @@ def fetch_tmdb_cron(config, job):
                 
                 details = fetch_tmdb_details(item['id'], media_type, config)
                 if details:
+                    details = choose_tv_metadata(details, media_type, config)
+                    details = apply_configured_rating(details, config)
                     details['source'] = "TMDB"
                     meta_items.append(details)
     except: pass
@@ -566,17 +589,11 @@ def fetch_items_and_process(job=None):
     if not os.path.exists(layout_full_path):
         log(f"Layout not found: {layout_name}"); return
 
-    providers = job.get('providers', ['jellyfin'])
+    providers = job.get('providers', ['tmdb'])
     all_meta = []
     for p in providers:
         p = p.strip().lower()
-        if p == 'jellyfin': all_meta.extend(fetch_jellyfin_cron(config, job))
-        elif p == 'plex': all_meta.extend(fetch_plex_cron(config, job))
-        elif p == 'trakt': all_meta.extend(fetch_trakt_cron(config, job))
-        elif p == 'sonarr': 
-            all_meta.extend(fetch_sonarr_cron(config, job))
-        elif p == 'radarr': 
-            all_meta.extend(fetch_radarr_cron(config, job))
+        if p == 'trakt': all_meta.extend(fetch_trakt_cron(config, job))
         elif p == 'tmdb': all_meta.extend(fetch_tmdb_cron(config, job))
 
 

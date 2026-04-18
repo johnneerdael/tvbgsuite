@@ -1547,6 +1547,9 @@ function getCertificationFilename(rating) {
                     let r = data.rating;
                     if (r && r !== 'N/A' && !isNaN(parseFloat(r))) r = parseFloat(r).toFixed(1);
                     else r = null;
+                    const ratingLabel = data.rating_provider === 'tmdb' ? 'TMDB' :
+                        data.rating_provider === 'imdb_api' ? 'IMDb' :
+                        data.rating_provider ? data.rating_provider.replace('mdblist_', '').toUpperCase() : 'Rating';
 
                     if (obj.type === 'group') {
                         const t = obj.getObjects().find(o => o.type === 'i-text');
@@ -1554,7 +1557,7 @@ function getCertificationFilename(rating) {
                         obj.set('visible', !!r);
                         val = undefined;
                     } else {
-                        val = r ? (obj.dataTag === 'rating' ? `IMDb: ${r}` : r) : null;
+                        val = r ? (obj.dataTag === 'rating' ? `${ratingLabel}: ${r}` : r) : null;
                     }
                     break;
                 case 'rating_val':

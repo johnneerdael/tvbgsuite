@@ -892,10 +892,7 @@ function shrinkTextboxToContent(textbox, maxWidth) {
 function extractMetadata(item) {
     if (!item) return {};
 
-    let actionUrl = null;
-    if (item.source === 'Jellyfin' && item.id) {
-        actionUrl = "jellyfin://items/" + item.id;
-    }
+    let actionUrl = item.action_url || null;
 
     return {
         title: item.title || item.Name,
@@ -1262,6 +1259,9 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         let r = mediaData.rating || mediaData.CommunityRating;
                         if (r && r !== 'N/A' && !isNaN(parseFloat(r))) r = parseFloat(r).toFixed(1);
                         else r = null; // Invalid rating
+                        const ratingLabel = mediaData.rating_provider === 'tmdb' ? 'TMDB' :
+                            mediaData.rating_provider === 'imdb_api' ? 'IMDb' :
+                            mediaData.rating_provider ? mediaData.rating_provider.replace('mdblist_', '').toUpperCase() : 'Rating';
 
                         if (obj.type === 'group') {
                             const t = obj.getObjects().find(o => o.type === 'i-text');
@@ -1269,7 +1269,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             val = undefined;
                             obj.set('visible', !!r);
                         } else {
-                            val = r ? `IMDb: ${r}` : null;
+                            val = r ? `${ratingLabel}: ${r}` : null;
                         }
                         break;
                     case 'rating_val':
@@ -1318,23 +1318,22 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                         val = mediaData.officialRating;
                         break;
                     case 'provider_source':
-                        const srcVal = (mediaData.source || "Jellyfin");
+                        const srcVal = (mediaData.source || "TMDB");
                         let pText = "";
                         let pLogo = null;
 
-                        if (srcVal === 'TMDB') {
+                        if (srcVal === 'TMDB' || srcVal === 'Trakt/TMDB') {
                             pText = "Now Trending on ";
                             pLogo = "tmdblogo.png";
-                        } else if (srcVal === 'Trakt') {
-                            pText = "Now on my watchlist ";
+                        } else if (srcVal === 'Trakt' || srcVal === 'Trakt/TVDB') {
+                            pText = "From ";
                             pLogo = "traktlogo.png";
-                        } else if (['Sonarr', 'Radarr', 'Jellyseerr'].includes(srcVal) || (srcVal && srcVal.includes('Missing'))) {
-                            pText = (srcVal && srcVal.includes('Missing')) ? "Requested on " : "Soon available on ";
-                            pLogo = "jellyfinlogo.png";
+                        } else if (srcVal === 'TVDB') {
+                            pText = "Metadata from ";
+                            pLogo = "tmdblogo.png";
                         } else {
-                            pText = "Now available on ";
-                            if (srcVal === 'Plex') pLogo = "plexlogo.png";
-                            else pLogo = "jellyfinlogo.png";
+                            pText = "From ";
+                            pLogo = "tmdblogo.png";
                         }
 
                         if (pLogo) {
@@ -1913,9 +1912,9 @@ function addMetadataTag(type, placeholder) {
     }
 
     if (type === 'rating') {
-        const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/IMDB_Logo_2016.svg/1200px-IMDB_Logo_2016.svg.png';
-        const proxiedUrl = `/api/proxy/image?url=${encodeURIComponent(logoUrl)}`;
-        fabric.Image.fromURL(proxiedUrl, function (img) {
+        const providerLogo = (lastFetchedData && lastFetchedData.rating_logo) ? lastFetchedData.rating_logo : 'imdb_logo_2016.svg';
+        const logoUrl = `/static/provider_logos/${providerLogo}`;
+        fabric.Image.fromURL(logoUrl, function (img) {
             if (!img) return;
             img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_logo_img' });
             const textVal = placeholder.replace('IMDb: ', '');
@@ -5695,7 +5694,6 @@ function injectCronFilterUI() {
                 <option value="year">By Year</option>
                 <option value="genre">By Genre</option>
                 <option value="rating">By Rating</option>
-                <option value="missing">Missing / Wanted (Radarr/Sonarr)</option>
             </select>
             
             <input type="text" id="cronFilterValue" placeholder="Value (e.g. 2023 or Action)" style="width:100%; background:#333; color:#fff; border:1px solid #555; padding:5px; margin-bottom:10px; display:none;">
@@ -5979,39 +5977,45 @@ function updateRowSeparatorWidth() {
 // 1. Settings Management (Merged with API)
 async function saveSettings() {
     const config = {
-        jellyfin: {
-            url: document.getElementById('set-jf-url').value,
-            api_key: document.getElementById('set-jf-key').value,
-            user_id: document.getElementById('set-jf-user').value,
-            excluded_libraries: document.getElementById('set-jf-exclude').value
-        },
-        plex: {
-            url: document.getElementById('set-plex-url').value,
-            token: document.getElementById('set-plex-token').value
+        metadata: {
+            movie_provider: document.getElementById('set-movie-provider').value,
+            tv_provider: document.getElementById('set-tv-provider').value
         },
         tmdb: {
             api_key: document.getElementById('set-tmdb-key').value,
             language: document.getElementById('set-tmdb-lang').value
         },
-        omdb: {
-            api_key: document.getElementById('set-omdb-key').value
+        tvdb: {
+            enabled: document.getElementById('set-tvdb-enabled').checked,
+            base_url: 'https://api4.thetvdb.com/v4',
+            api_key: document.getElementById('set-tvdb-key').value,
+            pin: document.getElementById('set-tvdb-pin').value,
+            language: document.getElementById('set-tvdb-lang').value
         },
-        radarr: {
-            url: document.getElementById('set-radarr-url').value,
-            api_key: document.getElementById('set-radarr-key').value
+        mdblist: {
+            enabled: document.getElementById('set-mdblist-enabled').checked,
+            api_key: document.getElementById('set-mdblist-key').value,
+            show_trakt: true,
+            show_tmdb: true,
+            show_letterboxd: true,
+            show_tomatoes: true,
+            show_audience: true,
+            show_metacritic: true
         },
-        sonarr: {
-            url: document.getElementById('set-sonarr-url').value,
-            api_key: document.getElementById('set-sonarr-key').value
+        imdb_ratings: {
+            enabled: document.getElementById('set-imdb-api-enabled').checked,
+            base_url: document.getElementById('set-imdb-api-url').value,
+            api_key: document.getElementById('set-imdb-api-key').value
         },
-        jellyseerr: {
-            url: document.getElementById('set-jellyseerr-url').value,
-            api_key: document.getElementById('set-jellyseerr-key').value
+        ratings: {
+            default_provider: document.getElementById('set-rating-provider').value
         },
         trakt: {
             api_key: document.getElementById('set-trakt-key').value,
+            client_id: document.getElementById('set-trakt-key').value,
+            client_secret: document.getElementById('set-trakt-secret').value,
             username: document.getElementById('set-trakt-user').value,
-            listname: document.getElementById('set-trakt-list').value
+            listname: ''
         }
     };
 
@@ -6019,13 +6023,12 @@ async function saveSettings() {
         const r = await fetch('/api/settings_full');
         if (r.ok) {
             const currentConfig = await r.json();
-            Object.assign(currentConfig.jellyfin, config.jellyfin);
-            Object.assign(currentConfig.plex, config.plex);
+            currentConfig.metadata = config.metadata;
             Object.assign(currentConfig.tmdb, config.tmdb);
-            currentConfig.omdb = config.omdb;
-            Object.assign(currentConfig.radarr, config.radarr);
-            Object.assign(currentConfig.sonarr, config.sonarr);
-            Object.assign(currentConfig.jellyseerr, config.jellyseerr);
+            currentConfig.tvdb = config.tvdb;
+            currentConfig.mdblist = config.mdblist;
+            currentConfig.imdb_ratings = config.imdb_ratings;
+            currentConfig.ratings = config.ratings;
             Object.assign(currentConfig.trakt, config.trakt);
 
             await fetch('/api/settings', {

@@ -2,5 +2,5 @@ Flask
 requests
 Pillow
 numpy
-plexapi
 python-dotenv
+pytest

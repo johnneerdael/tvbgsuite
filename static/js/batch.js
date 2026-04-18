@@ -6,6 +6,9 @@ function toggleBatchInputs() {
 
     document.getElementById('batchRandomSettings').style.display = (mode === 'random') ? 'block' : 'none';
     document.getElementById('batchFilterSettings').style.display = (mode === 'library') ? 'block' : 'none';
+    const traktCatalogSelection = document.getElementById('traktCatalogSelection');
+    if (traktCatalogSelection) traktCatalogSelection.style.display = (mode === 'trakt_catalogs') ? 'block' : 'none';
+    if (mode === 'trakt_catalogs') loadTraktCatalogs();
 
     // Filter Inputs
     document.getElementById('filterInputYear').style.display = (mode === 'library' && filterMode === 'year') ? 'block' : 'none';
@@ -18,6 +21,7 @@ function toggleBatchInputs() {
     // Update label for count based on context
     const countLabel = document.querySelector('label[for="batchCount"]');
     if (mode === 'library') countLabel.innerText = "Limit (Max Images)";
+    else if (mode === 'trakt_catalogs') countLabel.innerText = "Catalog Limit";
     else countLabel.innerText = "Number of Images";
 
     // Auto-Run Visibility
@@ -46,18 +50,21 @@ function toggleCronInputs() {
     }
 }
 
-// Inject "Missing / Wanted" option if it doesn't exist
-function injectMissingFilterOption() {
-    const targets = ['batchFilterMode', 'cronFilterMode'];
-    targets.forEach(id => {
-        const select = document.getElementById(id);
-        if (select && !select.querySelector('option[value="missing"]')) {
-            const opt = document.createElement('option');
-            opt.value = 'missing';
-            opt.innerText = 'Missing / Wanted (Radarr/Sonarr)';
-            select.appendChild(opt);
-        }
-    });
+function injectMissingFilterOption() {}
+
+async function loadTraktCatalogs() {
+    const target = document.getElementById('traktCatalogCheckboxes');
+    if (!target || target.dataset.loaded === 'true') return;
+    const resp = await fetch('/api/trakt/catalogs');
+    const data = await resp.json();
+    const rows = [...(data.built_in || []), ...(data.popular_lists || []).map(l => ({ id: l.key, title: l.title }))];
+    target.innerHTML = rows.map(row => `
+        <label style="display:flex; align-items:center; gap:5px; font-size:11px; cursor:pointer; margin:0;">
+            <input type="checkbox" name="traktCatalog" value="${row.id}" style="width:14px; height:14px; margin:0;">
+            ${row.title}
+        </label>
+    `).join('');
+    target.dataset.loaded = 'true';
 }
 
 async function loadBatchLayouts() {
@@ -138,27 +145,33 @@ async function startBatchProcess() {
     }
 
     let itemsToProcess = [];
-    if (mode === 'library') {
+    if (mode === 'trakt_catalogs') {
+        await loadTraktCatalogs();
+        const selectedCatalogs = Array.from(document.querySelectorAll('input[name="traktCatalog"]:checked')).map(cb => cb.value);
+        if (selectedCatalogs.length === 0) {
+            logBatch("Select at least one Trakt catalog.");
+            stopBatchProcess();
+            return;
+        }
+        const limitVal = document.getElementById('batchMaxItems').value || '20';
+        const resp = await fetch(`/api/trakt/catalog/items?catalogs=${encodeURIComponent(selectedCatalogs.join(','))}&limit=${encodeURIComponent(limitVal)}`);
+        const list = await resp.json();
+        if (list.error) { logBatch("Error: " + list.error); stopBatchProcess(); return; }
+        itemsToProcess = list.map(i => ({ id: i.Id, name: i.Name }));
+        logBatch(`Found ${itemsToProcess.length} Trakt catalog items.`);
+
+        if (itemsToProcess.length === 0) {
+            logBatch("No items found. Stopping.");
+            stopBatchProcess();
+            return;
+        }
+    } else if (mode === 'library') {
         let mediaType = document.getElementById('batchMediaType').value || 'Movie,Series';
         let limitVal = document.getElementById('batchMaxItems').value || '0';
 
         const selectedProviders = Array.from(document.querySelectorAll('input[name="batchProvider"]:checked')).map(cb => cb.value);
         // Note: We handle cleanup client-side now to support ID matching, so we don't pass &cleanup=true to the backend list API
         
-        // --- TRIGGER MISSING SEARCH (Sonarr/Radarr) ---
-        // if (!dryRun) {
-        //     const pList = selectedProviders.map(p => p.toLowerCase());
-        //     if (pList.includes('sonarr') || pList.includes('radarr')) {
-        //         logBatch("Triggering background search for missing items (Sonarr/Radarr)...");
-        //         fetch('/api/trigger_search', {
-        //             method: 'POST',
-        //             headers: {'Content-Type': 'application/json'},
-        //             body: JSON.stringify({ providers: selectedProviders })
-        //         }).catch(e => logBatch("Warning: Could not trigger search: " + e));
-        //     }
-        // }
-        // ----------------------------------------------
-
         let qs = `?mode=${filterMode}&types=${encodeURIComponent(mediaType)}&limit=${encodeURIComponent(limitVal)}&providers=${encodeURIComponent(selectedProviders.join(','))}`;
 
         if (filterMode === 'year') qs += `&val=${encodeURIComponent(document.getElementById('batchFilterYear').value)}`;

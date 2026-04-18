@@ -1,6 +1,6 @@
 # TV Background Suite & Web Editor
 
-**TV Background Suite** is a powerful, web-based tool designed to generate high-quality, customized background images and posters for media servers like **Jellyfin**, **Emby**, and **Plex**, or for use with Android TV launchers.
+**TV Background Suite** is a powerful, web-based tool designed to generate high-quality, customized background images and posters from movie and TV catalogs for media centers and Android TV launchers.
 
 It features a full WYSIWYG (What You See Is What You Get) editor allowing you to add metadata, ratings, and apply advanced texture effects to text.
 
@@ -15,7 +15,7 @@ It features a full WYSIWYG (What You See Is What You Get) editor allowing you to
 ## ✨ Features
 
 - **Web-Based Editor:** Create layouts visually in your browser. Drag, drop, and customize text and images.
-- **Media Server Integration:** Connects directly to **Jellyfin**, **Plex**, **Radarr**, **Sonarr**, **Trakt**, and **TMDB** to fetch metadata and artwork automatically.
+- **Catalog & Metadata Integrations:** Connects to **TMDB**, **TheTVDB**, **Trakt**, **MDBList**, and a custom **IMDb Ratings API** to fetch catalog items, localized metadata, artwork, and rating data automatically.
 - **Advanced Layout Tools:**
     - **Smart Positioning:** Auto-aligns new tags.
     - **Manual Mode:** Toggle "Snap to Objects" for free positioning.
@@ -131,7 +131,7 @@ If you prefer to use your NAS hostname (e.g., `truenas`), map it manually:
 ## 🛠️ Usage
 
 1.  **Provider Settings:**
-    Go to the **Settings** tab. Enter your URL and API Keys for Jellyfin, Plex, or TMDB. Use the "Test Connection" buttons to verify connectivity.
+    Go to the **Settings** tab. Configure TMDB, TheTVDB, Trakt OAuth, MDBList, and the optional IMDb Ratings API. TMDB remains the default movie metadata provider; TheTVDB can be selected for localized TV metadata.
     
 2.  **Layout Editor:**
     - Use **Shuffle Preview** to load random media from your connected services.
@@ -140,7 +140,7 @@ If you prefer to use your NAS hostname (e.g., `truenas`), map it manually:
     - Add **Metadata Tags** (Rating, Year, Runtime) dynamically.
 
 3.  **Batch Processing:**
-    Go to the **Batch Processing** tab to generate backgrounds for your entire library automatically based on your selected layout.
+    Go to the **Batch Processing** tab to generate backgrounds from TMDB lists or selected Trakt catalogs such as trending movies, trending shows, popular titles, recommendations, calendar items, and popular Trakt lists.
 
 ---
 

@@ -1,18 +1,73 @@
 {
-    "jellyfin": {
-        "url": "http://your-ip:8096",
-        "api_key": "YOUR_API_KEY",
-        "user_id": "YOUR_USER_ID"
-    },
-    "plex": {
-        "url": "",
-        "token": ""
-    },
-    "tmdb": {
-        "api_key": "",
-        "language": "de-DE"
-    },
-    "editor": {
-        "resolution": "1080"
+  "general": {
+    "overwrite_existing": false,
+    "timezone_offset": 1
+  },
+  "providers": {
+    "sources": [
+      "tmdb",
+      "trakt"
+    ],
+    "metadata": [
+      "tmdb",
+      "tvdb"
+    ],
+    "ratings": [
+      "tmdb",
+      "mdblist",
+      "imdb_ratings"
+    ]
+  },
+  "metadata": {
+    "movie_provider": "tmdb",
+    "tv_provider": "tmdb"
+  },
+  "tmdb": {
+    "api_key": "",
+    "language": "de-DE"
+  },
+  "tvdb": {
+    "enabled": false,
+    "base_url": "https://api4.thetvdb.com/v4",
+    "api_key": "",
+    "pin": "",
+    "language": "en"
+  },
+  "mdblist": {
+    "enabled": false,
+    "api_key": "",
+    "show_trakt": true,
+    "show_tmdb": true,
+    "show_letterboxd": true,
+    "show_tomatoes": true,
+    "show_audience": true,
+    "show_metacritic": true
+  },
+  "imdb_ratings": {
+    "enabled": false,
+    "base_url": "",
+    "api_key": ""
+  },
+  "ratings": {
+    "default_provider": "tmdb"
+  },
+  "trakt": {
+    "client_id": "",
+    "client_secret": "",
+    "username": "",
+    "listname": "",
+    "access_token": "",
+    "refresh_token": "",
+    "expires_at": 0,
+    "catalogs": {
+      "enabled": [
+        "trakt_trending_movies",
+        "trakt_trending_shows"
+      ],
+      "selected_popular_list_keys": []
     }
+  },
+  "editor": {
+    "resolution": "1080"
+  }
 }
