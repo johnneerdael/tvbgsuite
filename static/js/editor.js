@@ -4387,13 +4387,29 @@ async function deleteFont(filename) {
 
 async function loadCustomIcons() {
     try {
-        const resp = await fetch('/api/custom-icons/list');
-        const icons = await resp.json();
+        const [providerResp, customResp] = await Promise.all([
+            fetch('/api/provider-icons/list'),
+            fetch('/api/custom-icons/list')
+        ]);
+        const providerIcons = await providerResp.json();
+        const icons = await customResp.json();
 
         // Populate Manager List
         const list = document.getElementById('customIconList');
         if (list) {
-            let html = '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px;">';
+            let html = '';
+            if (providerIcons.length) {
+                html += '<h4 style="margin:0 0 10px 0;">Bundled Icons</h4>';
+                html += '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px; margin-bottom:20px;">';
+                providerIcons.forEach(icon => {
+                    html += `<div style="background:rgba(255,255,255,0.1); padding:5px; border-radius:4px; text-align:center;">
+                        <img src="${icon.url}" style="width:100%; height:60px; object-fit:contain; border-radius:4px;">
+                        <div style="font-size:11px; margin:5px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${icon.name}</div>
+                    </div>`;
+                });
+                html += '</div>';
+            }
+            html += '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px;">';
             icons.forEach(icon => {
                 const src = `/api/custom-icons/image/${encodeURIComponent(icon)}`;
                 html += `<div style="background:rgba(255,255,255,0.1); padding:5px; border-radius:4px; text-align:center;">
@@ -4410,7 +4426,9 @@ async function loadCustomIcons() {
         const sidebar = document.getElementById('customLogosSidebar');
         if (sidebar) {
             let html = '';
-            html += `<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/IMDB_Logo_2016.svg/1200px-IMDB_Logo_2016.svg.png" onclick="addLogo('https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/IMDB_Logo_2016.svg/1200px-IMDB_Logo_2016.svg.png')" style="width:100%; height:40px; object-fit:contain; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px;" title="IMDb Logo">`;
+            providerIcons.forEach(icon => {
+                html += `<img src="${icon.url}" onclick="addLogo('${icon.url}')" style="width:100%; height:40px; object-fit:contain; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px;" title="${icon.name}">`;
+            });
             icons.forEach(icon => {
                 const src = `/api/custom-icons/image/${encodeURIComponent(icon)}`;
                 html += `<img src="${src}" onclick="addLogo('${src}')" style="width:100%; height:40px; object-fit:contain; cursor:pointer; background:rgba(255,255,255,0.1); border-radius:4px; padding:2px;" title="${icon}">`;

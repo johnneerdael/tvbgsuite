@@ -199,6 +199,18 @@ TEXTURES_DIR = 'textures'
 TEXTURES_JSON = 'textures.json'
 FONTS_DIR = 'fonts'
 CUSTOM_ICONS_DIR = 'custom_icons'
+PROVIDER_LOGOS_DIR = os.path.join('static', 'provider_logos')
+DEFAULT_PROVIDER_ICONS = [
+    {"filename": "imdb_logo_2016.svg", "name": "IMDb"},
+    {"filename": "tmdblogo.png", "name": "TMDB"},
+    {"filename": "traktlogo.png", "name": "Trakt"},
+    {"filename": "mdblist_trakt.svg", "name": "MDBList Trakt"},
+    {"filename": "mdblist_tmdb.svg", "name": "MDBList TMDB"},
+    {"filename": "mdblist_letterboxd.svg", "name": "MDBList Letterboxd"},
+    {"filename": "mdblist_tomatoes.svg", "name": "MDBList Rotten Tomatoes"},
+    {"filename": "mdblist_audience.png", "name": "MDBList Audience"},
+    {"filename": "mdblist_metacritic.png", "name": "MDBList Metacritic"},
+]
 
 if not os.path.exists(LAYOUTS_DIR):
     os.makedirs(LAYOUTS_DIR)
@@ -1512,6 +1524,19 @@ def list_custom_icons():
     if os.path.exists(CUSTOM_ICONS_DIR):
         icons = [f for f in os.listdir(CUSTOM_ICONS_DIR) if f.lower().endswith(('.png', '.svg', '.jpg', '.jpeg'))]
     return jsonify(sorted(icons))
+
+@gui_editor_bp.route('/api/provider-icons/list')
+def list_provider_icons():
+    icons = []
+    for icon in DEFAULT_PROVIDER_ICONS:
+        path = os.path.join(PROVIDER_LOGOS_DIR, icon["filename"])
+        if os.path.exists(path):
+            icons.append({
+                "filename": icon["filename"],
+                "name": icon["name"],
+                "url": f"/static/provider_logos/{icon['filename']}"
+            })
+    return jsonify(icons)
 
 @gui_editor_bp.route('/api/custom-icons/add', methods=['POST'])
 def add_custom_icon():

@@ -66,3 +66,13 @@ def test_trakt_oauth_start_uses_posted_credentials(monkeypatch):
     assert response.json["user_code"] == "ABC12345"
     assert saved["trakt"]["client_id"] == "fresh-client"
     assert saved["trakt"]["api_key"] == "fresh-client"
+
+
+def test_provider_icons_endpoint_includes_bundled_rating_logos():
+    response = app_client().get("/api/provider-icons/list")
+
+    assert response.status_code == 200
+    filenames = {item["filename"] for item in response.json}
+    assert "imdb_logo_2016.svg" in filenames
+    assert "mdblist_tomatoes.svg" in filenames
+    assert "mdblist_audience.png" in filenames
