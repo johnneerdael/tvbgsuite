@@ -1020,6 +1020,19 @@ function loadProviderLogo(url) {
     });
 }
 
+function loadFabricImage(url, options = {}, timeoutMs = 8000) {
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = (img = null, isError = false) => {
+            if (settled) return;
+            settled = true;
+            resolve(isError ? null : img);
+        };
+        fabric.Image.fromURL(url, (img, isError) => finish(img, isError), options);
+        setTimeout(() => finish(null, true), timeoutMs);
+    });
+}
+
 function clampToCanvasX(left, objectWidth = 240) {
     if (!canvas) return left;
     const margin = 20;
@@ -1156,14 +1169,12 @@ async function fetchMediaData(itemId = null) {
         let newLogoImg = null;
 
         if (data.logo_url) {
-            assetPromises.push(new Promise(resolve => {
-                const autoFix = document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true;
-                let proxiedLogo = `/api/proxy/image?url=${encodeURIComponent(data.logo_url)}`;
-                if (!autoFix) {
-                    proxiedLogo += "&raw=true";
-                }
-                fabric.Image.fromURL(proxiedLogo, (img) => { newLogoImg = img; resolve(); }, { crossOrigin: 'anonymous' });
-            }));
+            const autoFix = document.getElementById('batchLogoAutoFix') ? document.getElementById('batchLogoAutoFix').checked : true;
+            let proxiedLogo = `/api/proxy/image?url=${encodeURIComponent(data.logo_url)}`;
+            if (!autoFix) {
+                proxiedLogo += "&raw=true";
+            }
+            assetPromises.push(loadFabricImage(proxiedLogo, { crossOrigin: 'anonymous' }, 8000).then(img => { newLogoImg = img; }));
         }
         await Promise.all(assetPromises);
 
@@ -1254,6 +1265,11 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
             }
         };
 
+        const getNewLogoTop = (oldObj, scaledHeight) => {
+            const slotH = oldObj.slotHeight || oldObj.getScaledHeight();
+            return oldObj.top + (slotH - scaledHeight) / 2;
+        };
+
         let promises = [];
 
         [...canvas.getObjects()].forEach(obj => {
@@ -1276,10 +1292,11 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             const scale = Math.min(slotW / preloadedLogo.width, slotH / preloadedLogo.height);
 
                             const newLeft = getNewLogoLeft(obj, preloadedLogo.width, scale);
+                            const newTop = getNewLogoTop(obj, preloadedLogo.height * scale);
 
                             preloadedLogo.set({ 
                                 left: newLeft, 
-                                top: obj.top, 
+                                top: newTop, 
                                 dataTag: 'title', 
                                 logoAutoFix: autoFix,
                                 slotWidth: slotW,
@@ -1294,11 +1311,12 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 if (!autoFix) {
                                     proxiedLogo += "&raw=true";
                                 }
-                                fabric.Image.fromURL(proxiedLogo, function (img, isError) {
-                                    if (isError || !img) { canvas.remove(obj); r(); return; }
+                                loadFabricImage(proxiedLogo, { crossOrigin: 'anonymous' }, 8000).then(img => {
+                                    if (!img) { canvas.remove(obj); r(); return; }
 
                                     // --- STRICT FIXED HEIGHT LOGIC ---
                                     const targetHeight = obj.slotHeight || obj.getScaledHeight();
+                                    const slotH = obj.slotHeight || obj.getScaledHeight();
                                     img.scaleToHeight(targetHeight);
 
                                     // Check width constraints
@@ -1311,18 +1329,19 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                     }
 
                                     const newLeft = getNewLogoLeft(obj, img.width, img.scaleX);
+                                    const newTop = getNewLogoTop(obj, img.getScaledHeight());
 
                                     img.set({ 
                                         left: newLeft, 
-                                        top: obj.top, 
+                                        top: newTop, 
                                         dataTag: 'title', 
                                         logoAutoFix: autoFix,
-                                        slotWidth: img.getScaledWidth(),
-                                        slotHeight: img.getScaledHeight()
+                                        slotWidth: obj.slotWidth || img.getScaledWidth(),
+                                        slotHeight: slotH
                                     });
                                     canvas.remove(obj); canvas.add(img);
                                     r();
-                                }, { crossOrigin: 'anonymous' });
+                                });
                             });
                             promises.push(p);
                             return;
@@ -1370,7 +1389,8 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                 newText.scale(scale);
 
                                 const newLeft = getNewLogoLeft(obj, newText.getScaledWidth(), 1);
-                                newText.set('left', newLeft);
+                                const newTop = getNewLogoTop(obj, newText.getScaledHeight());
+                                newText.set({ left: newLeft, top: newTop });
 
                                 canvas.remove(obj); canvas.add(newText);
                             }
@@ -3669,8 +3689,8 @@ function applyCustomEffects(eff) {
 function loadBackground(url, skipRender = false, restoredState = null) {
     return new Promise((resolve) => {
         const proxiedUrl = url.startsWith('http') ? `/api/proxy/image?url=${encodeURIComponent(url)}` : url;
-        fabric.Image.fromURL(proxiedUrl, function (img, isError) {
-            if (isError || !img || img.width === 0 || img.height === 0) { console.warn("Failed to load background:", url); resolve(); return; }
+        loadFabricImage(proxiedUrl, { crossOrigin: 'anonymous' }, 10000).then(img => {
+            if (!img || img.width === 0 || img.height === 0) { console.warn("Failed to load background:", url); resolve(); return; }
 
             // --- FIX: Enforce Fixed Canvas Resolution ---
             // We determine the target resolution based on user selection (1080p or 4K).
@@ -3757,7 +3777,7 @@ function loadBackground(url, skipRender = false, restoredState = null) {
             canvas.requestRenderAll();
             resolve();
             saveToLocalStorage();
-        }, { crossOrigin: 'anonymous' });
+        });
     });
 }
 
@@ -4967,17 +4987,25 @@ async function saveLayout() {
 
     // Generate 10 Previews
     const generatedImages = [];
+    const restoreStateAfterPreviews = JSON.parse(JSON.stringify(layout));
     isBatchRunning = true; // Suppress UI updates in fetchRandomPreview
     try {
         for (let i = 0; i < 10; i++) {
             btn.innerText = `Generating ${i + 1}/10...`;
-            await fetchRandomPreview();
+            await withTimeout(fetchRandomPreview(), 20000, `Preview generation ${i + 1} timed out`);
             const res = await saveToGalleryInternal(name, null, 'layout_preview');
             if (res && res.status === 'success') generatedImages.push(res.filename);
         }
     } catch (e) { console.error(e); }
     finally {
         isBatchRunning = false;
+        await new Promise(resolve => {
+            canvas.loadFromJSON(restoreStateAfterPreviews, () => {
+                mainBg = canvas.getObjects().find(o => o.dataTag === 'background') || null;
+                canvas.renderAll();
+                updateVerticalLayout().then(resolve);
+            });
+        });
         btn.innerText = originalText;
         btn.disabled = false;
         setUIInteraction(true);
@@ -4986,6 +5014,13 @@ async function saveLayout() {
     loadLayoutsList();
     await loadGallery(); // Refresh gallery data so lightbox works
     showPreviewPopup(name, generatedImages);
+}
+
+function withTimeout(promise, timeoutMs, message) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error(message || 'Operation timed out')), timeoutMs))
+    ]);
 }
 
 function showPreviewPopup(layoutName, images) {
