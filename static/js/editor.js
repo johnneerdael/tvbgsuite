@@ -1000,11 +1000,38 @@ function buildGenresRatingGroup(options) {
         };
 
         if (rating) {
-            fabric.Image.fromURL(`/static/provider_logos/${providerLogo}`, img => finish(img), { crossOrigin: 'anonymous' });
+            loadProviderLogo(`/static/provider_logos/${providerLogo}`).then(img => finish(img));
         } else {
             finish();
         }
     });
+}
+
+function loadProviderLogo(url) {
+    return new Promise(resolve => {
+        let settled = false;
+        const finish = img => {
+            if (settled) return;
+            settled = true;
+            resolve(img || null);
+        };
+        fabric.Image.fromURL(url, img => finish(img), { crossOrigin: 'anonymous' });
+        setTimeout(() => finish(null), 1500);
+    });
+}
+
+function clampToCanvasX(left, objectWidth = 240) {
+    if (!canvas) return left;
+    const margin = 20;
+    const width = Math.max(1, objectWidth || 240);
+    return Math.max(margin, Math.min(left, canvas.width - width - margin));
+}
+
+function clampToCanvasY(top, objectHeight = 60) {
+    if (!canvas) return top;
+    const margin = 20;
+    const height = Math.max(1, objectHeight || 60);
+    return Math.max(margin, Math.min(top, canvas.height - height - margin));
 }
 
 function extractMetadata(item) {
@@ -2005,8 +2032,8 @@ function addMetadataTag(type, placeholder) {
     }
 
     const props = {
-        left: targetLeft,
-        top: targetTop,
+        left: clampToCanvasX(targetLeft),
+        top: clampToCanvasY(targetTop),
         fontFamily: 'Roboto',
         fontSize: type === 'title' ? titleSize : baseSize,
         fill: 'white',
@@ -2016,6 +2043,11 @@ function addMetadataTag(type, placeholder) {
 
     // Helper to add object and trigger layout update
     const finalize = (obj) => {
+        obj.set({
+            left: clampToCanvasX(obj.left || 0, obj.getScaledWidth ? obj.getScaledWidth() : 240),
+            top: clampToCanvasY(obj.top || 0, obj.getScaledHeight ? obj.getScaledHeight() : 60),
+            visible: true
+        });
         canvas.add(obj);
         canvas.setActiveObject(obj);
         obj.setCoords();
@@ -2057,15 +2089,21 @@ function addMetadataTag(type, placeholder) {
     if (type === 'rating') {
         const providerLogo = (lastFetchedData && lastFetchedData.rating_logo) ? lastFetchedData.rating_logo : 'imdb_logo_2016.svg';
         const logoUrl = `/static/provider_logos/${providerLogo}`;
-        fabric.Image.fromURL(logoUrl, function (img) {
-            if (!img) return;
-            img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_logo_img' });
+        loadProviderLogo(logoUrl).then(function (img) {
+            const children = [];
+            let cursor = 0;
+            if (img) {
+                img.scaleToHeight(props.fontSize).set({ dataTag: 'rating_logo_img', left: 0, top: 0 });
+                children.push(img);
+                cursor = img.getScaledWidth() + 10;
+            }
             const textVal = placeholder.replace('IMDb: ', '');
-            const text = new fabric.IText(textVal, { ...props, left: img.getScaledWidth() + 10, top: 0, editable: false });
-            text.set('top', (img.getScaledHeight() - text.getScaledHeight()) / 2);
-            const group = new fabric.Group([img, text], { left: props.left, top: props.top, dataTag: type });
+            const text = new fabric.IText(textVal, { ...props, left: cursor, top: 0, editable: false });
+            if (img) text.set('top', (img.getScaledHeight() - text.getScaledHeight()) / 2);
+            children.push(text);
+            const group = new fabric.Group(children, { left: props.left, top: props.top, dataTag: type });
             finalize(group);
-        }, { crossOrigin: 'anonymous' });
+        });
         return;
     }
 
