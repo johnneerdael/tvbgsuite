@@ -1000,28 +1000,9 @@ async function fetchMediaData(itemId = null) {
         const url = itemId ? `/api/media/item/${itemId}` : '/api/media/random';
         const response = await fetch(url);
         const data = await response.json();
-
-        // --- OMDb Integration ---
-        if (data.imdb_id) {
-            try {
-                // Determine if we have a key in settings before trying
-                // We can't easily check settings inputs here if not on settings tab, 
-                // but fetchOmdbData handles checking the DOM input.
-                // Issue: If user is on "Batch" tab, the Settings input might be empty if it wasn't populated?
-                // The input values are in the DOM even if hidden.
-                // But better to rely on config.omdb.api_key if DOM is empty? 
-                // fetchOmdbData uses DOM element 'set-omdb-key'.
-
-                const omdb = await fetchOmdbData(data.imdb_id);
-                if (omdb) {
-                    const omdbTags = mapOmdbToTags(omdb);
-                    for (const [key, val] of Object.entries(omdbTags)) {
-                        data['omdb_' + key] = val;
-                    }
-                }
-            } catch (e) { console.warn("OMDb fetch failed:", e); }
+        if (!response.ok || data.error) {
+            throw new Error(data.error || `Media request failed (${response.status})`);
         }
-        // ------------------------
 
         lastFetchedData = data;
 
@@ -5808,13 +5789,19 @@ function updateCronFrequencyOptions() {
 }
 
 function toggleCronInputs() {
-    const mode = document.getElementById('cronSourceMode').value;
-    const filter = document.getElementById('cronFilterMode').value;
-
-    document.getElementById('cronFilterSettings').style.display = (mode === 'library') ? 'block' : 'none';
-    document.getElementById('cronRandomSettings').style.display = (mode === 'random') ? 'block' : 'none';
-
+    const modeEl = document.getElementById('cronSourceMode');
+    const filterEl = document.getElementById('cronFilterMode');
+    const filterSettings = document.getElementById('cronFilterSettings');
+    const randomSettings = document.getElementById('cronRandomSettings');
     const valInput = document.getElementById('cronFilterValue');
+    if (!modeEl || !filterEl || !filterSettings || !randomSettings || !valInput) return;
+
+    const mode = modeEl.value;
+    const filter = filterEl.value;
+
+    filterSettings.style.display = (mode === 'library') ? 'block' : 'none';
+    randomSettings.style.display = (mode === 'random') ? 'block' : 'none';
+
     if (mode === 'library' && ['year', 'genre', 'rating'].includes(filter)) {
         valInput.style.display = 'block';
         if (filter === 'year') valInput.placeholder = "Year (e.g. 2023)";

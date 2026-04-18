@@ -693,8 +693,12 @@ def get_random_media():
     config = load_config()
     items = fetch_tmdb_list(config, limit_count=20) + fetch_trakt_list(config)
     if items:
-        item = random.choice(items)
-        return get_media_item(item["Id"])
+        random.shuffle(items)
+        for item in items:
+            response = get_media_item(item["Id"])
+            status_code = response[1] if isinstance(response, tuple) else response.status_code
+            if status_code < 400:
+                return response
 
     # Fallback Data
     mock_samples = [

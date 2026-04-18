@@ -105,3 +105,16 @@ def test_trakt_oauth_poll_uses_posted_device_code(monkeypatch):
     assert response.status_code == 200
     assert response.json["status"] == "approved"
     assert saved["trakt"]["device_code"] == "fresh-device"
+
+
+def test_random_media_falls_back_when_list_items_cannot_be_loaded(monkeypatch):
+    monkeypatch.setattr(gui_editor, "load_config", lambda: {})
+    monkeypatch.setattr(gui_editor, "fetch_tmdb_list", lambda config, limit_count: [{"Id": "tmdb-movie-1", "Name": "Broken"}])
+    monkeypatch.setattr(gui_editor, "fetch_trakt_list", lambda config: [])
+    monkeypatch.setattr(gui_editor, "fetch_tmdb_details", lambda tmdb_id, media_type, config: {})
+
+    response = app_client().get("/api/media/random")
+
+    assert response.status_code == 200
+    assert response.json["source"] == "Demo Mode"
+    assert response.json["title"] in {"Interstellar", "The Dark Knight"}

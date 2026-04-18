@@ -2860,12 +2860,14 @@
                 }
 
                 const fontSize = targetObj.fontSize || 40;
-                const fill = targetObj.fill || '#ffffff';
+                const fill = toColorInputHex(targetObj.fill, '#ffffff');
                 const font = targetObj.fontFamily || 'Arial';
                 const shadow = targetObj.shadow || { color: '#000000', blur: 0 };
-                const stroke = targetObj.stroke || '#000000';
+                const stroke = toColorInputHex(targetObj.stroke, '#000000');
                 const strokeWidth = targetObj.strokeWidth || 0;
                 const bg = targetObj.backgroundColor || '';
+                const bgHex = bg ? toColorInputHex(bg, '#000000') : '';
+                const shadowHex = toColorInputHex(shadow.color, '#000000');
                 const isTexture = (targetObj.fill && typeof targetObj.fill === 'object' && targetObj.fill.source);
                 const isTitle = obj.dataTag === 'title';
 
@@ -2876,8 +2878,8 @@
                 document.getElementById('ribbonStrokeColor').value = stroke;
                 document.getElementById('ribbonStrokeWidth').value = strokeWidth;
                 document.getElementById('ribbonBgEnable').checked = !!bg;
-                document.getElementById('ribbonBgColor').value = bg || '#000000';
-                document.getElementById('ribbonShadowColor').value = shadow.color || '#000000';
+                document.getElementById('ribbonBgColor').value = bgHex || '#000000';
+                document.getElementById('ribbonShadowColor').value = shadowHex;
                 document.getElementById('ribbonShadowBlur').value = shadow.blur || 0;
 
                 const textSwitchGroup = document.getElementById('ribbonTextSwitchGroup');
@@ -2894,8 +2896,8 @@
                 document.getElementById('floatStrokeColor').value = stroke;
                 document.getElementById('floatStrokeWidth').value = strokeWidth;
                 document.getElementById('floatBgEnable').checked = !!bg;
-                document.getElementById('floatBgColor').value = bg || '#000000';
-                document.getElementById('floatShadowColor').value = shadow.color || '#000000';
+                document.getElementById('floatBgColor').value = bgHex || '#000000';
+                document.getElementById('floatShadowColor').value = shadowHex;
                 document.getElementById('floatShadowBlur').value = shadow.blur || 0;
                 document.getElementById('floatShadowX').value = shadow.offsetX || 0;
                 document.getElementById('floatShadowY').value = shadow.offsetY || 0;
@@ -2987,6 +2989,15 @@
                     const fBtn = document.getElementById('floatTagAlign' + align);
                     if (fBtn) fBtn.style.backgroundColor = color;
                 });
+            }
+        }
+
+        function toColorInputHex(value, fallback) {
+            if (!value || typeof value === 'object') return fallback;
+            try {
+                return '#' + new fabric.Color(value).toHex();
+            } catch (e) {
+                return fallback;
             }
         }
 
