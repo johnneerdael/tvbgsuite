@@ -11,7 +11,8 @@ class FakeResponse:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise RuntimeError(self.status_code)
+            import requests
+            raise requests.HTTPError(str(self.status_code), response=self)
 
 
 def test_custom_imdb_rating_replaces_tmdb_rating(monkeypatch):
@@ -66,6 +67,23 @@ def test_custom_imdb_rating_works_for_movie_and_show_tconsts(monkeypatch):
     assert calls[1][0] == "https://api.nexioapp.org/v1/ratings/tt0944947"
     assert calls[0][1]["X-API-Key"] == "prefix.secret"
     assert calls[1][1]["X-API-Key"] == "prefix.secret"
+
+
+def test_custom_imdb_missing_rating_keeps_existing_rating(monkeypatch):
+    def fake_get(url, headers=None, timeout=None):
+        return FakeResponse(404, {"error": {"code": "not_found"}})
+
+    monkeypatch.setattr("providers.ratings.requests.get", fake_get)
+
+    config = {
+        "ratings": {"default_provider": "imdb_api"},
+        "imdb_ratings": {"enabled": True, "base_url": "https://api.nexioapp.org/v1", "api_key": "prefix.secret"},
+    }
+
+    enriched = apply_configured_rating({"imdb_id": "tt21357150", "rating": 6.4, "media_type": "movie"}, config)
+
+    assert enriched["rating"] == 6.4
+    assert enriched["rating_provider"] == "imdb_api"
 
 
 def test_mdblist_tomatoes_rating_uses_mdblist_contract(monkeypatch):

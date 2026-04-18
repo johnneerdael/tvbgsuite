@@ -305,7 +305,11 @@ async function startBatchProcess() {
 
         // 1. Load data and update canvas text
         // (fetchMediaData comes from editor.js and handles the data fetching)
-        await fetchMediaData(item ? item.id : null);
+        const loaded = await fetchMediaData(item ? item.id : null).catch(error => {
+            logBatch(`Skipping ${label}: ${error.message}`);
+            return false;
+        });
+        if (!loaded) continue;
 
         // --- FIX: Correct Layout (Fixes overflow issues) ---
         // Since the text content has changed, widths have changed.

@@ -1157,7 +1157,8 @@ async function fetchMediaData(itemId = null) {
     try {
         const url = itemId ? `/api/media/item/${itemId}` : '/api/media/random';
         const response = await fetch(url);
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        const data = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
         if (!response.ok || data.error) {
             throw new Error(data.error || `Media request failed (${response.status})`);
         }
@@ -1225,7 +1226,13 @@ async function fetchMediaData(itemId = null) {
         if (btnSaveGallery) btnSaveGallery.disabled = false;
 
         if (!isBatchRunning) indicator.innerText = "Source: " + data.source;
-    } catch (err) { console.error(err); indicator.innerText = "Error loading preview"; }
+        return true;
+    } catch (err) {
+        console.error(err);
+        indicator.innerText = "Error loading preview";
+        if (isBatchRunning) throw err;
+        return false;
+    }
     finally {
         btn.disabled = false;
         btn.innerText = originalText;

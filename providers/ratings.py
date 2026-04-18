@@ -39,7 +39,13 @@ def apply_configured_rating(metadata, config):
     if provider.startswith("mdblist_"):
         rating = fetch_mdblist_rating(imdb_id, provider, enriched, config)
     elif provider == "imdb_api":
-        rating = fetch_custom_imdb_rating(imdb_id, config)
+        try:
+            rating = fetch_custom_imdb_rating(imdb_id, config)
+        except requests.HTTPError as error:
+            if error.response is not None and error.response.status_code == 404:
+                enriched["rating_missing"] = True
+                return enriched
+            raise
 
     if rating is not None:
         enriched["rating"] = rating
@@ -86,6 +92,8 @@ def fetch_custom_imdb_rating(imdb_id, config):
         headers={"X-API-Key": api_key},
         timeout=10,
     )
+    if response.status_code == 404:
+        return None
     response.raise_for_status()
     return response.json().get("averageRating")
 
