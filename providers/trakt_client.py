@@ -12,6 +12,8 @@ TRAKT_CATALOG_ENDPOINTS = {
     "trakt_trending_shows": ("shows/trending", "show"),
     "trakt_popular_movies": ("movies/popular", "movie"),
     "trakt_popular_shows": ("shows/popular", "show"),
+    "trakt_anticipated_movies": ("movies/anticipated", "movie"),
+    "trakt_anticipated_shows": ("shows/anticipated", "show"),
     "trakt_recommended_movies": ("recommendations/movies", "movie"),
     "trakt_recommended_shows": ("recommendations/shows", "show"),
 }
@@ -21,6 +23,8 @@ TRAKT_BUILT_IN_CATALOG_OPTIONS = [
     {"id": "trakt_trending_shows", "title": "Trending Shows"},
     {"id": "trakt_popular_movies", "title": "Popular Movies"},
     {"id": "trakt_popular_shows", "title": "Popular Shows"},
+    {"id": "trakt_anticipated_movies", "title": "Anticipated Movies"},
+    {"id": "trakt_anticipated_shows", "title": "Anticipated Shows"},
     {"id": "trakt_recommended_movies", "title": "Recommended Movies"},
     {"id": "trakt_recommended_shows", "title": "Recommended Shows"},
     {"id": "trakt_calendar_next_7_days", "title": "Calendar: Next 7 Days"},

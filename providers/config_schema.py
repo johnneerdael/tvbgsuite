@@ -8,6 +8,8 @@ TRAKT_BUILT_IN_CATALOGS = [
     "trakt_trending_shows",
     "trakt_popular_movies",
     "trakt_popular_shows",
+    "trakt_anticipated_movies",
+    "trakt_anticipated_shows",
     "trakt_recommended_movies",
     "trakt_recommended_shows",
     "trakt_calendar_next_7_days",

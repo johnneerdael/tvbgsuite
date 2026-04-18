@@ -85,6 +85,26 @@ def test_catalog_item_ids_are_normalized_for_tmdb_enrichment():
     assert items == [{"Id": "trakt-movie-438631", "Name": "Dune", "catalog": "trakt_trending_movies"}]
 
 
+def test_anticipated_movie_and_show_catalogs_are_supported():
+    class CatalogSession(FakeSession):
+        def get(self, url, headers=None, params=None, timeout=None):
+            if url.endswith("/movies/anticipated"):
+                return FakeResponse(200, [{"list_count": 5362, "movie": {"title": "The Martian", "year": 2015, "ids": {"tmdb": 286217, "imdb": "tt3659388"}}}])
+            if url.endswith("/shows/anticipated"):
+                return FakeResponse(200, [{"list_count": 5383, "show": {"title": "Supergirl", "year": 2015, "ids": {"tmdb": 62688, "tvdb": 295759, "imdb": "tt4016454"}}}])
+            return super().get(url, headers=headers, params=params, timeout=timeout)
+
+    config = {"client_id": "client", "access_token": "access", "expires_at": 999999999}
+    client = TraktClient(config, session=CatalogSession(), now=lambda: 1000)
+
+    items = client.fetch_catalog_items(["trakt_anticipated_movies", "trakt_anticipated_shows"], limit=20)
+
+    assert items == [
+        {"Id": "trakt-movie-286217", "Name": "The Martian", "catalog": "trakt_anticipated_movies"},
+        {"Id": "trakt-tv-62688", "Name": "Supergirl", "catalog": "trakt_anticipated_shows"},
+    ]
+
+
 def test_start_device_auth_reports_forbidden_body():
     class ForbiddenSession(FakeSession):
         def post(self, url, json=None, headers=None, timeout=None):
