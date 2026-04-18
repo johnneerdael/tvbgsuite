@@ -154,6 +154,46 @@ function getOmdbRating(omdbData, source) {
     return r.Value;
 }
 
+function trimTransparentFabricImage(img) {
+    if (!img) return img;
+    try {
+        const source = img.getElement ? img.getElement() : img._element;
+        const width = source.naturalWidth || source.width || img.width;
+        const height = source.naturalHeight || source.height || img.height;
+        if (!width || !height) return img;
+
+        const scanCanvas = canvasModule.createCanvas(width, height);
+        const scanCtx = scanCanvas.getContext('2d');
+        scanCtx.drawImage(source, 0, 0, width, height);
+        const pixels = scanCtx.getImageData(0, 0, width, height).data;
+
+        let minX = width, minY = height, maxX = -1, maxY = -1;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const alpha = pixels[(y * width + x) * 4 + 3];
+                if (alpha > 8) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < minX || maxY < minY) return img;
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
+        if (cropW >= width * 0.98 && cropH >= height * 0.98) return img;
+
+        const cropCanvas = canvasModule.createCanvas(cropW, cropH);
+        cropCanvas.getContext('2d').drawImage(scanCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+        return new fabric.Image(cropCanvas);
+    } catch (error) {
+        console.warn('Logo trim skipped:', error.message);
+        return img;
+    }
+}
+
 function hexToRgba(hex, a) {
     let r = 0, g = 0, b = 0;
     if (!hex) return `rgba(0,0,0,${a === 0 ? 0.005 : a})`;
@@ -1866,6 +1906,7 @@ function getCertificationFilename(rating) {
                 await new Promise(resolve => {
                     fabric.Image.fromURL(loadUrl, (img) => {
                         if (img) {
+                            img = trimTransparentFabricImage(img);
                             // --- CONTAIN LOGIC (Matches editor.js) ---
                             // Scale to fit within the slot dimensions while maintaining aspect ratio
                             const slotW = oldState.width;
@@ -1892,12 +1933,14 @@ function getCertificationFilename(rating) {
                             if (align === 'right') newLeft = (oldState.left + oldState.width) - newW;
                             else if (align === 'center') newLeft = (oldState.left + (oldState.width / 2)) - (newW / 2);
 
+                            const newTop = oldState.top + (slotH - img.getScaledHeight()) / 2;
+
                             img.set({
-                                left: newLeft, top: oldState.top, originX: oldState.originX, originY: oldState.originY,
+                                left: newLeft, top: newTop, originX: oldState.originX, originY: oldState.originY,
                                 dataTag: 'title',
                                 logoAutoFix: titleObj.logoAutoFix, // Propagate
-                                slotWidth: newW, // Update slot dimensions to new size
-                                slotHeight: img.getScaledHeight()
+                                slotWidth: slotW,
+                                slotHeight: slotH
                             });
                             canvas.add(img);
                             canvas.bringToFront(img);

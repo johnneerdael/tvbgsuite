@@ -1033,6 +1033,54 @@ function loadFabricImage(url, options = {}, timeoutMs = 8000) {
     });
 }
 
+function trimTransparentFabricImage(img) {
+    if (!img) return img;
+    try {
+        const source = img.getElement();
+        const width = source.naturalWidth || source.width || img.width;
+        const height = source.naturalHeight || source.height || img.height;
+        if (!width || !height) return img;
+
+        const scanCanvas = document.createElement('canvas');
+        scanCanvas.width = width;
+        scanCanvas.height = height;
+        const scanCtx = scanCanvas.getContext('2d');
+        scanCtx.drawImage(source, 0, 0, width, height);
+        const pixels = scanCtx.getImageData(0, 0, width, height).data;
+
+        let minX = width, minY = height, maxX = -1, maxY = -1;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const alpha = pixels[(y * width + x) * 4 + 3];
+                if (alpha > 8) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < minX || maxY < minY) return img;
+        const cropW = maxX - minX + 1;
+        const cropH = maxY - minY + 1;
+        if (cropW >= width * 0.98 && cropH >= height * 0.98) return img;
+
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = cropW;
+        cropCanvas.height = cropH;
+        cropCanvas.getContext('2d').drawImage(scanCanvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+        const trimmed = new fabric.Image(cropCanvas, {
+            crossOrigin: 'anonymous'
+        });
+        trimmed.logoAutoFix = img.logoAutoFix;
+        return trimmed;
+    } catch (error) {
+        console.warn('Logo trim skipped:', error);
+        return img;
+    }
+}
+
 function clampToCanvasX(left, objectWidth = 240) {
     if (!canvas) return left;
     const margin = 20;
@@ -1175,7 +1223,7 @@ async function fetchMediaData(itemId = null) {
             if (!autoFix) {
                 proxiedLogo += "&raw=true";
             }
-            assetPromises.push(loadFabricImage(proxiedLogo, { crossOrigin: 'anonymous' }, 8000).then(img => { newLogoImg = img; }));
+            assetPromises.push(loadFabricImage(proxiedLogo, { crossOrigin: 'anonymous' }, 8000).then(img => { newLogoImg = trimTransparentFabricImage(img); }));
         }
         await Promise.all(assetPromises);
 
@@ -1319,6 +1367,7 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                                     proxiedLogo += "&raw=true";
                                 }
                                 loadFabricImage(proxiedLogo, { crossOrigin: 'anonymous' }, 8000).then(img => {
+                                    img = trimTransparentFabricImage(img);
                                     if (!img) { canvas.remove(obj); r(); return; }
 
                                     // --- STRICT FIXED HEIGHT LOGIC ---
