@@ -100,3 +100,17 @@ def test_start_device_auth_reports_forbidden_body():
         assert "invalid_api_key" in str(error)
     else:
         raise AssertionError("expected forbidden error")
+
+
+def test_poll_device_auth_reports_invalid_device_code():
+    class NotFoundSession(FakeSession):
+        def post(self, url, json=None, headers=None, timeout=None):
+            return FakeResponse(404, {"error": "not_found"})
+
+    config = {"client_id": "client", "client_secret": "secret", "device_code": "bad-device"}
+    client = TraktClient(config, session=NotFoundSession(), now=lambda: 1000)
+
+    result = client.poll_device_auth()
+
+    assert result["status"] == "failed"
+    assert "Start OAuth again" in result["message"]

@@ -2223,7 +2223,9 @@
             });
             const data = await res.json();
             if (data.user_code) {
-                status.innerText = `Visit ${data.verification_url} and enter ${data.user_code}`;
+                if (data.device_code) sessionStorage.setItem('trakt_device_code', data.device_code);
+                const activateUrl = `${data.verification_url}/${data.user_code}`;
+                status.innerHTML = `Visit <a href="${activateUrl}" target="_blank" style="color:#4CAF50;">${activateUrl}</a>`;
             } else {
                 status.innerText = data.message || 'Unable to start OAuth';
             }
@@ -2236,11 +2238,15 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     client_id: document.getElementById('set-trakt-key').value,
-                    client_secret: document.getElementById('set-trakt-secret').value
+                    client_secret: document.getElementById('set-trakt-secret').value,
+                    device_code: sessionStorage.getItem('trakt_device_code') || ''
                 })
             });
             const data = await res.json();
             status.innerText = data.status === 'approved' ? `Connected${data.username ? ': ' + data.username : ''}` : (data.message || data.status || 'Pending');
+            if (data.status === 'approved' || data.status === 'expired' || data.status === 'denied' || data.status === 'already_used') {
+                sessionStorage.removeItem('trakt_device_code');
+            }
         }
 
         async function logoutTraktOAuth() {

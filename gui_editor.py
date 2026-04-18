@@ -1126,6 +1126,8 @@ def trakt_oauth_start():
         trakt["api_key"] = trakt["client_id"]
     if data.get("client_secret") is not None:
         trakt["client_secret"] = str(data.get("client_secret") or "").strip()
+    if data.get("device_code") is not None:
+        trakt["device_code"] = str(data.get("device_code") or "").strip()
     client = TraktClient(trakt)
     try:
         result = client.start_device_auth()
@@ -1147,6 +1149,8 @@ def trakt_oauth_poll():
         trakt["api_key"] = trakt["client_id"]
     if data.get("client_secret") is not None:
         trakt["client_secret"] = str(data.get("client_secret") or "").strip()
+    if data.get("device_code") is not None:
+        trakt["device_code"] = str(data.get("device_code") or "").strip()
     client = TraktClient(trakt)
     try:
         result = client.poll_device_auth()

@@ -76,3 +76,32 @@ def test_provider_icons_endpoint_includes_bundled_rating_logos():
     assert "imdb_logo_2016.svg" in filenames
     assert "mdblist_tomatoes.svg" in filenames
     assert "mdblist_audience.png" in filenames
+
+
+def test_trakt_oauth_poll_uses_posted_device_code(monkeypatch):
+    saved = {}
+
+    config = {"trakt": {"client_id": "old-client", "client_secret": "old-secret", "device_code": ""}}
+    monkeypatch.setattr(gui_editor, "load_config", lambda: config)
+    monkeypatch.setattr(gui_editor, "save_config", lambda data: saved.update(data))
+
+    class FakeClient:
+        def __init__(self, trakt_config):
+            self.trakt_config = trakt_config
+
+        def poll_device_auth(self):
+            assert self.trakt_config["client_id"] == "fresh-client"
+            assert self.trakt_config["client_secret"] == "fresh-secret"
+            assert self.trakt_config["device_code"] == "fresh-device"
+            return {"status": "approved", "username": "john"}
+
+    monkeypatch.setattr(gui_editor, "TraktClient", FakeClient)
+
+    response = app_client().post(
+        "/api/trakt/oauth/poll",
+        json={"client_id": "fresh-client", "client_secret": "fresh-secret", "device_code": "fresh-device"},
+    )
+
+    assert response.status_code == 200
+    assert response.json["status"] == "approved"
+    assert saved["trakt"]["device_code"] == "fresh-device"

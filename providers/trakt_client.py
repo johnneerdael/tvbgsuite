@@ -90,6 +90,8 @@ class TraktClient:
         )
         if response.status_code == 400:
             return {"status": "pending"}
+        if response.status_code == 404:
+            return {"status": "failed", "message": "Trakt device code was not found. Start OAuth again and approve the newest code."}
         if response.status_code == 409:
             return {"status": "already_used"}
         if response.status_code == 410:
