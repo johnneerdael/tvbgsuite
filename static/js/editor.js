@@ -2018,7 +2018,14 @@ function addMetadataTag(type, placeholder) {
     const finalize = (obj) => {
         canvas.add(obj);
         canvas.setActiveObject(obj);
-        updateVerticalLayout();
+        obj.setCoords();
+        if (typeof updateAlternativeUIs === 'function') updateAlternativeUIs();
+        updateVerticalLayout().then(() => {
+            canvas.setActiveObject(obj);
+            obj.setCoords();
+            canvas.requestRenderAll();
+            if (typeof updateAlternativeUIs === 'function') updateAlternativeUIs();
+        });
         saveToLocalStorage();
     };
 
