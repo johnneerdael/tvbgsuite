@@ -666,6 +666,17 @@ function updateTagPadding() {
     saveToLocalStorage();
 }
 
+function updateOverviewWidth(rawWidth) {
+    const activeObj = canvas ? canvas.getActiveObject() : null;
+    if (!activeObj || activeObj.dataTag !== 'overview' || activeObj.type !== 'textbox') return;
+    const width = Math.max(120, Math.min(parseInt(rawWidth) || activeObj.width || 600, canvas.width));
+    activeObj.set({ width: width, fixedHeight: activeObj.fixedHeight || activeObj.height || 300 });
+    activeObj.setCoords();
+    fitTextToContainer(activeObj);
+    updateVerticalLayout();
+    saveToLocalStorage();
+}
+
 function updateLineSpacing() {
     const val = document.getElementById('lineSpacingInput').value;
     document.getElementById('lineSpacingVal').innerText = val + "px";
@@ -887,6 +898,113 @@ function shrinkTextboxToContent(textbox, maxWidth) {
         textbox.set('width', Math.min(maxLineW + 10, maxWidth));
         textbox.setCoords();
     }
+}
+
+function formatRatingProviderLabel(provider) {
+    if (provider === 'tmdb') return 'TMDB';
+    if (provider === 'imdb_api') return 'IMDb';
+    if (!provider) return 'IMDb';
+    return provider.replace('mdblist_', '').toUpperCase();
+}
+
+function getLimitedGenres(mediaData) {
+    let genres = mediaData.genres || "";
+    const limitEl = document.getElementById('genreLimitSlider');
+    const gLimit = limitEl ? parseInt(limitEl.value) : 6;
+    if (gLimit < 6) {
+        genres = genres.split(',').slice(0, gLimit).join(',');
+    }
+    return genres.trim();
+}
+
+function getRatingValue(mediaData) {
+    let rating = mediaData.rating || mediaData.CommunityRating;
+    if (rating && rating !== 'N/A' && !isNaN(parseFloat(rating))) return parseFloat(rating).toFixed(1);
+    return null;
+}
+
+function buildGenresRatingGroup(options) {
+    const genres = String(options.genres || '').trim();
+    const rating = options.rating;
+    const providerLogo = options.ratingLogo || 'imdb_logo_2016.svg';
+    const providerLabel = options.ratingLabel || 'IMDb';
+    const props = options.props || {};
+    const left = options.left || 0;
+    const top = options.top || 0;
+
+    return new Promise(resolve => {
+        if (!genres && !rating) { resolve(null); return; }
+
+        const children = [];
+        let cursor = 0;
+
+        if (genres) {
+            const genreText = new fabric.IText(genres, {
+                ...props,
+                left: cursor,
+                top: 0,
+                editable: false,
+                dataTag: 'genres_rating_genres'
+            });
+            children.push(genreText);
+            cursor += genreText.getScaledWidth() + (rating ? 14 : 0);
+        }
+
+        const finish = (logoImg = null) => {
+            if (rating) {
+                if (logoImg) {
+                    logoImg.scaleToHeight((props.fontSize || 35) * 0.75);
+                    logoImg.set({
+                        left: cursor,
+                        top: ((props.fontSize || 35) - logoImg.getScaledHeight()) / 2,
+                        dataTag: 'genres_rating_logo'
+                    });
+                    children.push(logoImg);
+                    cursor += logoImg.getScaledWidth() + 8;
+                } else {
+                    const labelText = new fabric.IText(providerLabel, {
+                        ...props,
+                        left: cursor,
+                        top: 0,
+                        fontSize: Math.max(10, (props.fontSize || 35) * 0.55),
+                        editable: false,
+                        dataTag: 'genres_rating_label'
+                    });
+                    children.push(labelText);
+                    cursor += labelText.getScaledWidth() + 8;
+                }
+
+                const ratingText = new fabric.IText(String(rating), {
+                    ...props,
+                    left: cursor,
+                    top: 0,
+                    editable: false,
+                    dataTag: 'genres_rating_value'
+                });
+                children.push(ratingText);
+            }
+
+            const group = new fabric.Group(children, {
+                left,
+                top,
+                dataTag: 'genres_rating',
+                selectable: true,
+                evented: true,
+                fontFamily: props.fontFamily,
+                fontSize: props.fontSize,
+                fill: props.fill,
+                shadow: props.shadow,
+                snapToObjects: props.snapToObjects
+            });
+            resolve(group);
+        };
+
+        if (rating) {
+            fabric.Image.fromURL(`/static/provider_logos/${providerLogo}`, img => finish(img), { crossOrigin: 'anonymous' });
+        } else {
+            finish();
+        }
+    });
 }
 
 function extractMetadata(item) {
@@ -1270,6 +1388,43 @@ function previewTemplate(mediaData, skipRender = false, preloadedLogo = null) {
                             val = undefined;
                             obj.set('visible', !!rs);
                         }
+                        break;
+                    case 'genres_rating':
+                        const comboGenres = getLimitedGenres(mediaData);
+                        const comboRating = getRatingValue(mediaData);
+                        if (!comboGenres && !comboRating) {
+                            obj.set('visible', false);
+                            val = undefined;
+                            break;
+                        }
+                        const comboProps = {
+                            fontFamily: obj.fontFamily || 'Roboto',
+                            fontSize: obj.fontSize || 35,
+                            fill: obj.fill || 'white',
+                            shadow: obj.shadow || '2px 2px 10px rgba(0,0,0,0.8)',
+                            snapToObjects: obj.snapToObjects
+                        };
+                        promises.push(buildGenresRatingGroup({
+                            genres: comboGenres,
+                            rating: comboRating,
+                            ratingLabel: formatRatingProviderLabel(mediaData.rating_provider),
+                            ratingLogo: mediaData.rating_logo || 'imdb_logo_2016.svg',
+                            props: comboProps,
+                            left: obj.left,
+                            top: obj.top
+                        }).then(group => {
+                            if (!group) { obj.set('visible', false); return; }
+                            group.set({
+                                scaleX: obj.scaleX,
+                                scaleY: obj.scaleY,
+                                angle: obj.angle,
+                                opacity: obj.opacity,
+                                visible: true
+                            });
+                            canvas.remove(obj);
+                            canvas.add(group);
+                        }));
+                        val = undefined;
                         break;
                     case 'overview':
                         let ov = mediaData.overview || mediaData.Overview || "";
@@ -1904,6 +2059,25 @@ function addMetadataTag(type, placeholder) {
             const group = new fabric.Group([img, text], { left: props.left, top: props.top, dataTag: type });
             finalize(group);
         }, { crossOrigin: 'anonymous' });
+        return;
+    }
+
+    if (type === 'genres_rating') {
+        const mediaData = lastFetchedData || {};
+        const genres = getLimitedGenres(mediaData) || 'Science Fiction, Adventure';
+        const rating = getRatingValue(mediaData) || '8.4';
+        const ratingLabel = formatRatingProviderLabel(mediaData.rating_provider || 'imdb_api');
+        buildGenresRatingGroup({
+            genres,
+            rating,
+            ratingLabel,
+            ratingLogo: mediaData.rating_logo || 'imdb_logo_2016.svg',
+            props,
+            left: props.left,
+            top: props.top
+        }).then(group => {
+            if (group) finalize(group);
+        });
         return;
     }
 

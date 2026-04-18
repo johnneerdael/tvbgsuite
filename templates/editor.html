@@ -1068,6 +1068,7 @@
                         <button onclick="addMetadataTag('rating_val', '8.5')">Rating (Value)</button>
                         <button onclick="addMetadataTag('runtime', '2h 15m')">Runtime</button>
                         <button onclick="addMetadataTag('genres', 'Action, Sci-Fi')">Genres</button>
+                        <button onclick="addMetadataTag('genres_rating', 'Science Fiction, Adventure 8.4')">Genres + Rating</button>
                         <button onclick="addMetadataTag('overview', 'Movie description...')">Overview</button>
                         <button onclick="addMetadataTag('provider_source', 'Now available on...')">Provider
                             Info</button>
@@ -1320,6 +1321,12 @@
                         <input type="range" id="maxItemsSlider" class="ribbon-input" min="1" max="20" value="5"
                             oninput="updateMaxItems()" style="width:80px;">
                         <span id="maxItemsVal" style="font-size:11px; margin-left:5px;">5</span>
+                    </div>
+
+                    <div class="ribbon-group" id="overviewWidthGroup" data-for="text" style="display:none;">
+                        <span class="ribbon-label">Overview Width</span>
+                        <input type="number" id="overviewWidthInput" class="ribbon-input" min="120" max="2400"
+                            step="10" style="width:90px;" oninput="updateOverviewWidth(this.value)">
                     </div>
 
                     <div class="ribbon-group" data-for="text" id="ribbonTextSwitchGroup" style="display:none;">
@@ -2642,6 +2649,14 @@
                             <span id="prop-max-items-val" style="font-size:10px; width:20px; text-align:right;">5</span>
                         </div>
                     </div>
+
+                    <div class="panel-group" id="floatOverviewWidthGroup" style="display:none;">
+                         <div class="panel-row">
+                            <label>Overview Width</label>
+                            <input type="number" id="floatOverviewWidthInput" min="120" max="2400" step="10"
+                                style="width:90px;" oninput="syncInput('overviewWidthInput', this.value); updateOverviewWidth(this.value)">
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- GENRE SECTION -->
@@ -2829,7 +2844,7 @@
                 return;
             }
 
-            const isGroup = obj.type === 'group' && (obj.dataTag === 'rating' || obj.dataTag === 'rating_star' || obj.dataTag === 'provider_source' || obj.dataTag === 'omdb_rotten_tomatoes' || obj.dataTag === 'omdb_metacritic');
+            const isGroup = obj.type === 'group' && (obj.dataTag === 'rating' || obj.dataTag === 'rating_star' || obj.dataTag === 'genres_rating' || obj.dataTag === 'provider_source' || obj.dataTag === 'omdb_rotten_tomatoes' || obj.dataTag === 'omdb_metacritic');
             const isText = obj.type === 'i-text' || obj.type === 'textbox' || isGroup;
             const isImage = obj.type === 'image';
 
@@ -2847,10 +2862,15 @@
             };
 
             const isGenres = obj.dataTag === 'genres';
+            const isOverview = obj.dataTag === 'overview' && obj.type === 'textbox';
             toggle('[data-for="text"]', isText);
             toggle('[data-for="image"]', isImage);
             toggle('[data-for="genres"]', isGenres);
             toggle('[data-for="common"]', true);
+            const overviewWidthGroup = document.getElementById('overviewWidthGroup');
+            if (overviewWidthGroup) overviewWidthGroup.style.display = isOverview ? 'flex' : 'none';
+            const floatOverviewWidthGroup = document.getElementById('floatOverviewWidthGroup');
+            if (floatOverviewWidthGroup) floatOverviewWidthGroup.style.display = isOverview ? 'block' : 'none';
 
             // Sync values from object to inputs
             if (isText) {
@@ -2901,6 +2921,11 @@
                 document.getElementById('floatShadowBlur').value = shadow.blur || 0;
                 document.getElementById('floatShadowX').value = shadow.offsetX || 0;
                 document.getElementById('floatShadowY').value = shadow.offsetY || 0;
+                if (isOverview) {
+                    const widthVal = Math.round(targetObj.width || 600);
+                    document.getElementById('overviewWidthInput').value = widthVal;
+                    document.getElementById('floatOverviewWidthInput').value = widthVal;
+                }
 
                 // Sync Fill Type & Texture Controls (Ribbon & Floating)
                 const fillType = isTexture ? 'texture' : 'color';
