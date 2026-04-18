@@ -20,7 +20,7 @@ from urllib.parse import quote
 from providers.config_schema import default_config, merge_config
 from providers.metadata_router import choose_tv_metadata, merge_metadata
 from providers.ratings import apply_configured_rating
-from providers.trakt_client import TRAKT_BUILT_IN_CATALOG_OPTIONS, TraktClient
+from providers.trakt_client import TRAKT_BUILT_IN_CATALOG_OPTIONS, TraktAPIError, TraktClient
 from providers.tvdb_client import TVDBClient
 
 # Prevent Python from generating .pyc files and __pycache__ folders
@@ -1070,33 +1070,72 @@ def test_mdblist():
 def test_imdb_ratings():
     data = request.json or {}
     base_url = str(data.get("base_url", "")).rstrip("/")
-    api_key = data.get("api_key", "")
+    api_key = normalize_api_key(data.get("api_key", ""))
     if not base_url or not api_key:
         return jsonify({"status": "error", "message": "Base URL and API Key required"}), 400
     if not base_url.endswith("/v1"):
         base_url = f"{base_url}/v1"
     try:
         r = requests.get(f"{base_url}/meta/stats", headers={"X-API-Key": api_key}, timeout=5)
+        if r.status_code == 401:
+            return jsonify({"status": "error", "message": imdb_api_error_message(r)}), 401
         r.raise_for_status()
         return jsonify({"status": "success", "message": "Connected to IMDb Ratings API"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+def normalize_api_key(raw):
+    key = str(raw or "").strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    return key
+
+def imdb_api_error_message(response):
+    try:
+        payload = response.json()
+    except Exception:
+        payload = response.text
+    if isinstance(payload, dict):
+        error = payload.get("error", {})
+        if isinstance(error, dict):
+            code = error.get("code", "invalid_api_key")
+            message = error.get("message", "api key invalid")
+            return f"{code}: {message}. Use the full portal-created prefix.secret API key from nexio-imdbratings."
+        return str(payload)
+    return f"{payload or 'invalid_api_key'}. Use the full portal-created prefix.secret API key from nexio-imdbratings."
+
 @gui_editor_bp.route('/api/trakt/oauth/start', methods=['POST'])
 def trakt_oauth_start():
     config = load_config()
-    client = TraktClient(config.get("trakt", {}))
+    data = request.json or {}
+    trakt = config.get("trakt", {})
+    if data.get("client_id") is not None:
+        trakt["client_id"] = str(data.get("client_id") or "").strip()
+        trakt["api_key"] = trakt["client_id"]
+    if data.get("client_secret") is not None:
+        trakt["client_secret"] = str(data.get("client_secret") or "").strip()
+    client = TraktClient(trakt)
     try:
         result = client.start_device_auth()
         save_config(config)
         return jsonify(result)
+    except TraktAPIError as e:
+        save_config(config)
+        return jsonify({"status": "error", "message": str(e)}), e.status_code
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @gui_editor_bp.route('/api/trakt/oauth/poll', methods=['POST'])
 def trakt_oauth_poll():
     config = load_config()
-    client = TraktClient(config.get("trakt", {}))
+    data = request.json or {}
+    trakt = config.get("trakt", {})
+    if data.get("client_id") is not None:
+        trakt["client_id"] = str(data.get("client_id") or "").strip()
+        trakt["api_key"] = trakt["client_id"]
+    if data.get("client_secret") is not None:
+        trakt["client_secret"] = str(data.get("client_secret") or "").strip()
+    client = TraktClient(trakt)
     try:
         result = client.poll_device_auth()
         save_config(config)

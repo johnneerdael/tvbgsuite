@@ -27,6 +27,12 @@ TRAKT_BUILT_IN_CATALOG_OPTIONS = [
 ]
 
 
+class TraktAPIError(RuntimeError):
+    def __init__(self, status_code, message):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class TraktClient:
     def __init__(self, config, session=None, now=None):
         self.config = config
@@ -45,12 +51,17 @@ class TraktClient:
         return headers
 
     def start_device_auth(self):
+        client_id = (self.config.get("client_id") or self.config.get("api_key") or "").strip()
+        if not client_id:
+            raise TraktAPIError(400, "Trakt Client ID is required before starting OAuth.")
         response = self.session.post(
             f"{TRAKT_API_URL}/oauth/device/code",
-            json={"client_id": self.config.get("client_id") or self.config.get("api_key")},
+            json={"client_id": client_id},
             headers=self.base_headers(),
             timeout=10,
         )
+        if response.status_code >= 400:
+            raise TraktAPIError(response.status_code, _response_error_message(response))
         response.raise_for_status()
         data = response.json()
         self.config.update({
@@ -63,12 +74,16 @@ class TraktClient:
         return data
 
     def poll_device_auth(self):
+        client_id = (self.config.get("client_id") or self.config.get("api_key") or "").strip()
+        client_secret = (self.config.get("client_secret") or "").strip()
+        if not client_id or not client_secret:
+            return {"status": "failed", "message": "Trakt Client ID and Client Secret are required."}
         response = self.session.post(
             f"{TRAKT_API_URL}/oauth/device/token",
             json={
                 "code": self.config.get("device_code"),
-                "client_id": self.config.get("client_id") or self.config.get("api_key"),
-                "client_secret": self.config.get("client_secret"),
+                "client_id": client_id,
+                "client_secret": client_secret,
             },
             headers=self.base_headers(),
             timeout=10,
@@ -85,6 +100,8 @@ class TraktClient:
             next_interval = int(self.config.get("poll_interval") or 5) + 5
             self.config["poll_interval"] = min(next_interval, 60)
             return {"status": "slow_down", "poll_interval": self.config["poll_interval"]}
+        if response.status_code >= 400:
+            return {"status": "failed", "message": _response_error_message(response)}
         response.raise_for_status()
         data = response.json()
         self.config.update({
@@ -116,12 +133,16 @@ class TraktClient:
             return True
         if not self.config.get("refresh_token"):
             return False
+        client_id = (self.config.get("client_id") or self.config.get("api_key") or "").strip()
+        client_secret = (self.config.get("client_secret") or "").strip()
+        if not client_id or not client_secret:
+            return False
         response = self.session.post(
             f"{TRAKT_API_URL}/oauth/token",
             json={
                 "refresh_token": self.config.get("refresh_token"),
-                "client_id": self.config.get("client_id") or self.config.get("api_key"),
-                "client_secret": self.config.get("client_secret"),
+                "client_id": client_id,
+                "client_secret": client_secret,
                 "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
                 "grant_type": "refresh_token",
             },
@@ -241,3 +262,18 @@ def _catalog_tmdb_id(item, media_type):
 def _catalog_item_id(media_type, tmdb_id):
     tmdb_type = "movie" if media_type == "movie" else "tv"
     return f"trakt-{tmdb_type}-{tmdb_id}"
+
+
+def _response_error_message(response):
+    try:
+        body = response.json()
+    except Exception:
+        body = response.text
+    if isinstance(body, dict):
+        error = body.get("error") or body.get("message") or body
+        description = body.get("error_description")
+        if description:
+            return f"Trakt HTTP {response.status_code}: {error} - {description}"
+        return f"Trakt HTTP {response.status_code}: {error}"
+    text = str(body).strip()
+    return f"Trakt HTTP {response.status_code}: {text or getattr(response, 'reason', '')}"

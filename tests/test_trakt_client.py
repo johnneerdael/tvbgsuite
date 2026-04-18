@@ -14,6 +14,10 @@ class FakeResponse:
         if self.status_code >= 400:
             raise RuntimeError(self.status_code)
 
+    @property
+    def text(self):
+        return str(self._payload)
+
 
 class FakeSession:
     def __init__(self):
@@ -79,3 +83,20 @@ def test_catalog_item_ids_are_normalized_for_tmdb_enrichment():
     items = client.fetch_catalog_items(["trakt_trending_movies"], limit=20)
 
     assert items == [{"Id": "trakt-movie-438631", "Name": "Dune", "catalog": "trakt_trending_movies"}]
+
+
+def test_start_device_auth_reports_forbidden_body():
+    class ForbiddenSession(FakeSession):
+        def post(self, url, json=None, headers=None, timeout=None):
+            return FakeResponse(403, {"error": "invalid_api_key"})
+
+    config = {"client_id": "bad-client", "client_secret": "secret"}
+    client = TraktClient(config, session=ForbiddenSession(), now=lambda: 1000)
+
+    try:
+        client.start_device_auth()
+    except Exception as error:
+        assert "Trakt HTTP 403" in str(error)
+        assert "invalid_api_key" in str(error)
+    else:
+        raise AssertionError("expected forbidden error")

@@ -2213,7 +2213,14 @@
 
         async function startTraktOAuth() {
             const status = document.getElementById('trakt-oauth-status');
-            const res = await fetch('/api/trakt/oauth/start', { method: 'POST' });
+            const res = await fetch('/api/trakt/oauth/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: document.getElementById('set-trakt-key').value,
+                    client_secret: document.getElementById('set-trakt-secret').value
+                })
+            });
             const data = await res.json();
             if (data.user_code) {
                 status.innerText = `Visit ${data.verification_url} and enter ${data.user_code}`;
@@ -2224,9 +2231,16 @@
 
         async function pollTraktOAuth() {
             const status = document.getElementById('trakt-oauth-status');
-            const res = await fetch('/api/trakt/oauth/poll', { method: 'POST' });
+            const res = await fetch('/api/trakt/oauth/poll', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    client_id: document.getElementById('set-trakt-key').value,
+                    client_secret: document.getElementById('set-trakt-secret').value
+                })
+            });
             const data = await res.json();
-            status.innerText = data.status === 'approved' ? `Connected${data.username ? ': ' + data.username : ''}` : (data.status || data.message || 'Pending');
+            status.innerText = data.status === 'approved' ? `Connected${data.username ? ': ' + data.username : ''}` : (data.message || data.status || 'Pending');
         }
 
         async function logoutTraktOAuth() {
