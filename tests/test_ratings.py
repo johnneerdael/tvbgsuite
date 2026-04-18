@@ -38,6 +38,36 @@ def test_custom_imdb_rating_replaces_tmdb_rating(monkeypatch):
     assert calls[0][1]["X-API-Key"] == "secret"
 
 
+def test_custom_imdb_rating_works_for_movie_and_show_tconsts(monkeypatch):
+    calls = []
+    ratings = {
+        "tt1375666": 8.8,
+        "tt0944947": 9.2,
+    }
+
+    def fake_get(url, headers=None, timeout=None):
+        tconst = url.rsplit("/", 1)[-1]
+        calls.append((url, headers))
+        return FakeResponse(200, {"tconst": tconst, "averageRating": ratings[tconst], "numVotes": 1000})
+
+    monkeypatch.setattr("providers.ratings.requests.get", fake_get)
+
+    config = {
+        "ratings": {"default_provider": "imdb_api"},
+        "imdb_ratings": {"enabled": True, "base_url": "https://api.nexioapp.org/v1", "api_key": "Bearer prefix.secret"},
+    }
+
+    movie = apply_configured_rating({"imdb_id": "tt1375666", "media_type": "movie"}, config)
+    show = apply_configured_rating({"imdb_id": "tt0944947", "media_type": "tv"}, config)
+
+    assert movie["rating"] == 8.8
+    assert show["rating"] == 9.2
+    assert calls[0][0] == "https://api.nexioapp.org/v1/ratings/tt1375666"
+    assert calls[1][0] == "https://api.nexioapp.org/v1/ratings/tt0944947"
+    assert calls[0][1]["X-API-Key"] == "prefix.secret"
+    assert calls[1][1]["X-API-Key"] == "prefix.secret"
+
+
 def test_mdblist_tomatoes_rating_uses_mdblist_contract(monkeypatch):
     calls = []
 

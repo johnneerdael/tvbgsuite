@@ -75,16 +75,26 @@ def fetch_custom_imdb_rating(imdb_id, config):
     imdb = config.get("imdb_ratings", {}) or {}
     if not imdb.get("enabled") or not imdb.get("base_url") or not imdb.get("api_key"):
         return None
+    api_key = normalize_api_key(imdb["api_key"])
+    if not api_key:
+        return None
     base_url = str(imdb["base_url"]).rstrip("/")
     if not base_url.endswith("/v1"):
         base_url = f"{base_url}/v1"
     response = requests.get(
         f"{base_url}/ratings/{imdb_id}",
-        headers={"X-API-Key": imdb["api_key"]},
+        headers={"X-API-Key": api_key},
         timeout=10,
     )
     response.raise_for_status()
     return response.json().get("averageRating")
+
+
+def normalize_api_key(raw):
+    key = str(raw or "").strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    return key
 
 
 def normalize_mdblist_media_type(metadata):
